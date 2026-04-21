@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 标准地图预览 - 模拟真实街道地图 -->
+    <!-- 底色（浅灰白） -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#F5F5F5" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    
+    <!-- 大型街区块（住宅区） -->
+    <item android:top="6dp" android:left="6dp" android:width="28dp" android:height="24dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFF" />
+            <stroke android:width="0.5dp" android:color="#E0E0E0" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <item android:top="6dp" android:left="40dp" android:width="32dp" android:height="24dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFDE7" />
+            <stroke android:width="0.5dp" android:color="#E0E0E0" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <item android:top="36dp" android:left="6dp" android:width="32dp" android:height="20dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFF" />
+            <stroke android:width="0.5dp" android:color="#E0E0E0" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <item android:top="36dp" android:left="44dp" android:width="28dp" android:height="20dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#F3E5F5" />
+            <stroke android:width="0.5dp" android:color="#E0E0E0" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <item android:top="62dp" android:left="6dp" android:width="24dp" android:height="14dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#E8F5E9" />
+            <stroke android:width="0.5dp" android:color="#E0E0E0" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <!-- 主干道（横向，黄色） -->
+    <item android:top="30dp" android:bottom="46dp" android:left="4dp" android:right="4dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFB74D" />
+        </shape>
+    </item>
+    
+    <!-- 次干道（纵向，灰色） -->
+    <item android:top="4dp" android:bottom="4dp" android:left="34dp" android:width="3dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#CFD8DC" />
+        </shape>
+    </item>
+    
+    <item android:top="4dp" android:bottom="4dp" android:left="72dp" android:width="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#CFD8DC" />
+        </shape>
+    </item>
+    
+    <!-- 公园/绿地（左下角） -->
+    <item android:top="58dp" android:left="36dp" android:width="36dp" android:height="18dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#A5D6A7" />
+            <corners android:radius="4dp" />
+        </shape>
+    </item>
+    
+    <!-- 水域（右下角小块） -->
+    <item android:top="68dp" android:left="78dp" android:width="14dp" android:height="8dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#81D4FA" />
+            <corners android:radius="3dp" />
+        </shape>
+    </item>
+    
+    <!-- 地标建筑标记点 -->
+    <item android:top="12dp" android:left="18dp" android:width="4dp" android:height="4dp">
+        <shape android:shape="oval">
+            <solid android:color="#EF5350" />
+        </shape>
+    </item>
+</layer-list>

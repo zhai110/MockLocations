@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- BottomSheet -->
+    <!-- peekHeight: 折叠时显示的高度（参考项目使用 120dp） -->
+    <dimen name="bottom_sheet_peek_height">120dp</dimen>
+    <dimen name="bottom_sheet_padding_bottom">80dp</dimen>
+    
+    <!-- FAB -->
+    <dimen name="fab_margin_bottom">150dp</dimen>
+    <dimen name="fab_translation_y">50dp</dimen>
+    <dimen name="fab_size">56dp</dimen>
+    <dimen name="fab_elevation">8dp</dimen>
+    
+    <!-- Navigation Bar -->
+    <dimen name="navigation_bar_height">56dp</dimen>
+    
+    <!-- Status Bar -->
+    <dimen name="status_bar_margin">16dp</dimen>
+    
+    <!-- Search Card -->
+    <dimen name="search_card_corner_radius">16dp</dimen>
+    <dimen name="search_card_elevation">4dp</dimen>
+    <dimen name="search_card_margin">16dp</dimen>
+    
+    <!-- Map Controls -->
+    <dimen name="map_control_button_size">48dp</dimen>
+    <dimen name="map_control_spacing">8dp</dimen>
+    <dimen name="map_control_margin_end">16dp</dimen>
+    
+    <!-- Bottom Sheet Content -->
+    <dimen name="drag_handle_width">40dp</dimen>
+    <dimen name="drag_handle_height">4dp</dimen>
+    <dimen name="drag_handle_margin_top">12dp</dimen>
+    
+    <!-- Location Info Card -->
+    <dimen name="location_card_margin">16dp</dimen>
+    <dimen name="location_card_padding">20dp</dimen>
+    <dimen name="location_card_corner_radius">16dp</dimen>
+    
+    <!-- Action Buttons -->
+    <dimen name="action_button_padding">12dp</dimen>
+    <dimen name="action_button_icon_size">24dp</dimen>
+    <dimen name="action_button_text_size">11sp</dimen>
+    <dimen name="action_button_spacing">12dp</dimen>
+    
+    <!-- Text Sizes -->
+    <dimen name="text_size_title">14sp</dimen>
+    <dimen name="text_size_subtitle">12sp</dimen>
+    <dimen name="text_size_body">13sp</dimen>
+    <dimen name="text_size_coordinate">18sp</dimen>
+    <dimen name="text_size_small">11sp</dimen>
+    
+    <!-- Icon Sizes -->
+    <dimen name="icon_size_small">16dp</dimen>
+    <dimen name="icon_size_medium">24dp</dimen>
+    <dimen name="icon_size_large">28dp</dimen>
+    
+    <!-- Spacing -->
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">8dp</dimen>
+    <dimen name="spacing_md">12dp</dimen>
+    <dimen name="spacing_lg">16dp</dimen>
+    <dimen name="spacing_xl">20dp</dimen>
+    <dimen name="spacing_xxl">24dp</dimen>
+    
+    <!-- Corner Radius -->
+    <dimen name="corner_radius_sm">8dp</dimen>
+    <dimen name="corner_radius_md">12dp</dimen>
+    <dimen name="corner_radius_lg">16dp</dimen>
+    <dimen name="corner_radius_xl">24dp</dimen>
+    
+    <!-- Elevation -->
+    <dimen name="elevation_sm">2dp</dimen>
+    <dimen name="elevation_md">4dp</dimen>
+    <dimen name="elevation_lg">8dp</dimen>
+    <dimen name="elevation_xl">16dp</dimen>
+</resources>

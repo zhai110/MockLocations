@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 定位图标 -->
+    <group
+        android:translateX="27"
+        android:translateY="27">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M27,0C17.06,0 9,8.06 9,18C9,31.5 27,54 27,54C27,54 45,31.5 45,18C45,8.06 36.94,0 27,0ZM27,24C23.69,24 21,21.31 21,18C21,14.69 23.69,12 27,12C30.31,12 33,14.69 33,18C33,21.31 30.31,24 27,24Z" />
+    </group>
+</vector>

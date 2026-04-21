@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 透明的导航栏项目背景 - 用于隐藏指示器 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 选中态 - 透明 -->
+    <item android:state_checked="true" android:drawable="@android:color/transparent" />
+    <!-- 未选中态 - 透明 -->
+    <item android:state_checked="false" android:drawable="@android:color/transparent" />
+    <!-- 默认 - 透明 -->
+    <item android:drawable="@android:color/transparent" />
+</selector>

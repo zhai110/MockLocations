@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 按钮释放恢复效果（优化版） -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fillAfter="true"
+    android:fillEnabled="true">
+    <scale
+        android:duration="80"
+        android:fromXScale="0.96"
+        android:fromYScale="0.96"
+        android:toXScale="1.0"
+        android:toYScale="1.0"
+        android:pivotX="50%"
+        android:pivotY="50%"
+        android:interpolator="@android:anim/accelerate_interpolator" />
+</set>

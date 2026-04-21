@@ -1,0 +1,194 @@
+package com.mockloc.util
+
+import android.content.Context
+import timber.log.Timber
+
+/**
+ * 地址缓存管理器
+ * 
+ * 功能：
+ * 1. 缓存经纬度到地址的映射关系
+ * 2. 减少重复的地理编码请求
+ * 3. 自动清理过期缓存
+ * 4. 限制缓存大小，防止内存泄漏
+ */
+object AddressCache {
+    
+    private const val PREFS_NAME = "address_cache"
+    private const val MAX_CACHE_SIZE = 100  // 最大缓存条目数
+    private const val CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000L  // 24小时过期
+    
+    private var cache: MutableMap<String, CacheEntry>? = null
+    private var context: Context? = null
+    
+    /**
+     * 缓存条目
+     */
+    data class CacheEntry(
+        val address: String,
+        val timestamp: Long = System.currentTimeMillis()
+    )
+    
+    /**
+     * 初始化缓存
+     */
+    fun init(appContext: Context) {
+        context = appContext.applicationContext
+        loadCacheFromPrefs()
+        Timber.d("AddressCache initialized with ${cache?.size ?: 0} entries")
+    }
+    
+    /**
+     * 从 SharedPreferences 加载缓存
+     */
+    private fun loadCacheFromPrefs() {
+        try {
+            val prefs = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val allEntries = prefs?.all
+            
+            if (allEntries.isNullOrEmpty()) {
+                cache = mutableMapOf()
+                return
+            }
+            
+            cache = mutableMapOf()
+            for ((key, value) in allEntries) {
+                if (value is String) {
+                    val parts = value.split("|", limit = 2)
+                    if (parts.size == 2) {
+                        val address = parts[0]
+                        val timestamp = parts[1].toLongOrNull() ?: 0L
+                        
+                        // 检查是否过期
+                        if (System.currentTimeMillis() - timestamp < CACHE_EXPIRY_MS) {
+                            cache!![key] = CacheEntry(address, timestamp)
+                        }
+                    }
+                }
+            }
+            
+            // 如果缓存过大，清理最旧的条目
+            if (cache!!.size > MAX_CACHE_SIZE) {
+                cleanupOldEntries()
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load address cache")
+            cache = mutableMapOf()
+        }
+    }
+    
+    /**
+     * 保存缓存到 SharedPreferences
+     */
+    private fun saveCacheToPrefs() {
+        try {
+            val prefs = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val editor = prefs?.edit()
+            
+            // 清除旧数据
+            editor?.clear()
+            
+            // 保存新数据
+            cache?.forEach { (key, entry) ->
+                editor?.putString(key, "${entry.address}|${entry.timestamp}")
+            }
+            
+            editor?.apply()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to save address cache")
+        }
+    }
+    
+    /**
+     * 获取缓存的地址
+     * 
+     * @param lat 纬度
+     * @param lng 经度
+     * @return 缓存的地址，如果不存在则返回 null
+     */
+    fun getAddress(lat: Double, lng: Double): String? {
+        val key = "${lat},${lng}"
+        val entry = cache?.get(key)
+        
+        return if (entry != null && !isExpired(entry)) {
+            Timber.d("Cache hit for: $key")
+            entry.address
+        } else {
+            // 如果存在但已过期，移除
+            if (entry != null) {
+                cache?.remove(key)
+                saveCacheToPrefs()
+            }
+            null
+        }
+    }
+    
+    /**
+     * 缓存地址
+     * 
+     * @param lat 纬度
+     * @param lng 经度
+     * @param address 地址字符串
+     */
+    fun putAddress(lat: Double, lng: Double, address: String) {
+        val key = "${lat},${lng}"
+        
+        // 如果缓存已满，清理最旧的条目
+        if (cache?.size ?: 0 >= MAX_CACHE_SIZE) {
+            cleanupOldEntries()
+        }
+        
+        cache?.put(key, CacheEntry(address))
+        saveCacheToPrefs()
+        Timber.d("Cached address for: $key")
+    }
+    
+    /**
+     * 检查缓存条目是否过期
+     */
+    private fun isExpired(entry: CacheEntry): Boolean {
+        return System.currentTimeMillis() - entry.timestamp > CACHE_EXPIRY_MS
+    }
+    
+    /**
+     * 清理过期的条目
+     */
+    private fun cleanupOldEntries() {
+        val currentTime = System.currentTimeMillis()
+        val expiredKeys = cache?.filterValues { 
+            currentTime - it.timestamp > CACHE_EXPIRY_MS 
+        }?.keys ?: emptySet()
+        
+        expiredKeys.forEach { cache?.remove(it) }
+        
+        // 如果仍然超过限制，删除最旧的
+        if ((cache?.size ?: 0) > MAX_CACHE_SIZE) {
+            val sortedEntries = cache?.entries?.sortedBy { it.value.timestamp }
+            val toRemove = sortedEntries?.take(sortedEntries.size - MAX_CACHE_SIZE)
+            toRemove?.forEach { cache?.remove(it.key) }
+        }
+        
+        saveCacheToPrefs()
+        Timber.d("Cleaned up cache, remaining: ${cache?.size}")
+    }
+    
+    /**
+     * 清空所有缓存
+     */
+    fun clear() {
+        cache?.clear()
+        saveCacheToPrefs()
+        Timber.d("Address cache cleared")
+    }
+    
+    /**
+     * 获取缓存统计信息
+     */
+    fun getStats(): Map<String, Any> {
+        return mapOf(
+            "size" to (cache?.size ?: 0),
+            "maxSize" to MAX_CACHE_SIZE,
+            "expiryHours" to CACHE_EXPIRY_MS / (60 * 60 * 1000)
+        )
+    }
+}

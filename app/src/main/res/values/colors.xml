@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 主色调 - 蓝绿色系（Teal） -->
+    <color name="primary">#26A69A</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#E0F2F1</color>
+    <color name="on_primary_container">#00201C</color>
+    
+    <color name="secondary">#4DB6AC</color>
+    <color name="on_secondary">#FFFFFF</color>
+    <color name="secondary_container">#E0F2F1</color>
+    <color name="on_secondary_container">#00201C</color>
+    
+    <color name="tertiary">#4DB6AC</color>
+    <color name="on_tertiary">#FFFFFF</color>
+    <color name="tertiary_container">#E0F2F1</color>
+    <color name="on_tertiary_container">#00201C</color>
+    
+    <color name="primary_dark">#00897B</color>
+    <color name="primary_light">#4DB6AC</color>
+    
+    <!-- 背景色 - MD3 完整系统 -->
+    <color name="background">#E0F2F1</color>
+    <color name="on_background">#00201C</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="on_surface">#333333</color>
+    <color name="surface_variant">#F8F9FA</color>
+    <color name="on_surface_variant">#666666</color>
+    
+    <!-- MD3 Surface Container 层级 - 用于卡片、对话框等 -->
+    <color name="surface_container_lowest">#FFFFFF</color>
+    <color name="surface_container_low">#F5F5F5</color>
+    <color name="surface_container">#EFEFEF</color>
+    <color name="surface_container_high">#E9E9E9</color>
+    <color name="surface_container_highest">#E3E3E3</color>
+    
+    <color name="inverse_surface">#333333</color>
+    <color name="inverse_on_surface">#FFFFFF</color>
+    <color name="white">#FFFFFF</color>
+    
+    <!-- 文字颜色 -->
+    <color name="text_primary">#333333</color>
+    <color name="text_secondary">#666666</color>
+    <color name="text_hint">#999999</color>
+    <color name="text_light">#CCCCCC</color>
+    
+    <!-- 轮廓和分割线 -->
+    <color name="outline">#E0E0E0</color>
+    <color name="outline_variant">#F0F0F0</color>
+    
+    <!-- 状态颜色 -->
+    <color name="error">#EF4444</color>
+    <color name="on_error">#FFFFFF</color>
+    <color name="error_container">#FFDAD6</color>
+    <color name="on_error_container">#410002</color>
+    <color name="success">#4ADE80</color>
+    <color name="warning">#FBBF24</color>
+    <color name="info">#3B82F6</color>
+    
+    <!-- 地图颜色 -->
+    <color name="map_marker">#26A69A</color>
+    <color name="map_route">#4DB6AC</color>
+    
+    <!-- 悬浮窗颜色 -->
+    <color name="floating_bg">#FFFFFF</color>
+    <color name="floating_shadow">#1A000000</color>
+    
+    <!-- 摇杆颜色 -->
+    <color name="joystick_base">#E0E5EC</color>
+    <color name="joystick_stick_start">#26A69A</color>
+    <color name="joystick_stick_end">#4DB6AC</color>
+    
+    <!-- 分割线 -->
+    <color name="divider">#E0E0E0</color>
+    <color name="divider_light">#F0F0F0</color>
+    
+    <!-- 透明色 -->
+    <color name="transparent">#00000000</color>
+    <color name="semi_transparent">#80000000</color>
+    
+    <!-- 旧颜色（向后兼容） -->
+    <color name="primary_dark_legacy">#00897B</color>
+    <color name="primary_light_legacy">#4DB6AC</color>
+</resources>

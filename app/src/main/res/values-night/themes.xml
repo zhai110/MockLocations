@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色主题 -->
+    <style name="Theme.VirtualLocation" parent="Theme.Material3.Dark.NoActionBar">
+        
+        <!-- Primary brand colors - 主色调 -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorPrimaryContainer">@color/primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/on_primary_container</item>
+
+        <!-- Secondary brand colors - 次要色 -->
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorOnSecondary">@color/on_secondary</item>
+        <item name="colorSecondaryContainer">@color/secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/on_secondary_container</item>
+
+        <!-- Tertiary colors - 辅助色 -->
+        <item name="colorTertiary">@color/tertiary</item>
+        <item name="colorOnTertiary">@color/on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/on_tertiary_container</item>
+
+        <!-- Error colors - 错误色 -->
+        <item name="colorError">@color/error</item>
+        <item name="colorOnError">@color/on_error</item>
+        <item name="colorErrorContainer">@color/error_container</item>
+        <item name="colorOnErrorContainer">@color/on_error_container</item>
+
+        <!-- Background colors - 背景色 -->
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorOnBackground">@color/on_background</item>
+
+        <!-- Surface colors - 表面色 -->
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorSurfaceVariant">@color/surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
+
+        <!-- Outline colors - 轮廓色 -->
+        <item name="colorOutline">@color/outline</item>
+        <item name="colorOutlineVariant">@color/outline_variant</item>
+
+        <!-- Text colors -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorHint">@color/text_hint</item>
+
+        <!-- Status bar - 透明状态栏 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Enable edge-to-edge -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+        <!-- Navigation bar -->
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:windowLightNavigationBar">false</item>
+
+        <!-- Action bar -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+
+        <!-- Ripple effect -->
+        <item name="colorControlHighlight">@color/primary_light</item>
+    </style>
+
+    <!-- SwitchMaterial 自定义样式 - 深色主题 -->
+    <style name="Widget.VirtualLocation.Switch" parent="Widget.Material3.CompoundButton.Switch">
+        <!-- 关闭状态：轨道使用深灰色，滑块使用浅灰色 -->
+        <item name="trackTint">@color/divider</item>
+        <item name="trackDecorationTint">@color/text_hint</item>
+        <item name="thumbTint">@color/text_secondary</item>
+        <!-- 开启状态会自动使用 primary 颜色 -->
+    </style>
+
+    <!-- 恢复默认设置对话框主题 - 深色模式（带圆角） -->
+    <style name="ResetDefaultsDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/error</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="android:colorBackground">@color/surface</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/ResetDefaultsDialogTitle</item>
+        <item name="dialogCornerRadius">16dp</item>
+    </style>
+
+    <style name="ResetDefaultsDialogTitle" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textColor">@color/error</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 通用圆角对话框主题 - 深色模式 -->
+    <style name="RoundedDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="android:colorBackground">@color/surface</item>
+        <item name="dialogCornerRadius">16dp</item>
+    </style>
+</resources>

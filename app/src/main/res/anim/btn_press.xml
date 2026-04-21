@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 按钮按压缩放效果（优化版） -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fillAfter="true"
+    android:fillEnabled="true">
+    <scale
+        android:duration="80"
+        android:fromXScale="1.0"
+        android:fromYScale="1.0"
+        android:toXScale="0.96"
+        android:toYScale="0.96"
+        android:pivotX="50%"
+        android:pivotY="50%"
+        android:interpolator="@android:anim/decelerate_interpolator" />
+</set>

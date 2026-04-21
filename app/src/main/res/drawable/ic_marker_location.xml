@@ -1,0 +1,32 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="60dp"
+    android:viewportWidth="48"
+    android:viewportHeight="60">
+    
+    <!-- 外圈光晕效果 -->
+    <path
+        android:fillColor="#1A26A69A"
+        android:pathData="M24,4 C12.95,4 4,12.95 4,24 C4,38 24,56 24,56 C24,56 44,38 44,24 C44,12.95 35.05,4 24,4 Z" />
+    
+    <!-- 主体背景 -->
+    <path
+        android:fillColor="#26A69A"
+        android:pathData="M24,2 C11.85,2 2,11.85 2,24 C2,38.5 24,58 24,58 C24,58 46,38.5 46,24 C46,11.85 36.15,2 24,2 Z" />
+    
+    <!-- 渐变效果层 -->
+    <path
+        android:fillColor="#4DB6AC"
+        android:pathData="M24,2 C11.85,2 2,11.85 2,24 C2,38.5 24,58 24,58 C24,58 46,38.5 46,24 C46,11.85 36.15,2 24,2 Z"
+        android:fillAlpha="0.3" />
+    
+    <!-- 中心白色圆点 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,14 C17.37,14 12,19.37 12,26 C12,32.63 17.37,38 24,38 C30.63,38 36,32.63 36,26 C36,19.37 30.63,14 24,14 Z" />
+    
+    <!-- 中心小圆点 -->
+    <path
+        android:fillColor="#26A69A"
+        android:pathData="M24,20 C20.69,20 18,22.69 18,26 C18,29.31 20.69,32 24,32 C27.31,32 30,29.31 30,26 C30,22.69 27.31,20 24,20 Z" />
+</vector>

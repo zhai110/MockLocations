@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 基础权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    
+    <!-- 定位权限 -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    
+    <!-- 模拟定位权限（用于在开发者选项中显示） -->
+    <uses-permission
+        android:name="android.permission.ACCESS_MOCK_LOCATION"
+        tools:ignore="MockLocation,ProtectedPermissions" />
+    
+    <!-- 悬浮窗权限 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    
+    <!-- 前台服务 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    
+    <!-- 存储 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    
+    <!-- 震动反馈 -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    
+    <!-- 开机自启 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application
+        android:name=".VirtualLocationApp"
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.VirtualLocation"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="31">
+
+        <!-- 高德地图 Key -->
+        <meta-data
+            android:name="com.amap.api.v2.apikey"
+            android:value="${AMAP_KEY}" />
+
+        <!-- 启动页 -->
+        <activity
+            android:name=".ui.splash.SplashActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.VirtualLocation.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 主Activity -->
+        <activity
+            android:name=".ui.main.MainActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustPan"
+            android:configChanges="uiMode|orientation|screenSize"
+            android:theme="@style/Theme.VirtualLocation" />
+
+        <!-- 历史记录Activity -->
+        <activity
+            android:name=".ui.history.HistoryActivity"
+            android:exported="false"
+            android:label="@string/history_title"
+            android:parentActivityName=".ui.main.MainActivity" />
+
+        <!-- 收藏Activity -->
+        <activity
+            android:name=".ui.favorite.FavoriteActivity"
+            android:exported="false"
+            android:label="@string/favorite_title"
+            android:parentActivityName=".ui.main.MainActivity" />
+
+        <!-- 设置Activity -->
+        <activity
+            android:name=".ui.settings.SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title"
+            android:parentActivityName=".ui.main.MainActivity" />
+
+        <!-- 权限引导Activity -->
+        <activity
+            android:name=".ui.permission.PermissionGuideActivity"
+            android:exported="false"
+            android:label="权限设置"
+            android:parentActivityName=".ui.main.MainActivity" />
+
+        <!-- 定位服务 -->
+        <service
+            android:name=".service.LocationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- 开机自启接收器 -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

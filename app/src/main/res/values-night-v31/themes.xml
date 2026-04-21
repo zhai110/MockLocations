@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 启动页主题 - Android 12+ (API 31+) 深色模式 -->
+    <style name="Theme.VirtualLocation.Splash" parent="Theme.Material3.Dark.NoActionBar">
+        <!-- 启动页背景色 - 使用深色背景 -->
+        <item name="android:windowSplashScreenBackground">@color/background</item>
+        <!-- 使用应用图标作为启动页图标 -->
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <!-- 动画时长设为最短 -->
+        <item name="android:windowSplashScreenAnimationDuration">200</item>
+        <!-- 全屏显示 -->
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>

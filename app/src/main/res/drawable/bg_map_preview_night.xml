@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 夜景地图预览 - 模拟夜间城市灯光 -->
+    <!-- 底色（深蓝灰） -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#263238" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    
+    <!-- 街区块（暗色建筑） -->
+    <item android:top="6dp" android:left="6dp" android:width="28dp" android:height="24dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#37474F" />
+            <stroke android:width="0.5dp" android:color="#455A64" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <item android:top="6dp" android:left="40dp" android:width="32dp" android:height="24dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#3E4E56" />
+            <stroke android:width="0.5dp" android:color="#455A64" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <item android:top="36dp" android:left="6dp" android:width="32dp" android:height="20dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#37474F" />
+            <stroke android:width="0.5dp" android:color="#455A64" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <item android:top="36dp" android:left="44dp" android:width="28dp" android:height="20dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#455A64" />
+            <stroke android:width="0.5dp" android:color="#546E7A" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <item android:top="62dp" android:left="6dp" android:width="24dp" android:height="14dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#2E3B41" />
+            <stroke android:width="0.5dp" android:color="#455A64" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <!-- 主干道（亮黄色发光效果） -->
+    <item android:top="30dp" android:bottom="46dp" android:left="4dp" android:right="4dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFD54F" />
+        </shape>
+    </item>
+    
+    <!-- 次干道（橙色光带） -->
+    <item android:top="4dp" android:bottom="4dp" android:left="34dp" android:width="3dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFB74D" />
+        </shape>
+    </item>
+    
+    <item android:top="4dp" android:bottom="4dp" android:left="72dp" android:width="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFB74D" />
+        </shape>
+    </item>
+    
+    <!-- 公园/绿地（暗绿色） -->
+    <item android:top="58dp" android:left="36dp" android:width="36dp" android:height="18dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#2E4A3E" />
+            <corners android:radius="4dp" />
+        </shape>
+    </item>
+    
+    <!-- 水域（深蓝色反光） -->
+    <item android:top="68dp" android:left="78dp" android:width="14dp" android:height="8dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#1A3A52" />
+            <corners android:radius="3dp" />
+        </shape>
+    </item>
+    
+    <!-- 地标亮点（红色标记） -->
+    <item android:top="12dp" android:left="18dp" android:width="4dp" android:height="4dp">
+        <shape android:shape="oval">
+            <solid android:color="#EF5350" />
+        </shape>
+    </item>
+    
+    <!-- 零星灯光点缀 -->
+    <item android:top="14dp" android:left="48dp" android:width="2dp" android:height="2dp">
+        <shape android:shape="oval">
+            <solid android:color="#FFF176" />
+        </shape>
+    </item>
+    
+    <item android:top="44dp" android:left="14dp" android:width="2dp" android:height="2dp">
+        <shape android:shape="oval">
+            <solid android:color="#FFF176" />
+        </shape>
+    </item>
+    
+    <item android:top="50dp" android:left="56dp" android:width="2dp" android:height="2dp">
+        <shape android:shape="oval">
+            <solid android:color="#FFE082" />
+        </shape>
+    </item>
+</layer-list>

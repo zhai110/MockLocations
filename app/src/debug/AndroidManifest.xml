@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Mock Location 权限仅在 Debug 版本中需要 -->
+    <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION" />
+</manifest>

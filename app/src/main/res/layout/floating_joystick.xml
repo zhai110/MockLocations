@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 悬浮窗摇杆布局
+     参考项目 gogogo-master 的做法：
+     1. 不使用 ?attr/ 自定义 theme attribute（Service context 可能没有 theme）
+     2. 不使用 app:tint（在 Service 中可能不生效）
+     3. 使用 android:background="?android:attr/selectableItemBackgroundBorderless" 是 OK 的（framework 自带）
+     4. 颜色用 @color/ 直接引用
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_floating_window"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- 速度选择 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/btn_walk"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_speed_btn"
+            android:contentDescription="步行"
+            android:padding="12dp"
+            android:src="@drawable/ic_walk" />
+
+        <Space
+            android:layout_width="8dp"
+            android:layout_height="wrap_content" />
+
+        <ImageButton
+            android:id="@+id/btn_run"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_speed_btn"
+            android:contentDescription="跑步"
+            android:padding="12dp"
+            android:src="@drawable/ic_run" />
+
+        <Space
+            android:layout_width="8dp"
+            android:layout_height="wrap_content" />
+
+        <ImageButton
+            android:id="@+id/btn_bike"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_speed_btn"
+            android:contentDescription="骑行"
+            android:padding="12dp"
+            android:src="@drawable/ic_bike" />
+    </LinearLayout>
+
+    <!-- 速度显示 -->
+    <TextView
+        android:id="@+id/speed_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:text="步行 (5 km/h)"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp" />
+
+    <!-- 摇杆区域 -->
+    <com.mockloc.widget.JoystickView
+        android:id="@+id/joystick"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_gravity="center"
+        android:layout_marginTop="8dp" />
+
+    <!-- 关闭按钮 -->
+    <ImageButton
+        android:id="@+id/btn_close"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_gravity="end"
+        android:layout_marginTop="4dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="关闭"
+        android:src="@drawable/ic_close" />
+
+</LinearLayout>

@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- 拖拽手柄 -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_drag_handle" />
+
+    <!-- 标题 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="20dp"
+        android:text="选择地图类型"
+        android:textColor="@color/text_primary"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <!-- 图层选项网格 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <!-- 标准地图 -->
+        <LinearLayout
+            android:id="@+id/layer_normal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/bg_ripple_rounded"
+            android:padding="12dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <FrameLayout
+                android:layout_width="100dp"
+                android:layout_height="80dp"
+                android:layout_marginBottom="8dp">
+
+                <!-- 预览图占位 -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_map_preview_normal" />
+
+                <!-- 选中指示器 -->
+                <ImageView
+                    android:id="@+id/check_normal"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="end|top"
+                    android:layout_margin="4dp"
+                    android:src="@drawable/ic_check_circle"
+                    android:visibility="gone"
+                    app:tint="@color/primary" />
+            </FrameLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="标准地图"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- 卫星地图 -->
+        <LinearLayout
+            android:id="@+id/layer_satellite"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/bg_ripple_rounded"
+            android:padding="12dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <FrameLayout
+                android:layout_width="100dp"
+                android:layout_height="80dp"
+                android:layout_marginBottom="8dp">
+
+                <!-- 预览图占位 -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_map_preview_satellite" />
+
+                <!-- 选中指示器 -->
+                <ImageView
+                    android:id="@+id/check_satellite"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="end|top"
+                    android:layout_margin="4dp"
+                    android:src="@drawable/ic_check_circle"
+                    android:visibility="gone"
+                    app:tint="@color/primary" />
+            </FrameLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="卫星地图"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- 夜景地图 -->
+        <LinearLayout
+            android:id="@+id/layer_night"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/bg_ripple_rounded"
+            android:padding="12dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <FrameLayout
+                android:layout_width="100dp"
+                android:layout_height="80dp"
+                android:layout_marginBottom="8dp">
+
+                <!-- 预览图占位 -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_map_preview_night" />
+
+                <!-- 选中指示器 -->
+                <ImageView
+                    android:id="@+id/check_night"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="end|top"
+                    android:layout_margin="4dp"
+                    android:src="@drawable/ic_check_circle"
+                    android:visibility="gone"
+                    app:tint="@color/primary" />
+            </FrameLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="夜景地图"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

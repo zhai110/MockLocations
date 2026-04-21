@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme -->
+    <style name="Theme.VirtualLocation" parent="Theme.Material3.Light.NoActionBar">
+        
+        <!-- Primary brand colors - 主色调 -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorPrimaryContainer">@color/primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/on_primary_container</item>
+        
+        <!-- Secondary brand colors - 次要色 -->
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorOnSecondary">@color/on_secondary</item>
+        <item name="colorSecondaryContainer">@color/secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/on_secondary_container</item>
+        
+        <!-- Tertiary colors - 辅助色 -->
+        <item name="colorTertiary">@color/tertiary</item>
+        <item name="colorOnTertiary">@color/on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/on_tertiary_container</item>
+        
+        <!-- Error colors - 错误色 -->
+        <item name="colorError">@color/error</item>
+        <item name="colorOnError">@color/on_error</item>
+        <item name="colorErrorContainer">@color/error_container</item>
+        <item name="colorOnErrorContainer">@color/on_error_container</item>
+        
+        <!-- Background colors - 背景色 -->
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorOnBackground">@color/on_background</item>
+        
+        <!-- Surface colors - 表面色 -->
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorSurfaceVariant">@color/surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
+        <item name="colorSurfaceContainerLowest">@color/surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/surface_container_highest</item>
+        
+        <!-- Outline colors - 轮廓色 -->
+        <item name="colorOutline">@color/outline</item>
+        <item name="colorOutlineVariant">@color/outline_variant</item>
+        
+        <!-- Text colors -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorHint">@color/text_hint</item>
+        
+        <!-- Status bar - 透明状态栏 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        
+        <!-- Enable edge-to-edge -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        
+        <!-- Navigation bar -->
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        
+        <!-- Action bar -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        
+        <!-- Ripple effect -->
+        <item name="colorControlHighlight">@color/primary_light</item>
+    </style>
+
+    <!-- Card style -->
+    <style name="Widget.VirtualLocation.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">@color/surface</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">4dp</item>
+    </style>
+
+    <!-- Button styles -->
+    <style name="Widget.VirtualLocation.Button.Primary" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/primary</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <style name="Widget.VirtualLocation.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">@color/primary</item>
+        <item name="android:textColor">@color/primary</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- FAB style -->
+    <style name="Widget.VirtualLocation.FAB" parent="Widget.Material3.FloatingActionButton.Primary">
+        <item name="backgroundTint">@color/primary</item>
+        <item name="tint">@android:color/white</item>
+        <item name="fabSize">normal</item>
+        <item name="elevation">8dp</item>
+    </style>
+
+    <!-- Circular FAB shape -->
+    <style name="CircularFAB" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- Text styles - Typography System -->
+    <!-- Display Styles (大标题) -->
+    <style name="TextAppearance.VirtualLocation.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">57sp</item>
+        <item name="android:letterSpacing">-0.005</item>
+        <item name="lineHeight">64dp</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">45sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="lineHeight">52dp</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">36sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="lineHeight">44dp</item>
+    </style>
+
+    <!-- Headline Styles (标题) -->
+    <style name="TextAppearance.VirtualLocation.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">32sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="lineHeight">40dp</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">28sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="lineHeight">36dp</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="lineHeight">32dp</item>
+    </style>
+
+    <!-- Title Styles (副标题) -->
+    <style name="TextAppearance.VirtualLocation.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="lineHeight">28dp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:letterSpacing">0.015</item>
+        <item name="lineHeight">24dp</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.TitleSmall" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="lineHeight">20dp</item>
+    </style>
+
+    <!-- Body Styles (正文) -->
+    <style name="TextAppearance.VirtualLocation.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:letterSpacing">0.015</item>
+        <item name="lineHeight">24dp</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0.025</item>
+        <item name="lineHeight">20dp</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.BodySmall" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textColor">@color/text_hint</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="lineHeight">16dp</item>
+    </style>
+
+    <!-- Label Styles (标签/按钮文字) -->
+    <style name="TextAppearance.VirtualLocation.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="lineHeight">20dp</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.LabelMedium" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:letterSpacing">0.05</item>
+        <item name="lineHeight">16dp</item>
+    </style>
+
+    <style name="TextAppearance.VirtualLocation.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textColor">@color/text_hint</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:letterSpacing">0.05</item>
+        <item name="lineHeight">16dp</item>
+    </style>
+
+    <!-- 语义化别名（方便使用） -->
+    <style name="TextAppearance.VirtualLocation.PageTitle" parent="TextAppearance.VirtualLocation.HeadlineSmall" />
+    <style name="TextAppearance.VirtualLocation.SectionTitle" parent="TextAppearance.VirtualLocation.TitleLarge" />
+    <style name="TextAppearance.VirtualLocation.CardTitle" parent="TextAppearance.VirtualLocation.TitleMedium" />
+    <style name="TextAppearance.VirtualLocation.ButtonText" parent="TextAppearance.VirtualLocation.LabelLarge" />
+    <style name="TextAppearance.VirtualLocation.Caption" parent="TextAppearance.VirtualLocation.BodySmall" />
+    <style name="TextAppearance.VirtualLocation.CoordinateValue" parent="TextAppearance.VirtualLocation.BodyLarge">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    
+    <!-- 向后兼容别名（旧代码使用） -->
+    <style name="TextAppearance.VirtualLocation.Title" parent="TextAppearance.VirtualLocation.HeadlineSmall" />
+    <style name="TextAppearance.VirtualLocation.Subtitle" parent="TextAppearance.VirtualLocation.TitleMedium" />
+    <style name="TextAppearance.VirtualLocation.Body" parent="TextAppearance.VirtualLocation.BodyMedium" />
+
+    <!-- BottomSheet style -->
+    <style name="Widget.VirtualLocation.BottomSheet" parent="Widget.Material3.BottomSheet">
+        <item name="backgroundTint">@color/surface</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VirtualLocation.BottomSheet</item>
+    </style>
+
+    <style name="ShapeAppearance.VirtualLocation.BottomSheet" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopRight">24dp</item>
+        <item name="cornerSizeTopLeft">24dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+    </style>
+
+    <!-- Dialog style -->
+    <style name="ThemeOverlay.VirtualLocation.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorSurface">@color/surface</item>
+    </style>
+
+    <!-- 坐标输入对话框主题 - 使用白色背景，去除Material紫色 -->
+    <style name="InputCoordsDialogTheme" parent="Theme.Material3.Light.Dialog.Alert">
+        <!-- 对话框背景色 - 使用项目的surface白色 -->
+        <item name="colorSurface">@color/surface</item>
+        <item name="android:colorBackground">@color/surface</item>
+        <item name="android:windowBackground">@color/surface</item>
+        <!-- 按钮文字颜色 -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnSurface">@color/text_secondary</item>
+        <!-- 按钮背景色 - 使用浅灰色 -->
+        <item name="materialButtonStyle">@style/InputCoordsDialogButton</item>
+        <!-- 确保标题区域也是白色 -->
+        <item name="colorOnBackground">@color/text_primary</item>
+    </style>
+
+    <!-- 坐标输入对话框按钮样式 -->
+    <style name="InputCoordsDialogButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <!-- 按钮背景 - 浅灰色 -->
+        <item name="backgroundTint">@color/surface_variant</item>
+        <item name="rippleColor">@color/primary_light</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+
+    <!-- 底部导航栏样式 - 使用透明背景隐藏指示器 -->
+    <style name="BottomNavigationViewStyle" parent="Widget.Material3.BottomNavigationView">
+        <!-- 将项目背景设置为透明，隐藏指示器 -->
+        <item name="itemBackground">@drawable/nav_item_background</item>
+    </style>
+
+    <!-- SwitchMaterial 自定义样式 - 蓝绿色主题 -->
+    <style name="Widget.VirtualLocation.Switch" parent="Widget.Material3.CompoundButton.Switch">
+        <!-- 关闭状态：轨道使用灰色，滑块使用白色带阴影 -->
+        <item name="trackTint">@color/text_hint</item>
+        <item name="trackDecorationTint">@color/white</item>
+        <item name="thumbTint">@color/white</item>
+        <!-- 开启状态会自动使用 primary 颜色（蓝绿色） -->
+    </style>
+
+    <!-- 恢复默认设置对话框主题（带圆角） -->
+    <style name="ResetDefaultsDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/error</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="android:colorBackground">@color/surface</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/ResetDefaultsDialogTitle</item>
+        <item name="dialogCornerRadius">16dp</item>
+    </style>
+
+    <style name="ResetDefaultsDialogTitle" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textColor">@color/error</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 通用圆角对话框主题（用于列表选择对话框） -->
+    <style name="RoundedDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="android:colorBackground">@color/surface</item>
+        <item name="dialogCornerRadius">16dp</item>
+    </style>
+
+    <!-- 启动页主题 - 基础配置（API 30及以下） -->
+    <style name="Theme.VirtualLocation.Splash" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>

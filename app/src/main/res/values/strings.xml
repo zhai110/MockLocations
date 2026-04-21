@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">虚拟定位</string>
+    
+    <!-- 启动页 -->
+    <string name="splash_subtitle">虚拟定位 · 精准模拟</string>
+    <string name="splash_error_start_failed">启动失败，请重试</string>
+    
+    <!-- 底部导航 -->
+    <string name="nav_map">地图</string>
+    <string name="nav_history">历史</string>
+    <string name="nav_favorite">收藏</string>
+    <string name="nav_settings">设置</string>
+    <string name="nav_tracks">轨迹</string>
+    <string name="nav_explore">探索</string>
+    
+    <!-- 页面标题 -->
+    <string name="history_title">历史记录</string>
+    <string name="favorite_title">我的收藏</string>
+    <string name="settings_title">设置</string>
+    
+    <!-- 主界面 -->
+    <string name="search_hint">搜索地点、地址…</string>
+    <string name="current_location">当前位置</string>
+    <string name="simulating">模拟中</string>
+    <string name="status_stopped">已停止</string>
+    <string name="status_ready">准备就绪</string>
+    <string name="status_select_location">请选择位置</string>
+    <string name="latitude">纬度</string>
+    <string name="longitude">经度</string>
+    <string name="input_coords">输入坐标</string>
+    <string name="history">历史记录</string>
+    <string name="favorite">收藏</string>
+    <string name="copy_coords">复制坐标</string>
+    <string name="share_location">分享位置</string>
+    <string name="start_simulate">开始模拟</string>
+    <string name="stop_simulate">停止模拟</string>
+    
+    <!-- 摇杆控制 -->
+    <string name="move_control">移动控制</string>
+    <string name="speed_walk">步行</string>
+    <string name="speed_run">跑步</string>
+    <string name="speed_bike">骑行</string>
+    
+    <!-- 悬浮窗 -->
+    <string name="floating_joystick">摇杆控制</string>
+    <string name="floating_map">小地图</string>
+    <string name="floating_history">历史记录</string>
+    
+    <!-- 设置 -->
+    <string name="settings_move">移动设置</string>
+    <string name="settings_location">定位设置</string>
+    <string name="settings_other">其他设置</string>
+    <string name="walk_speed">步行速度</string>
+    <string name="run_speed">跑步速度</string>
+    <string name="bike_speed">骑行速度</string>
+    <string name="altitude">海拔高度</string>
+    <string name="random_offset">随机偏移</string>
+    <string name="joystick_type">摇杆类型</string>
+    <string name="history_expire">历史记录有效期</string>
+    <string name="log_enabled">日志记录</string>
+    <string name="about">关于应用</string>
+    
+    <!-- 设置页面详细字符串 -->
+    <string name="settings_movement">移动设置</string>
+    <string name="settings_walking_speed">步行速度</string>
+    <string name="settings_walking_speed_desc">约 5 km/h</string>
+    <string name="settings_running_speed">跑步速度</string>
+    <string name="settings_running_speed_desc">约 12 km/h</string>
+    <string name="settings_cycling_speed">骑行速度</string>
+    <string name="settings_cycling_speed_desc">约 20 km/h</string>
+    <string name="settings_altitude">海拔高度</string>
+    <string name="settings_altitude_desc">设置模拟位置的海拔</string>
+    <string name="settings_random_offset">随机偏移</string>
+    <string name="settings_random_offset_desc">增加位置真实性</string>
+    <string name="settings_joystick_type">摇杆类型</string>
+    <string name="settings_joystick_type_fixed">固定</string>
+    <string name="settings_joystick_haptic">触觉反馈</string>
+    <string name="settings_joystick_haptic_desc">拖动摇杆时提供震动反馈</string>
+    <string name="settings_history_expiry">有效记录</string>
+    <string name="settings_history_expiry_7days">7 天</string>
+    <string name="settings_log">日志记录</string>
+    <string name="settings_log_desc">开启调试日志</string>
+    <string name="settings_auto_start">开机自启</string>
+    <string name="settings_auto_start_desc">开机后自动恢复上次模拟位置</string>
+    <string name="settings_about">关于应用</string>
+    <string name="settings_about_desc">版本 1.0.0</string>
+    <string name="about_message">虚拟定位应用 v1.0.0
+
+基于 Kotlin + 高德地图 SDK 开发
+无需 ROOT 权限即可修改设备位置
+
+功能特性：
+• 虚拟定位
+• 摇杆移动
+• 位置搜索
+• 历史记录
+• 收藏管理</string>
+    
+    <!-- 权限 -->
+    <string name="permission_location">定位权限</string>
+    <string name="permission_location_desc">需要定位权限才能模拟位置</string>
+    <string name="permission_overlay">悬浮窗权限</string>
+    <string name="permission_overlay_desc">需要悬浮窗权限才能显示控制面板</string>
+    <string name="permission_mock">模拟定位权限</string>
+    <string name="permission_mock_desc">请在开发者选项中开启"允许模拟位置"</string>
+    
+    <!-- 提示 -->
+    <string name="copied">已复制到剪贴板</string>
+    <string name="location_set">位置已设置</string>
+    <string name="simulate_started">模拟已开始</string>
+    <string name="simulate_stopped">模拟已停止</string>
+    <string name="no_history">暂无历史记录</string>
+    <string name="no_favorite">暂无收藏</string>
+    
+    <!-- 单位 -->
+    <string name="unit_meter">米</string>
+    <string name="unit_km_h">km/h</string>
+    <string name="unit_day">天</string>
+</resources>

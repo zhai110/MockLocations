@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 弹跳缩放动画（用于标记点，优化版） -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fillAfter="true"
+    android:fillEnabled="true">
+    
+    <!-- 第一阶段：快速放大到1.15倍 -->
+    <scale
+        android:duration="120"
+        android:fromXScale="0.0"
+        android:fromYScale="0.0"
+        android:toXScale="1.15"
+        android:toYScale="1.15"
+        android:pivotX="50%"
+        android:pivotY="100%"
+        android:interpolator="@android:anim/overshoot_interpolator" />
+    
+    <!-- 第二阶段：回弹到正常大小 -->
+    <scale
+        android:duration="120"
+        android:fromXScale="1.15"
+        android:fromYScale="1.15"
+        android:toXScale="1.0"
+        android:toYScale="1.0"
+        android:pivotX="50%"
+        android:pivotY="100%"
+        android:startOffset="120"
+        android:interpolator="@android:anim/decelerate_interpolator" />
+</set>

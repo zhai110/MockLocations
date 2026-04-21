@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 卫星地图预览 - 模拟真实卫星影像 -->
+    <!-- 底色（深绿色植被） -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#2E7D32" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    
+    <!-- 地形渐变纹理 -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#388E3C"
+                android:centerColor="#4CAF50"
+                android:endColor="#1B5E20"
+                android:type="linear" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    
+    <!-- 大型水域（湖泊） -->
+    <item android:top="10dp" android:left="8dp" android:width="45dp" android:height="28dp">
+        <shape android:shape="oval">
+            <solid android:color="#1976D2" />
+        </shape>
+    </item>
+    
+    <!-- 河流 -->
+    <item android:top="35dp" android:bottom="15dp" android:left="50dp" android:width="25dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#1E88E5" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    
+    <!-- 道路网络（白色细线） -->
+    <!-- 横向主干道 -->
+    <item android:top="42dp" android:bottom="40dp" android:left="5dp" android:right="5dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFF" />
+        </shape>
+    </item>
+    
+    <!-- 纵向次干道 -->
+    <item android:top="5dp" android:bottom="5dp" android:left="58dp" android:width="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#E0E0E0" />
+        </shape>
+    </item>
+    
+    <!-- 建筑群（灰色块） -->
+    <item android:top="8dp" android:left="58dp" android:width="18dp" android:height="14dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#9E9E9E" />
+            <stroke android:width="0.5dp" android:color="#757575" />
+            <corners android:radius="1dp" />
+        </shape>
+    </item>
+    
+    <item android:top="26dp" android:left="58dp" android:width="16dp" android:height="12dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#BDBDBD" />
+            <stroke android:width="0.5dp" android:color="#757575" />
+            <corners android:radius="1dp" />
+        </shape>
+    </item>
+    
+    <!-- 农田/耕地（浅棕色网格） -->
+    <item android:top="52dp" android:left="8dp" android:width="20dp" android:height="20dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#A1887F" />
+            <stroke android:width="0.5dp" android:color="#8D6E63" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <item android:top="52dp" android:left="32dp" android:width="18dp" android:height="20dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#BCAAA4" />
+            <stroke android:width="0.5dp" android:color="#8D6E63" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    
+    <!-- 停车场/广场 -->
+    <item android:top="60dp" android:left="56dp" android:width="28dp" android:height="16dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#757575" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+</layer-list>
