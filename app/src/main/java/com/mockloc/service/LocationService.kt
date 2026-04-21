@@ -26,6 +26,8 @@ import android.view.View
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import java.util.concurrent.Executors
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import androidx.core.app.NotificationCompat
 import com.mockloc.R
 import com.mockloc.ui.main.MainActivity
@@ -92,11 +94,17 @@ class LocationService : Service() {
     private lateinit var handler: Handler
 
     @Volatile private var isRunning = false
-    @Volatile private var currentLatitude = 0.0
-    @Volatile private var currentLongitude = 0.0
-    @Volatile private var altitude = 55.0
+
+    // 位置数据锁：保护 currentLatitude/currentLongitude/altitude/currentBearing 的复合操作
+    // @Volatile 只保证可见性，不保证 read-modify-write 原子性（如 +=）
+    // setLocation() 在 handler 线程读取，performAutoMoveStep() 在 moveExecutor 线程读写，
+    // 必须加锁防止竞态条件导致位置跳变
+    private val locationLock = ReentrantLock()
+    private var currentLatitude = 0.0
+    private var currentLongitude = 0.0
+    private var altitude = 55.0
     @Volatile private var currentSpeed = 1.4f
-    @Volatile private var currentBearing = 0f
+    private var currentBearing = 0f
     
     // 位置更新间隔（可从设置中读取）
     private var locationUpdateInterval = DEFAULT_LOCATION_UPDATE_INTERVAL_MS
@@ -113,7 +121,7 @@ class LocationService : Service() {
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
             "altitude" -> {
-                altitude = prefs.getFloat("altitude", 55.0f).toDouble()
+                locationLock.withLock { altitude = prefs.getFloat("altitude", 55.0f).toDouble() }
                 Timber.d("Altitude updated from settings: $altitude")
             }
             "walk_speed", "run_speed", "bike_speed" -> {
@@ -253,8 +261,9 @@ class LocationService : Service() {
                 stopSimulation()
             }
             ACTION_UPDATE -> {
-                val latitude = intent.getDoubleExtra(EXTRA_LATITUDE, currentLatitude)
-                val longitude = intent.getDoubleExtra(EXTRA_LONGITUDE, currentLongitude)
+                val (curLat, curLng) = locationLock.withLock { Pair(currentLatitude, currentLongitude) }
+                val latitude = intent.getDoubleExtra(EXTRA_LATITUDE, curLat)
+                val longitude = intent.getDoubleExtra(EXTRA_LONGITUDE, curLng)
                 val isGcj02 = intent.getBooleanExtra(EXTRA_COORD_GCJ02, true)
 
                 if (isGcj02) {
@@ -272,11 +281,14 @@ class LocationService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         try {
+            val (lat, lng, alt) = locationLock.withLock {
+                Triple(currentLatitude, currentLongitude, altitude)
+            }
             val restartIntent = Intent(this, LocationService::class.java).apply {
                 action = ACTION_START
-                putExtra(EXTRA_LATITUDE, currentLatitude)
-                putExtra(EXTRA_LONGITUDE, currentLongitude)
-                putExtra(EXTRA_ALTITUDE, altitude)
+                putExtra(EXTRA_LATITUDE, lat)
+                putExtra(EXTRA_LONGITUDE, lng)
+                putExtra(EXTRA_ALTITUDE, alt)
                 putExtra(EXTRA_COORD_GCJ02, false)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -384,8 +396,10 @@ class LocationService : Service() {
             updateTargetLocation(latitude, longitude)
             return
         }
-        currentLatitude = latitude
-        currentLongitude = longitude
+        locationLock.withLock {
+            currentLatitude = latitude
+            currentLongitude = longitude
+        }
         isRunning = true
         staticIsRunning = true
         setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
@@ -416,37 +430,46 @@ class LocationService : Service() {
      */
     private fun saveLastLocation() {
         try {
+            // 加锁读取位置数据，确保一致性
+            val (lat, lng, alt) = locationLock.withLock {
+                Triple(currentLatitude, currentLongitude, altitude)
+            }
             // 获取GCJ02坐标（高德地图坐标）用于保存
-            val gcj = MapUtils.wgs84ToGcj02(currentLongitude, currentLatitude)
+            val gcj = MapUtils.wgs84ToGcj02(lng, lat)
             prefs.edit()
-                .putFloat("last_lat", gcj[1].toFloat())  // GCJ02纬度
-                .putFloat("last_lng", gcj[0].toFloat())  // GCJ02经度
-                .putFloat("last_alt", altitude.toFloat())
+                .putString("last_lat", gcj[1].toString())  // GCJ02纬度，使用String保存Double精度
+                .putString("last_lng", gcj[0].toString())  // GCJ02经度，使用String保存Double精度
+                .putString("last_alt", alt.toString())
                 .apply()
-            Timber.d("Last location saved: GCJ02 (${gcj[1]}, ${gcj[0]}), alt=$altitude")
+            Timber.d("Last location saved: GCJ02 (${gcj[1]}, ${gcj[0]}), alt=$alt")
         } catch (e: Exception) {
             Timber.e(e, "Failed to save last location")
         }
     }
 
     private fun updateTargetLocation(latitude: Double, longitude: Double) {
-        currentLatitude = latitude
-        currentLongitude = longitude
+        locationLock.withLock {
+            currentLatitude = latitude
+            currentLongitude = longitude
+        }
     }
 
     // ==================== 位置注入 ====================
 
     private fun setLocation(provider: String, accuracy: Int) {
         try {
-            val loc = Location(provider).apply {
-                this.latitude = currentLatitude
-                this.longitude = currentLongitude
-                this.altitude = altitude
-                this.bearing = currentBearing
-                this.speed = currentSpeed
-                this.accuracy = accuracy.toFloat()
-                this.time = System.currentTimeMillis()
-                this.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+            // 加锁读取位置数据并构建 Location，防止与 moveExecutor 线程的写操作竞态
+            val loc = locationLock.withLock {
+                Location(provider).apply {
+                    latitude = currentLatitude
+                    longitude = currentLongitude
+                    altitude = this@LocationService.altitude
+                    bearing = currentBearing
+                    speed = currentSpeed
+                    this.accuracy = accuracy.toFloat()
+                    time = System.currentTimeMillis()
+                    elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                }
             }
             if (provider == LocationManager.GPS_PROVIDER) {
                 val bundle = android.os.Bundle()
@@ -502,9 +525,12 @@ class LocationService : Service() {
                 distanceLng += (Math.random() - 0.5) * 5.0 / 1000.0
                 distanceLat += (Math.random() - 0.5) * 5.0 / 1000.0
             }
-            currentLongitude += distanceLng / (METERS_PER_DEGREE_LNG_EQUATOR * Math.cos(Math.toRadians(currentLatitude)))
-            currentLatitude += distanceLat / METERS_PER_DEGREE_LAT
-            currentBearing = (90.0f - joystickAngle).toFloat()
+            // 加锁保护复合操作（read-modify-write），防止与 handler 线程的 setLocation 竞态
+            locationLock.withLock {
+                currentLongitude += distanceLng / (METERS_PER_DEGREE_LNG_EQUATOR * Math.cos(Math.toRadians(currentLatitude)))
+                currentLatitude += distanceLat / METERS_PER_DEGREE_LAT
+                currentBearing = (90.0f - joystickAngle).toFloat()
+            }
         }
     }
 
@@ -513,7 +539,7 @@ class LocationService : Service() {
         Timber.d("Speed set to: ${currentSpeed} m/s (${String.format("%.1f", currentSpeed * 3.6)} km/h)")
     }
     
-    fun setAltitude(alt: Double) { altitude = alt }
+    fun setAltitude(alt: Double) { locationLock.withLock { altitude = alt } }
 
     /** 根据速度模式从 SP 读取速度并应用 */
     private fun applySpeedMode(mode: String) {
@@ -538,9 +564,11 @@ class LocationService : Service() {
         val wgs = MapUtils.gcj02ToWgs84(gcjLng, gcjLat)
         moveExecutor.execute {
             handler.removeMessages(HANDLER_MSG_ID)
-            currentLongitude = wgs[0]
-            currentLatitude = wgs[1]
-            altitude = alt
+            locationLock.withLock {
+                currentLongitude = wgs[0]
+                currentLatitude = wgs[1]
+                altitude = alt
+            }
             setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
             setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
             if (isRunning) handler.sendEmptyMessage(HANDLER_MSG_ID)
@@ -550,18 +578,23 @@ class LocationService : Service() {
     fun setPositionWgs84(wgsLng: Double, wgsLat: Double, alt: Double) {
         moveExecutor.execute {
             handler.removeMessages(HANDLER_MSG_ID)
-            currentLongitude = wgsLng
-            currentLatitude = wgsLat
-            altitude = alt
+            locationLock.withLock {
+                currentLongitude = wgsLng
+                currentLatitude = wgsLat
+                altitude = alt
+            }
             setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
             setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
             if (isRunning) handler.sendEmptyMessage(HANDLER_MSG_ID)
         }
     }
 
-    fun getCurrentLocation(): Pair<Double, Double> = Pair(currentLatitude, currentLongitude)
+    fun getCurrentLocation(): Pair<Double, Double> = locationLock.withLock {
+        Pair(currentLatitude, currentLongitude)
+    }
     fun getCurrentLocationGcj02(): Pair<Double, Double> {
-        val gcj = MapUtils.wgs84ToGcj02(currentLongitude, currentLatitude)
+        val (lat, lng) = locationLock.withLock { Pair(currentLatitude, currentLongitude) }
+        val gcj = MapUtils.wgs84ToGcj02(lng, lat)
         return Pair(gcj[1], gcj[0])
     }
     

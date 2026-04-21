@@ -1073,12 +1073,17 @@ class MainFragment : Fragment() {
         idlePulseAnimator = null
         binding.fab.clearAnimation()
         
+        // mapView.onDestroy() 必须在 binding 置 null 之前调用
+        // 因为 onDestroy() 在 onDestroyView() 之后执行，此时 binding 已为 null
+        binding.mapView.onDestroy()
+        
         _binding = null
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        binding.mapView.onDestroy()
+        // mapView 的 onDestroy 已在 onDestroyView 中调用
+        // 此处 _binding 已为 null，不再访问 binding
     }
 
     /**

@@ -1,6 +1,8 @@
 package com.mockloc.util
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import timber.log.Timber
 
@@ -12,11 +14,20 @@ import timber.log.Timber
  * 2. 记录详细的错误日志
  * 3. 提供用户友好的错误提示
  * 4. 可选的崩溃上报
+ * 
+ * 安全设计：
+ * - 保存原始 UncaughtExceptionHandler，记录日志后委托给原始处理器处理
+ * - 不在异常处理线程中调用 Thread.sleep（避免多线程崩溃时死锁）
+ * - 不直接调用 Process.killProcess/System.exit（避免跳过清理逻辑）
+ * - Toast 通过主线程 Handler 显示（异常处理线程没有 Looper）
+ * - appContext 强制使用 applicationContext（防止内存泄漏）
  */
 object CrashHandler {
     
-    private var context: Context? = null
+    // 强制使用 applicationContext，防止 Activity Context 导致内存泄漏
+    private var appContext: Context? = null
     private var isInitialized = false
+    private var defaultHandler: Thread.UncaughtExceptionHandler? = null
     
     /**
      * 初始化异常处理器
@@ -24,9 +35,13 @@ object CrashHandler {
     fun init(appContext: Context) {
         if (isInitialized) return
         
-        context = appContext.applicationContext
+        // 强制使用 applicationContext，即使传入的是 Activity Context
+        this.appContext = appContext.applicationContext
         
-        // 设置默认的未捕获异常处理器
+        // 保存原始的未捕获异常处理器（通常是 Android Runtime 的默认处理器）
+        defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        
+        // 设置自定义的未捕获异常处理器
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             handleUncaughtException(thread, throwable)
         }
@@ -37,29 +52,36 @@ object CrashHandler {
     
     /**
      * 处理未捕获的异常
+     * 
+     * 关键安全措施：
+     * 1. 先记录日志（Timber 是轻量级的，不会阻塞）
+     * 2. 尝试在主线程显示 Toast 提示（不阻塞异常处理线程）
+     * 3. 委托给原始 UncaughtExceptionHandler 处理（让系统正常终止进程）
+     * 
+     * 不使用 Thread.sleep：在异常处理线程中 sleep 是危险的，
+     * 如果其他线程也崩溃，会导致死锁（异常处理线程被 sleep 占用，无法处理新异常）
+     * 
+     * 不使用 Process.killProcess/System.exit：这会跳过系统的清理逻辑，
+     * 委托给原始处理器可以让系统正常终止进程并显示崩溃对话框
      */
     private fun handleUncaughtException(thread: Thread, throwable: Throwable) {
+        // 1. 记录崩溃信息
         Timber.e(throwable, "Uncaught exception in thread: ${thread.name}")
-        
-        // 记录崩溃信息
         logCrashInfo(throwable)
         
-        // 显示用户友好的错误提示
+        // 2. 尝试在主线程显示用户友好的错误提示
+        //    不在异常处理线程中直接显示 Toast（该线程可能没有 Looper）
+        //    也不使用 Thread.sleep 等待 Toast 显示（避免死锁风险）
         showUserFriendlyError(throwable)
         
-        // 这里可以添加崩溃上报逻辑
-        // reportCrash(throwable)
-        
-        // 等待一下让用户看到提示
-        try {
-            Thread.sleep(2000)
-        } catch (e: InterruptedException) {
-            Timber.e(e, "Interrupted while waiting")
-        }
-        
-        // 退出应用
-        android.os.Process.killProcess(android.os.Process.myPid())
-        System.exit(1)
+        // 3. 委托给原始的未捕获异常处理器
+        //    Android Runtime 的默认处理器会：
+        //    - 打印崩溃堆栈到 logcat
+        //    - 显示"应用已停止运行"对话框
+        //    - 正常终止进程
+        defaultHandler?.uncaughtException(thread, throwable)
+            ?: // 如果没有原始处理器（不应该发生），让系统默认处理
+            run { android.os.Process.killProcess(android.os.Process.myPid()) }
     }
     
     /**
@@ -92,13 +114,24 @@ object CrashHandler {
     
     /**
      * 显示用户友好的错误提示
+     * 
+     * 通过主线程 Handler post Toast，避免在异常处理线程中直接操作 UI。
+     * Toast 会在主线程消息队列中排队显示，不阻塞异常处理线程。
      */
     private fun showUserFriendlyError(throwable: Throwable) {
-        context?.let { ctx ->
-            val message = getUserFriendlyMessage(throwable)
-            
-            // 使用 Toast 显示（因为此时 Activity 可能已经销毁）
-            Toast.makeText(ctx, message, Toast.LENGTH_LONG).show()
+        appContext?.let { ctx ->
+            try {
+                val message = getUserFriendlyMessage(throwable)
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        Toast.makeText(ctx, message, Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
+                        Timber.w(e, "Failed to show crash Toast on main thread")
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to post crash Toast to main thread")
+            }
         }
     }
     
@@ -137,8 +170,12 @@ object CrashHandler {
         } catch (e: Exception) {
             Timber.e(e, "$tag: $errorMessage")
             if (showToast) {
-                context?.let {
-                    Toast.makeText(it, errorMessage, Toast.LENGTH_SHORT).show()
+                appContext?.let {
+                    try {
+                        Toast.makeText(it, errorMessage, Toast.LENGTH_SHORT).show()
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Failed to show safeExecute Toast")
+                    }
                 }
             }
             null
@@ -159,8 +196,12 @@ object CrashHandler {
         } catch (e: Exception) {
             Timber.e(e, "$tag: $errorMessage")
             if (showToast) {
-                context?.let {
-                    Toast.makeText(it, errorMessage, Toast.LENGTH_SHORT).show()
+                appContext?.let {
+                    try {
+                        Toast.makeText(it, errorMessage, Toast.LENGTH_SHORT).show()
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Failed to show safeExecuteSuspend Toast")
+                    }
                 }
             }
             null

@@ -375,7 +375,7 @@ class HistoryWindowController(
         try {
             windowParams.flags = android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            windowManager.updateViewLayout(rootView!!, windowParams)
+            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
         } catch (e: Exception) {
             Timber.w(e, "enableSearchFocus failed")
         }
@@ -389,7 +389,7 @@ class HistoryWindowController(
             windowParams.flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            windowManager.updateViewLayout(rootView!!, windowParams)
+            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
         } catch (e: Exception) {
             Timber.w(e, "disableSearchFocus failed")
         }
