@@ -88,6 +88,9 @@ lint/outputs/
 lint/tmp/
 lint/reports/
 
+# AI assistant memory - 不提交 AI 助手的记忆缓存
+.workbuddy/
+
 # OS generated files
 .DS_Store
 .DS_Store?

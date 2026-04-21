@@ -497,7 +497,7 @@ class MapWindowController(
                         btnGoPulseAnimator?.cancel()
                         isPositionConfirmed = true
                         btnGo?.setImageResource(R.drawable.ic_fly)
-                        btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(btnGo!!, 1200)
+                        btnGo?.let { btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(it, 1200) }
                     }
                 }
             })
@@ -585,7 +585,7 @@ class MapWindowController(
         btnGoPulseAnimator?.cancel()
         isPositionConfirmed = true
         btnGo?.setImageResource(R.drawable.ic_fly)
-        btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(btnGo!!, 1200)
+        btnGo?.let { btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(it, 1200) }
     }
 
     /**
@@ -632,7 +632,7 @@ class MapWindowController(
             
             // 保持激活状态
             isPositionConfirmed = true
-            btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(btnGo!!, 1200)
+            btnGo?.let { btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(it, 1200) }
             
         } else {
             // 没有新位置：切换激活/去激活状态
@@ -784,7 +784,7 @@ class MapWindowController(
         try {
             windowParams.flags = android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            windowManager.updateViewLayout(rootView!!, windowParams)
+            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
         } catch (e: Exception) {
             Timber.w(e, "enableSearchFocus failed")
         }
@@ -798,7 +798,7 @@ class MapWindowController(
             windowParams.flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            windowManager.updateViewLayout(rootView!!, windowParams)
+            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
         } catch (e: Exception) {
             Timber.w(e, "disableSearchFocus failed")
         }
