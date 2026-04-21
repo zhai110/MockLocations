@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.mockloc.R
 import com.mockloc.databinding.ActivityPermissionGuideBinding
@@ -16,6 +18,20 @@ import timber.log.Timber
 class PermissionGuideActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityPermissionGuideBinding
+
+    // 替代废弃的 onActivityResult：从系统设置页返回时刷新权限状态
+    private val settingsResultLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        updatePermissionStatus()
+    }
+
+    // 替代废弃的 onRequestPermissionsResult：权限请求结果回调
+    private val permissionLauncher: ActivityResultLauncher<Array<String>> = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        updatePermissionStatus()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -134,13 +150,13 @@ class PermissionGuideActivity : AppCompatActivity() {
             Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
             Uri.parse("package:$packageName")
         )
-        startActivity(intent)
+        settingsResultLauncher.launch(intent)
     }
 
     private fun openDeveloperSettings() {
         val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
         try {
-            startActivity(intent)
+            settingsResultLauncher.launch(intent)
         } catch (e: Exception) {
             Timber.e(e, "Failed to open developer settings")
             // 如果无法打开开发者设置，提示用户手动操作
@@ -161,20 +177,6 @@ class PermissionGuideActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        updatePermissionStatus()
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        updatePermissionStatus()
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
         updatePermissionStatus()
     }
 }
