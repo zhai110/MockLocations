@@ -19,7 +19,8 @@ object AddressCache {
     private const val CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000L  // 24小时过期
     
     private var cache: MutableMap<String, CacheEntry>? = null
-    private var context: Context? = null
+    // 强制使用 applicationContext，防止 Activity Context 导致内存泄漏
+    private var appContext: Context? = null
     
     /**
      * 缓存条目
@@ -33,7 +34,7 @@ object AddressCache {
      * 初始化缓存
      */
     fun init(appContext: Context) {
-        context = appContext.applicationContext
+        this.appContext = appContext.applicationContext
         loadCacheFromPrefs()
         Timber.d("AddressCache initialized with ${cache?.size ?: 0} entries")
     }
@@ -43,7 +44,7 @@ object AddressCache {
      */
     private fun loadCacheFromPrefs() {
         try {
-            val prefs = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val prefs = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val allEntries = prefs?.all
             
             if (allEntries.isNullOrEmpty()) {
@@ -82,7 +83,7 @@ object AddressCache {
      */
     private fun saveCacheToPrefs() {
         try {
-            val prefs = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val prefs = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val editor = prefs?.edit()
             
             // 清除旧数据

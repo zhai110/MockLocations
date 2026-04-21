@@ -45,6 +45,7 @@ import com.mockloc.util.PermissionHelper
 import com.mockloc.util.UIFeedbackHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -573,17 +574,17 @@ class MainFragment : Fragment() {
                 }
                 R.id.nav_history -> {
                     startActivity(Intent(requireContext(), HistoryActivity::class.java))
-                    requireActivity().overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                    applyActivityTransition()
                     true
                 }
                 R.id.nav_favorite -> {
                     startActivity(Intent(requireContext(), FavoriteActivity::class.java))
-                    requireActivity().overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                    applyActivityTransition()
                     true
                 }
                 R.id.nav_settings -> {
                     startActivity(Intent(requireContext(), SettingsActivity::class.java))
-                    requireActivity().overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                    applyActivityTransition()
                     true
                 }
                 else -> false
@@ -763,16 +764,19 @@ class MainFragment : Fragment() {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
+                    // API 33+: getFromLocation 可能返回 null 或抛出 IOException
                     val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
                     if (addresses != null && addresses.isNotEmpty()) {
                         val addr = addresses[0].getAddressLine(0) ?: ""
-                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                            if (addr.isNotEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            if (_binding != null && addr.isNotEmpty()) {
                                 AnimationHelper.fadeIn(binding.addressText, 200)
                                 binding.addressText.text = addr
                             }
                         }
                     }
+                } catch (e: java.io.IOException) {
+                    Timber.w(e, "Geocoder IO error (API 33+ may throw IOException)")
                 } catch (e: Exception) {
                     Timber.e(e, "获取地址失败")
                 }
@@ -880,12 +884,16 @@ class MainFragment : Fragment() {
     private fun getAddressFromLocation(latLng: LatLng): String {
         return try {
             val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
+            // API 33+: getFromLocation 可能返回 null 或抛出 IOException
             val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
             if (addresses != null && addresses.isNotEmpty()) {
                 addresses[0].getAddressLine(0) ?: String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
             } else {
                 String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
             }
+        } catch (e: java.io.IOException) {
+            Timber.w(e, "Geocoder IO error in getAddressFromLocation")
+            String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
         } catch (e: Exception) {
             String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
         }
@@ -1034,6 +1042,23 @@ class MainFragment : Fragment() {
     private fun hideKeyboard() {
         val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
         imm?.hideSoftInputFromWindow(binding.searchEdit.windowToken, 0)
+    }
+
+    /**
+     * 应用 Activity 过渡动画（兼容 API 34+）
+     * API 34+ 废弃了 overridePendingTransition，改用 overrideActivityTransition
+     */
+    private fun applyActivityTransition() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            requireActivity().overrideActivityTransition(
+                android.app.Activity.OVERRIDE_TRANSITION_OPEN,
+                R.anim.slide_in_right,
+                R.anim.slide_out_left
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            requireActivity().overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+        }
     }
 
     // ==================== 生命周期方法 ====================

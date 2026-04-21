@@ -15,10 +15,12 @@ import timber.log.Timber
  * - 根据用户设置决定是否自动启动定位服务
  * - 读取上次模拟的位置信息并恢复
  * 
- * 注意事项：
+ * 兼容性注意事项：
  * - 需要声明 RECEIVE_BOOT_COMPLETED 权限
  * - Android 10+ 需要用户手动授权后台定位权限
- * - 部分厂商ROM可能限制自启，需要在系统设置中允许
+ * - Android 12+ 后台启动前台服务有限制，可能抛出 ForegroundServiceStartNotAllowedException
+ * - 部分厂商ROM（小米、华为、OPPO、vivo等）默认禁止应用自启，
+ *   需要用户在系统设置中手动允许自启，本应用无法绕过此限制
  */
 class BootReceiver : BroadcastReceiver() {
 
@@ -52,14 +54,20 @@ class BootReceiver : BroadcastReceiver() {
                             putExtra(LocationService.EXTRA_COORD_GCJ02, true) // 标记为GCJ02坐标
                         }
                         
-                        // Android 8.0+ 需要使用 startForegroundService
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(serviceIntent)
-                        } else {
-                            context.startService(serviceIntent)
+                        try {
+                            // Android 8.0+ 需要使用 startForegroundService
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                context.startForegroundService(serviceIntent)
+                            } else {
+                                context.startService(serviceIntent)
+                            }
+                            Timber.d("Service started with last location: ($lastLat, $lastLng)")
+                        } catch (e: IllegalStateException) {
+                            // Android 12+ 后台启动前台服务限制
+                            // ForegroundServiceStartNotAllowedException 是 IllegalStateException 的子类
+                            Timber.w(e, "Cannot start foreground service from background (Android 12+ restriction). " +
+                                "User may need to disable battery optimization for this app.")
                         }
-                        
-                        Timber.d("Service started with last location: ($lastLat, $lastLng)")
                     } else {
                         Timber.d("No valid last location, skip auto start")
                     }
@@ -67,7 +75,8 @@ class BootReceiver : BroadcastReceiver() {
                     Timber.d("Auto start disabled, skip")
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Failed to auto start service")
+                Timber.e(e, "Failed to auto start service. " +
+                    "If on a custom ROM (Xiaomi/Huawei/OPPO/vivo), check if auto-start is allowed in system settings.")
             }
         }
     }

@@ -29,6 +29,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.mockloc.R
 import com.mockloc.ui.main.MainActivity
 import com.mockloc.util.MapUtils
@@ -346,10 +347,17 @@ class LocationService : Service() {
         safeRemoveTestProvider(LocationManager.GPS_PROVIDER)
     }
 
-    @SuppressLint("WrongConstant")
     private fun addTestProvider(provider: String, requiresNetwork: Boolean, powerUsage: Int, accuracy: Int) {
         try {
-            locationManager.addTestProvider(provider, requiresNetwork, false, true, true, true, true, true, powerUsage, accuracy)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // API 31+: addTestProvider 要求使用 ProviderProperties 常量（int 值 1~3）
+                // 而非 Criteria 常量（int 值 0~100），否则抛出 IllegalArgumentException
+                locationManager.addTestProvider(provider, requiresNetwork, false, true, true, true, true, true, powerUsage, accuracy)
+            } else {
+                // API 31 以下: 使用 Criteria 常量
+                @Suppress("WrongConstant")
+                locationManager.addTestProvider(provider, requiresNetwork, false, true, true, true, true, true, powerUsage, accuracy)
+            }
             if (!locationManager.isProviderEnabled(provider)) {
                 locationManager.setTestProviderEnabled(provider, true)
             }
@@ -688,13 +696,15 @@ class LocationService : Service() {
                 addAction(NOTE_ACTION_SHOW)
                 addAction(NOTE_ACTION_HIDE)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(noteActionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-            } else {
-                registerReceiver(noteActionReceiver, filter)
-            }
+
+            ContextCompat.registerReceiver(
+                this,
+                noteActionReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
         } catch (e: Exception) {
-            Timber.w(e, "registerNoteActionReceiver failed")
+            Timber.w(t = e, message = "registerNoteActionReceiver failed")
         }
     }
 
