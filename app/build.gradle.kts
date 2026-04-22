@@ -30,10 +30,15 @@ android {
             val keyPwd = localProps.getProperty("RELEASE_KEY_PASSWORD", "")
 
             if (storeFilePath.isNotEmpty()) {
-                storeFile = file(storeFilePath)
-                storePassword = storePwd
-                keyAlias = keyAliasName
-                keyPassword = keyPwd
+                try {
+                    storeFile = file(storeFilePath)
+                    storePassword = storePwd
+                    keyAlias = keyAliasName
+                    keyPassword = keyPwd
+                } catch (e: Exception) {
+                    // 如果密钥文件不存在，记录警告但不中断构建
+                    println("Warning: Release signing config failed - ${e.message}")
+                }
             }
         }
     }
@@ -60,10 +65,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            // ⚠️ 临时使用 debug 签名进行测试（正式发布前必须改回 release 签名）
+            println("Warning: Using debug signing for release build (testing only)")
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             isMinifyEnabled = false
+            // Debug 版本始终使用 debug 签名
         }
     }
 
