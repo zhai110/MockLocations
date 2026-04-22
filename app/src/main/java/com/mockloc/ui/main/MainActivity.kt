@@ -64,6 +64,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        Timber.d("MainActivity configuration changed: isNight=${(newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES}")
+        // 配置变化会自动传递给 Fragment 的 onConfigurationChanged
+    }
+
     override fun onStart() {
         super.onStart()
         try {

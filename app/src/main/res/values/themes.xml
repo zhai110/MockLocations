@@ -275,7 +275,7 @@
         <item name="cornerRadius">8dp</item>
     </style>
 
-    <!-- 底部导航栏样式 - 使用透明背景隐藏指示器 -->
+    <!-- 底部导航栏样式 - 白天模式 -->
     <style name="BottomNavigationViewStyle" parent="Widget.Material3.BottomNavigationView">
         <!-- 将项目背景设置为透明，隐藏指示器 -->
         <item name="itemBackground">@drawable/nav_item_background</item>

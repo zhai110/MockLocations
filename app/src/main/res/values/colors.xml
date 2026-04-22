@@ -85,6 +85,9 @@
     <color name="transparent">#00000000</color>
     <color name="semi_transparent">#80000000</color>
     
+    <!-- 底部导航栏选中项背景 - 白天模式（浅蓝绿色，柔和不明显） -->
+    <color name="nav_item_selected_background">#E8F5F3</color>
+    
     <!-- 旧颜色（向后兼容） -->
     <color name="primary_dark_legacy">#00897B</color>
     <color name="primary_light_legacy">#4DB6AC</color>

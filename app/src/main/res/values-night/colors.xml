@@ -3,7 +3,7 @@
     <!-- 主色调 - 蓝绿色系，深色背景下更醒目 -->
     <color name="primary">#4DB6AC</color>
     <color name="on_primary">#003832</color>
-    <color name="primary_container">#1A3D3A</color>
+    <color name="primary_container">#153530</color>
     <color name="on_primary_container">#80CBC4</color>
 
     <color name="secondary">#80CBC4</color>
@@ -76,6 +76,9 @@
     <!-- 透明色 -->
     <color name="transparent">#00000000</color>
     <color name="semi_transparent">#80000000</color>
+    
+    <!-- 底部导航栏选中项背景 - 夜间模式（深蓝绿色，低调不刺眼） -->
+    <color name="nav_item_selected_background">#1A3D3A</color>
     
     <!-- 旧颜色（向后兼容） -->
     <color name="primary_dark_legacy">#26A69A</color>
