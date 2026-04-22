@@ -61,6 +61,10 @@
     <color name="joystick_base">#3A3F4B</color>
     <color name="joystick_stick_start">#4DB6AC</color>
     <color name="joystick_stick_end">#80CBC4</color>
+    <color name="joystick_button_theme">#66BB6A</color>
+    
+    <!-- 定位精度圈颜色 - 深色主题 -->
+    <color name="location_accuracy_fill">#1A667EEA</color>
 
     <!-- 分割线 - 深色主题 -->
     <color name="divider">#333333</color>

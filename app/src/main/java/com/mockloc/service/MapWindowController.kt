@@ -301,7 +301,7 @@ class MapWindowController(
                 shape = android.graphics.drawable.GradientDrawable.OVAL
                 setColor(primaryColor)
             }
-            setColorFilter(android.graphics.Color.WHITE)
+            setColorFilter(ContextCompat.getColor(context, R.color.on_primary))
             contentDescription = "确定选点"
             elevation = dp(8).toFloat()
         }.also {
@@ -456,7 +456,7 @@ class MapWindowController(
                 showMyLocation(true)
                 // 设置精度圈颜色（与app内部一致）
                 strokeColor(ContextCompat.getColor(context, R.color.primary))
-                radiusFillColor(android.graphics.Color.parseColor("#1A667EEA"))
+                radiusFillColor(ContextCompat.getColor(context, R.color.location_accuracy_fill))
                 // 设置边框宽度
                 strokeWidth(2f)
             }
@@ -606,7 +606,7 @@ class MapWindowController(
                     ?.setDuration(100)
                     ?.withEndAction {
                         btnGo?.setImageResource(R.drawable.ic_fly)
-                        btnGo?.setColorFilter(android.graphics.Color.WHITE)
+                        btnGo?.setColorFilter(ContextCompat.getColor(context, R.color.on_primary))
                         btnGo?.animate()
                             ?.scaleX(1f)
                             ?.scaleY(1f)
