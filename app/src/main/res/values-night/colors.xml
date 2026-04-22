@@ -19,26 +19,29 @@
     <color name="primary_dark">#26A69A</color>
     <color name="primary_light">#80CBC4</color>
 
-    <!-- 背景色 - 深色主题 -->
-    <color name="background">#1A3D3A</color>
-    <color name="on_background">#80CBC4</color>
+    <!-- 背景色 - Material Design 标准深色主题 -->
+    <color name="background">#121212</color>
+    <color name="on_background">#E8E8E8</color>
     <color name="surface">#1E1E1E</color>
     <color name="on_surface">#E8E8E8</color>
     <color name="surface_variant">#2A2A2A</color>
-    <color name="on_surface_variant">#A0A0A0</color>
+    <color name="on_surface_variant">#B8B8B8</color>
     <color name="inverse_surface">#E8E8E8</color>
     <color name="inverse_on_surface">#121212</color>
+    
+    <!-- AppBar/Toolbar 专用背景色（比 surface 稍亮） -->
+    <color name="app_bar_background">#2A2A2A</color>
     <color name="white">#FFFFFF</color>
 
     <!-- 文字颜色 - 深色主题高对比度 -->
     <color name="text_primary">#E8E8E8</color>
-    <color name="text_secondary">#A0A0A0</color>
-    <color name="text_hint">#666666</color>
-    <color name="text_light">#808080</color>
+    <color name="text_secondary">#B8B8B8</color>
+    <color name="text_hint">#7A7A7A</color>
+    <color name="text_light">#909090</color>
 
     <!-- 轮廓和分割线 - 深色主题 -->
-    <color name="outline">#333333</color>
-    <color name="outline_variant">#2A2A2A</color>
+    <color name="outline">#4A4A4A</color>
+    <color name="outline_variant">#3A3A3A</color>
 
     <!-- 状态颜色 -->
     <color name="error">#F87171</color>
@@ -67,8 +70,8 @@
     <color name="location_accuracy_fill">#1A667EEA</color>
 
     <!-- 分割线 - 深色主题 -->
-    <color name="divider">#333333</color>
-    <color name="divider_light">#2A2A2A</color>
+    <color name="divider">#4A4A4A</color>
+    <color name="divider_light">#3A3A3A</color>
 
     <!-- 透明色 -->
     <color name="transparent">#00000000</color>

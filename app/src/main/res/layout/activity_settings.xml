@@ -14,8 +14,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fitsSystemWindows="true"
-        android:background="@color/surface"
-        app:elevation="0dp">
+        android:background="#2A2A2A"
+        app:elevation="4dp">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
@@ -44,7 +44,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/settings_movement"
-                android:textColor="@color/primary"
+                android:textColor="@color/on_primary_container"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
@@ -248,7 +248,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="@string/settings_location"
-                android:textColor="@color/primary"
+                android:textColor="@color/on_primary_container"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
@@ -491,7 +491,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="@string/settings_other"
-                android:textColor="@color/primary"
+                android:textColor="@color/on_primary_container"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 

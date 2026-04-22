@@ -163,6 +163,9 @@ class HistoryActivity : AppCompatActivity() {
     private fun loadData() {
         lifecycleScope.launch {
             try {
+                // 显示加载指示器
+                showLoading(true)
+                
                 val db = VirtualLocationApp.getDatabase()
                 Timber.d("Loading data, currentTab: $currentTab")
                 
@@ -182,7 +185,7 @@ class HistoryActivity : AppCompatActivity() {
                         removeDuration = com.mockloc.util.AnimationConfig.getFadeOutDuration()
                     }
                     locationAdapter.submitList(historyItems)
-                    updateEmptyState(historyItems.isEmpty())
+                    updateEmptyState(historyItems.isEmpty(), isSearchTab = false)
                 } else {
                     // 加载搜索历史
                     val items = db.searchHistoryDao().getAll()
@@ -199,19 +202,48 @@ class HistoryActivity : AppCompatActivity() {
                         removeDuration = com.mockloc.util.AnimationConfig.getFadeOutDuration()
                     }
                     searchAdapter.submitList(searchItems)
-                    updateEmptyState(searchItems.isEmpty())
+                    updateEmptyState(searchItems.isEmpty(), isSearchTab = true)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "加载历史记录失败")
+            } finally {
+                // 隐藏加载指示器
+                showLoading(false)
             }
         }
     }
 
-    private fun updateEmptyState(isEmpty: Boolean) {
-        binding.emptyState.visibility = if (isEmpty) {
+    private fun showLoading(isLoading: Boolean) {
+        binding.loadingProgress.visibility = if (isLoading) {
             android.view.View.VISIBLE
         } else {
             android.view.View.GONE
+        }
+        
+        // 加载时隐藏列表和空状态
+        if (isLoading) {
+            binding.historyList.visibility = android.view.View.GONE
+            binding.emptyStateLocation.visibility = android.view.View.GONE
+            binding.emptyStateSearch.visibility = android.view.View.GONE
+        }
+    }
+
+    private fun updateEmptyState(isEmpty: Boolean, isSearchTab: Boolean) {
+        // 先隐藏所有状态
+        binding.emptyStateLocation.visibility = android.view.View.GONE
+        binding.emptyStateSearch.visibility = android.view.View.GONE
+        
+        if (isEmpty) {
+            // 显示对应的空状态
+            if (isSearchTab) {
+                binding.emptyStateSearch.visibility = android.view.View.VISIBLE
+            } else {
+                binding.emptyStateLocation.visibility = android.view.View.VISIBLE
+            }
+            binding.historyList.visibility = android.view.View.GONE
+        } else {
+            // 显示列表
+            binding.historyList.visibility = android.view.View.VISIBLE
         }
     }
 }
