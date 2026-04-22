@@ -1,12 +1,18 @@
 package com.mockloc.data.db
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * 历史记录实体
  */
-@Entity(tableName = "history_location")
+@Entity(
+    tableName = "history_location",
+    indices = [
+        Index(value = ["timestamp"])  // 优化按时间排序查询
+    ]
+)
 data class HistoryLocation(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
