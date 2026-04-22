@@ -198,7 +198,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun showHistoryExpiryDialog() {
-        val options = arrayOf("7天有效", "14天效", "30天效", "永久保存")
+        val options = arrayOf("7天有效", "14天有效", "30天有效", "永久保存")
         val expiryDays = intArrayOf(7, 14, 30, -1)
         val currentExpiry = prefs.getInt("history_expiry", 30)
         val currentIndex = when (currentExpiry) {
@@ -279,8 +279,8 @@ class SettingsActivity : AppCompatActivity() {
         val historyExpiry = prefs.getInt("history_expiry", 30)
         binding.textHistoryExpiry.text = when (historyExpiry) {
             7 -> "7天有效"
-            14 -> "14天效"
-            30 -> "30天效"
+            14 -> "14天有效"
+            30 -> "30天有效"
             else -> "永久保存"
         }
         

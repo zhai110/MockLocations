@@ -445,7 +445,7 @@ class MainFragment : Fragment() {
             showMyLocation(true)
             // 设置精度圈颜色
             strokeColor(com.mockloc.R.color.primary)
-            radiusFillColor(android.graphics.Color.parseColor("#1A667EEA"))
+            radiusFillColor(ContextCompat.getColor(requireContext(), R.color.location_accuracy_fill))
             strokeWidth(2f)
         }
         aMap.isMyLocationEnabled = true
@@ -796,7 +796,7 @@ class MainFragment : Fragment() {
             // 为搜索结果列表添加底部圆角，与搜索框保持一致
             val radius = 16f * resources.displayMetrics.density
             binding.searchResultList.background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(android.graphics.Color.WHITE)
+                setColor(ContextCompat.getColor(requireContext(), R.color.surface))
                 cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, radius, radius, radius, radius)
             }
         }

@@ -305,8 +305,11 @@ class LocationService : Service() {
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-        Timber.d("Configuration changed, syncing floating window theme")
-        floatingWindowManager.syncMapWithSystemTheme()
+        // 只有悬浮窗正在显示时才同步主题，避免夜间模式切换时错误弹出悬浮窗
+        if (isJoystickVisible) {
+            Timber.d("Configuration changed, syncing floating window theme")
+            floatingWindowManager.syncMapWithSystemTheme()
+        }
     }
 
     override fun onDestroy() {

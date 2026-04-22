@@ -106,7 +106,7 @@ class JoystickView @JvmOverloads constructor(
         val color = if (isAuto) {
             ContextCompat.getColor(context, R.color.joystick_stick_start)
         } else {
-            0xFF666666.toInt()
+            ContextCompat.getColor(context, R.color.on_surface_variant)
         }
         iconPaint.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
     }

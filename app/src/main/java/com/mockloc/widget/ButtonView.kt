@@ -1,11 +1,11 @@
 package com.mockloc.widget
 
 import android.content.Context
-import android.graphics.Color
 import android.view.Gravity
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import androidx.core.content.ContextCompat
 import com.mockloc.R
 
 /**
@@ -35,8 +35,9 @@ class ButtonView(context: Context) : LinearLayout(context) {
     private var activeDirection = -1
 
     private val btnSize = dp(32)
-    private var themeColor = 0xFF4CAF50.toInt()
-    private val blackColor = Color.BLACK
+    // 从主题资源获取颜色，支持深色模式
+    private var themeColor = ContextCompat.getColor(context, R.color.joystick_button_theme)
+    private val iconColor = ContextCompat.getColor(context, R.color.on_surface)
 
     private lateinit var btnLock: ImageButton
     private val buttons = arrayOfNulls<ImageButton>(8)
@@ -96,8 +97,8 @@ class ButtonView(context: Context) : LinearLayout(context) {
     private fun createButton(iconRes: Int): ImageButton {
         return ImageButton(context).apply {
             setImageResource(iconRes)
-            setColorFilter(blackColor)
-            setBackgroundColor(0x00000000) // 透明背景
+            setColorFilter(iconColor)
+            setBackgroundColor(ContextCompat.getColor(context, R.color.transparent))
             setPadding(2, 2, 2, 2)
             contentDescription = "方向按钮"
             scaleType = ImageView.ScaleType.CENTER_INSIDE
@@ -109,7 +110,7 @@ class ButtonView(context: Context) : LinearLayout(context) {
             // 锁定 → 自由模式
             isLocked = false
             btnLock.setImageResource(R.drawable.ic_lock_open)
-            btnLock.setColorFilter(blackColor)
+            btnLock.setColorFilter(iconColor)
             clearAllDirectionHighlight()
             listener?.clickAngleInfo(false, 0.0, 0.0)
         } else {
@@ -128,7 +129,7 @@ class ButtonView(context: Context) : LinearLayout(context) {
             // 锁定模式: 选中一个方向持续移动，再点取消
             if (activeDirection == dirIndex) {
                 activeDirection = -1
-                btn.setColorFilter(blackColor)
+                btn.setColorFilter(iconColor)
                 listener?.clickAngleInfo(false, angle, 0.0)
             } else {
                 clearAllDirectionHighlight()
@@ -140,13 +141,13 @@ class ButtonView(context: Context) : LinearLayout(context) {
             // 自由模式: 单次移动
             btn.setColorFilter(themeColor)
             listener?.clickAngleInfo(false, angle, 1.0)
-            postDelayed({ btn.setColorFilter(blackColor) }, 150)
+            postDelayed({ btn.setColorFilter(iconColor) }, 150)
         }
     }
 
     private fun clearAllDirectionHighlight() {
         for (i in 0..7) {
-            buttons[i]?.setColorFilter(blackColor)
+            buttons[i]?.setColorFilter(iconColor)
         }
         activeDirection = -1
     }

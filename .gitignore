@@ -20,7 +20,7 @@ release/
 .gradle/
 build/
 
-# Local configuration file (sdk path, etc) - 包含 API Key，绝不能提交
+# Local configuration file (sdk path, etc) - contains API Keys, MUST NOT commit
 local.properties
 *.properties.bak
 
@@ -37,22 +37,13 @@ proguard/
 captures/
 
 # Android Studio / IntelliJ
-*.iml
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/gradle.xml
-.idea/assetWizardSettings.xml
-.idea/dictionaries
-.idea/libraries
-.idea/caches
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/deploymentTargetDropDown.xml
-.idea/render.experimental.xml
-.idea/vcs.xml
+.idea/
+# Preserve shared IDE configs for contributors
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/runConfigurations/
 
-# Keystore files - 签名密钥文件绝不能提交到版本控制
+# Keystore files - signing keys MUST NOT be committed
 *.jks
 *.keystore
 *.p12
@@ -88,7 +79,10 @@ lint/outputs/
 lint/tmp/
 lint/reports/
 
-# AI assistant memory - 不提交 AI 助手的记忆缓存
+# Kotlin compilation
+*.kotlin_module
+
+# AI assistant memory - do not commit AI assistant caches
 .workbuddy/
 
 # OS generated files
@@ -100,7 +94,12 @@ lint/reports/
 ehthumbs.db
 Thumbs.db
 
-# Sensitive data - 敏感数据
+# Editor / backup files
+*~
+*.swp
+*.swo
+
+# Sensitive data
 .env
 .env.local
 .env.*.local
@@ -109,7 +108,6 @@ credentials/
 api-keys.txt
 
 # Temporary documentation files (not included in version control)
-# 这些是开发过程中的临时文档，不应提交到 GitHub
 ALL_MANAGERS_COMPLETION.md
 ANIMATION_FIX_REPORT.md
 BATCH_INTEGRATION*.md

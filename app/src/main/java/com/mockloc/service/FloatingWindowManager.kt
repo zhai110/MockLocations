@@ -211,6 +211,7 @@ class FloatingWindowManager(private val service: LocationService) {
                     if (view != null) {
                         if (view.parent != null) {
                             Timber.d("Joystick view already shown")
+                            isJoystickViewShown = true
                             return@let
                         }
                         
@@ -240,6 +241,7 @@ class FloatingWindowManager(private val service: LocationService) {
                                 }
                             }
                         }
+                        isJoystickViewShown = true
                     }
                 }
             }
@@ -254,6 +256,7 @@ class FloatingWindowManager(private val service: LocationService) {
                     if (view != null) {
                         if (view.parent != null) {
                             Timber.d("Map view already shown")
+                            isMapViewShown = true
                             return@let
                         }
                         
@@ -283,6 +286,7 @@ class FloatingWindowManager(private val service: LocationService) {
                                 }
                             }
                         }
+                        isMapViewShown = true
                     }
                 }
             }
@@ -297,6 +301,7 @@ class FloatingWindowManager(private val service: LocationService) {
                     if (view != null) {
                         if (view.parent != null) {
                             Timber.d("History view already shown")
+                            isHistoryViewShown = true
                             return@let
                         }
                         
@@ -326,6 +331,7 @@ class FloatingWindowManager(private val service: LocationService) {
                                 }
                             }
                         }
+                        isHistoryViewShown = true
                     }
                 }
             }
@@ -425,8 +431,10 @@ class FloatingWindowManager(private val service: LocationService) {
         if (themeChanged) {
             Timber.d("Theme changed (night=$isNight), recreating floating views...")
             
-            // 记录当前悬浮窗是否正在显示
-            val wasShowing = currentWindowType != null
+            // 使用显示标志判断悬浮窗是否真正在屏幕上显示
+            // 修复：原代码用 currentWindowType != null，但 currentWindowType 是 Int 类型，
+            // 永远不为 null，导致 wasShowing 永远为 true，夜间模式切换时错误地弹出悬浮窗
+            val wasShowing = isJoystickViewShown || isMapViewShown || isHistoryViewShown
             
             // 重建 themedContext
             themedContext = createThemedContext()
@@ -450,8 +458,8 @@ class FloatingWindowManager(private val service: LocationService) {
             
             currentWindowType = savedWindowType
             
-            // 只有之前正在显示时才重新显示
-            if (wasShowing && savedWindowType != null) {
+            // 只有之前真正在显示时才重新显示
+            if (wasShowing) {
                 show()
                 Timber.d("Floating window restored after theme change")
             } else {
