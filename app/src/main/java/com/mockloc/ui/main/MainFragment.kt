@@ -1159,6 +1159,12 @@ class MainFragment : Fragment() {
             // 更新底部导航栏背景
             binding.bottomNav.setBackgroundColor(surfaceColor)
             
+            // 直接设置选中项指示器颜色（绕过 configChanges 导致的资源不刷新问题）
+            val indicatorColor = ContextCompat.getColor(requireContext(), R.color.nav_item_selected_background)
+            binding.bottomNav.setItemActiveIndicatorColor(
+                android.content.res.ColorStateList.valueOf(indicatorColor)
+            )
+            
             // 更新右侧固定栏按钮背景（重要！）
             // 普通按钮使用 surface 或 surface_variant
             updateButtonBackground(binding.zoomInBtn, surfaceVariantColor)
