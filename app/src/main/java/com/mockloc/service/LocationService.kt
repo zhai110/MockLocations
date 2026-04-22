@@ -275,31 +275,51 @@ class LocationService : Service() {
                 }
             }
         }
-        return START_STICKY
+        
+        // ✅ 使用 START_NOT_STICKY：用户手动停止后不自动重启
+        // 系统因内存不足杀死服务后也不会重启（这是期望的行为）
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
 
+    /**
+     * 用户从最近任务中滑动删除时调用
+     * 
+     * 行为策略：
+     * - 如果正在模拟定位：停止模拟，关闭悬浮窗，停止服务
+     * - 如果未模拟：直接停止服务
+     * 
+     * 这样用户可以真正退出应用，而不是被强制重启
+     */
     override fun onTaskRemoved(rootIntent: Intent?) {
+        Timber.d("onTaskRemoved: user swiped away app from recent tasks")
+        
         try {
-            val (lat, lng, alt) = locationLock.withLock {
-                Triple(currentLatitude, currentLongitude, altitude)
+            // 1. 停止模拟定位
+            if (isRunning) {
+                Timber.d("Stopping simulation due to task removal")
+                stopSimulation()
             }
-            val restartIntent = Intent(this, LocationService::class.java).apply {
-                action = ACTION_START
-                putExtra(EXTRA_LATITUDE, lat)
-                putExtra(EXTRA_LONGITUDE, lng)
-                putExtra(EXTRA_ALTITUDE, alt)
-                putExtra(EXTRA_COORD_GCJ02, false)
+            
+            // 2. 隐藏并销毁悬浮窗
+            if (isJoystickVisible) {
+                Timber.d("Hiding floating window due to task removal")
+                floatingWindowManager.hide()
+                isJoystickVisible = false
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(restartIntent)
-            } else {
-                startService(restartIntent)
-            }
+            
+            // 3. 停止前台服务
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            
+            // 4. 停止服务自身
+            stopSelf()
+            
+            Timber.d("Service stopped cleanly on task removal")
         } catch (e: Exception) {
-            Timber.e(e, "onTaskRemoved restart failed")
+            Timber.e(e, "onTaskRemoved cleanup failed")
         }
+        
         super.onTaskRemoved(rootIntent)
     }
 
@@ -313,22 +333,70 @@ class LocationService : Service() {
     }
 
     override fun onDestroy() {
+        Timber.d("LocationService onDestroy started")
+        
+        // 1. 标记服务停止
         isRunning = false
         staticIsRunning = false
+        
+        // 2. 取消自动移动任务
         cancelAutoMove()
+        
+        // 3. 销毁悬浮窗管理器（会清理所有视图和协程）
         floatingWindowManager.destroy()
         isJoystickVisible = false
 
+        // 4. 清理 Handler 消息队列
         handler.removeMessages(HANDLER_MSG_ID)
-        handlerThread.quit()
+        handler.removeCallbacksAndMessages(null) // 清除所有回调和消息
+        
+        // 5. 安全停止 HandlerThread（使用 quitSafely 而非 quit）
+        if (::handlerThread.isInitialized) {
+            handlerThread.quitSafely() // ✅ 等待当前任务完成后再退出
+            try {
+                handlerThread.join(2000) // 等待最多2秒
+                Timber.d("HandlerThread stopped successfully")
+            } catch (e: InterruptedException) {
+                Timber.e(e, "HandlerThread interrupted during cleanup")
+                Thread.currentThread().interrupt() // 恢复中断状态
+            }
+        }
+        
+        // 6. 关闭 ExecutorService
         moveExecutor.shutdown()
+        try {
+            if (!moveExecutor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                moveExecutor.shutdownNow() // 强制关闭
+                Timber.w("moveExecutor forced to shutdown")
+            } else {
+                Timber.d("moveExecutor shutdown successfully")
+            }
+        } catch (e: InterruptedException) {
+            moveExecutor.shutdownNow()
+            Thread.currentThread().interrupt()
+            Timber.e(e, "moveExecutor shutdown interrupted")
+        }
+        
+        // 7. 移除 TestProvider
         removeTestProviders()
 
-        try { unregisterReceiver(noteActionReceiver) } catch (e: Exception) { Timber.w(e, "unregisterReceiver failed") }
+        // 8. 注销广播接收器
+        try { 
+            unregisterReceiver(noteActionReceiver)
+            Timber.d("noteActionReceiver unregistered")
+        } catch (e: IllegalArgumentException) {
+            Timber.w(e, "noteActionReceiver not registered or already unregistered")
+        } catch (e: Exception) {
+            Timber.e(e, "unregisterReceiver failed unexpectedly")
+        }
+        
+        // 9. 注销 SharedPreferences 监听器
         prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
+        
+        // 10. 停止前台服务
         stopForeground(STOP_FOREGROUND_REMOVE)
 
-        Timber.d("LocationService destroyed")
+        Timber.d("LocationService destroyed completely")
         super.onDestroy()
     }
 
