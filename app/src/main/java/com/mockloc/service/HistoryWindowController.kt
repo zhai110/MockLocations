@@ -236,6 +236,8 @@ class HistoryWindowController(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+            // ✅ 设置最小宽度，确保与 RecyclerView 一致
+            minimumWidth = (context.resources.displayMetrics.widthPixels * 0.85).toInt()
         }.also { contentLayout.addView(it) }
 
         // RecyclerView

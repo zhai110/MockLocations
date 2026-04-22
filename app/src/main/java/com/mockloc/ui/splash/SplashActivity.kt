@@ -7,6 +7,8 @@ import androidx.appcompat.app.AppCompatActivity
 import com.mockloc.R
 import com.mockloc.databinding.ActivitySplashBinding
 import com.mockloc.ui.main.MainActivity
+import com.mockloc.ui.permission.PermissionGuideActivity
+import com.mockloc.util.PermissionHelper
 import timber.log.Timber
 
 /**
@@ -115,16 +117,31 @@ class SplashActivity : AppCompatActivity() {
     }
 
     /**
-     * 跳转到主界面
+     * 跳转到主界面或权限引导页
      */
     private fun navigateToMain() {
         try {
-            val intent = Intent(this, MainActivity::class.java)
+            // 检查必要权限
+            val hasLocation = PermissionHelper.hasLocationPermissions(this)
+            val hasOverlay = PermissionHelper.hasOverlayPermission(this)
+            
+            Timber.d("Permission check: location=$hasLocation, overlay=$hasOverlay")
+            
+            val intent = if (!hasLocation || !hasOverlay) {
+                // 缺少必要权限，跳转到权限引导页
+                Timber.d("Missing permissions, navigating to PermissionGuideActivity")
+                Intent(this, PermissionGuideActivity::class.java)
+            } else {
+                // 权限齐全，直接进入主界面
+                Timber.d("All permissions granted, navigating to MainActivity")
+                Intent(this, MainActivity::class.java)
+            }
+            
             startActivity(intent)
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
             finish()
         } catch (e: Exception) {
-            Timber.e(e, "Failed to start MainActivity")
+            Timber.e(e, "Failed to start activity")
             // 如果跳转失败，显示错误提示并退出
             android.widget.Toast.makeText(
                 this, 
