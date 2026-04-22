@@ -1,12 +1,19 @@
 package com.mockloc.data.db
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * 搜索历史记录
  */
-@Entity(tableName = "search_history")
+@Entity(
+    tableName = "search_history",
+    indices = [
+        Index(value = ["keyword"]),       // 优化关键词搜索
+        Index(value = ["timestamp"])      // 优化按时间清理旧记录
+    ]
+)
 data class SearchHistory(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

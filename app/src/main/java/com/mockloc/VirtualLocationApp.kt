@@ -76,26 +76,53 @@ class VirtualLocationApp : Application() {
      * 
      * 数据库配置说明：
      * 1. addMigrations() - 添加数据库迁移策略，用于版本升级时保留用户数据
-     * 2. fallbackToDestructiveMigration() - 兜底策略，当没有定义迁移时删除重建
-     * 3. fallbackToDestructiveMigrationOnDowngrade() - 降级时删除重建
+     * 2. 移除了 fallbackToDestructiveMigration() - 避免用户数据丢失
      * 
-     * 注意：fallbackToDestructiveMigration() 会导致数据丢失，
-     * 仅在开发阶段或无法定义迁移时使用。
-     * 正式版本升级时应定义具体的 Migration 策略。
+     * 注意：正式版本升级时必须定义具体的 Migration 策略，
+     * 否则 Room 会抛出 IllegalStateException。
      */
     private fun initDatabase() {
-        database = Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java,
-            "virtual_location.db"
-        )
-            // 添加迁移策略：从版本1升级到版本2
-            .addMigrations(AppDatabase.MIGRATION_1_2)
-            // 兜底策略：当没有定义迁移时，删除所有表并重新创建
-            .fallbackToDestructiveMigration()
-            // 降级时也使用破坏性迁移
-            .fallbackToDestructiveMigrationOnDowngrade()
-            .build()
+        try {
+            database = Room.databaseBuilder(
+                applicationContext,
+                AppDatabase::class.java,
+                "virtual_location.db"
+            )
+                // 添加迁移策略：从版本1升级到版本2
+                .addMigrations(AppDatabase.MIGRATION_1_2)
+                // ✅ 移除了 fallbackToDestructiveMigration()，保护用户数据
+                // 如果迁移失败，会抛出异常，需要在 catch 中处理
+                .build()
+            
+            Timber.d("Database initialized successfully")
+        } catch (e: IllegalStateException) {
+            // 迁移失败（例如：缺少迁移策略）
+            Timber.e(e, "Database migration failed! This should not happen in production.")
+            
+            // 降级方案：删除数据库并重新创建（仅在开发阶段使用）
+            // 生产环境应该提示用户备份数据
+            if (BuildConfig.DEBUG) {
+                Timber.w("DEBUG mode: Deleting database and recreating...")
+                applicationContext.deleteDatabase("virtual_location.db")
+                
+                // 重新创建数据库
+                database = Room.databaseBuilder(
+                    applicationContext,
+                    AppDatabase::class.java,
+                    "virtual_location.db"
+                )
+                    .addMigrations(AppDatabase.MIGRATION_1_2)
+                    .build()
+                
+                Timber.w("Database recreated in DEBUG mode")
+            } else {
+                // 生产环境：显示错误对话框或上报崩溃
+                throw e
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to initialize database")
+            throw e
+        }
     }
 
     /**

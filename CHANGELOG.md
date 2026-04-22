@@ -20,6 +20,7 @@
 - 地址缓存系统：LRU 策略优化性能
 - 新手引导系统：OnboardingManager
 - GPL-3.0 开源协议文件
+- **数据库索引优化**：为 history_location、favorite_location、search_history 添加时间戳和关键词索引
 
 ### Changed - 变更
 - 底部导航栏选中态颜色：蓝色 → 蓝绿色（与应用主色调一致）
@@ -34,6 +35,9 @@
 - 夜间模式 UI 颜色不更新：手动刷新所有 View 背景色
 - **底部导航栏选中指示器日夜模式不切换**：动态设置颜色，绕过 configChanges 资源不刷新问题
 - **设置页面 AppBar 背景色硬编码**：改为引用 @color/app_bar_background 资源
+- **LocationService 内存泄漏**：HandlerThread 使用 quitSafely()，ExecutorService 优雅关闭
+- **服务生命周期问题**：START_NOT_STICKY + onTaskRemoved 彻底清理，用户可以真正退出应用
+- **数据库迁移策略不完善**：移除 fallbackToDestructiveMigration()，添加异常处理和降级方案
 - 悬浮窗主题切换时自动弹出：记录 wasShowing 状态
 - 搜索结果点击后地图不跳转：根据 shouldMoveCamera 标志移动相机
 - FloatingHistoryAdapter Timber 调用错误：修正 import

@@ -1,12 +1,18 @@
 package com.mockloc.data.db
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * 收藏位置实体
  */
-@Entity(tableName = "favorite_location")
+@Entity(
+    tableName = "favorite_location",
+    indices = [
+        Index(value = ["timestamp"])  // 优化按时间排序查询
+    ]
+)
 data class FavoriteLocation(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
