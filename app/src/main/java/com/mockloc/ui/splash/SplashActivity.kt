@@ -13,11 +13,12 @@ import timber.log.Timber
  * 启动页 - 现代时尚风格
  * 
  * 优化点：
- * 1. 首次启动显示完整动画（1.2秒），非首次立即跳转
- * 2. 使用 SharedPreferences 判断是否首次启动
- * 3. 添加生命周期管理，防止内存泄漏
- * 4. 使用弹性插值器使动画更自然
- * 5. 锁定竖屏方向避免重建
+ * 1. 每次启动都显示完整动画序列（1.5秒）
+ * 2. Logo 缩放 + 淡入效果
+ * 3. 标题和副标题依次淡入
+ * 4. 添加生命周期管理，防止内存泄漏
+ * 5. 使用弹性插值器使动画更自然
+ * 6. 锁定竖屏方向避免重建
  */
 class SplashActivity : AppCompatActivity() {
 
@@ -25,52 +26,27 @@ class SplashActivity : AppCompatActivity() {
     
     // 动画配置常量
     companion object {
-        private const val LOGO_ANIMATION_DURATION = 500L      // Logo 动画时长
-        private const val TITLE_ANIMATION_DELAY = 200L        // 标题延迟
-        private const val TITLE_ANIMATION_DURATION = 400L     // 标题动画时长
-        private const val SUBTITLE_ANIMATION_DELAY = 400L     // 副标题延迟
-        private const val SUBTITLE_ANIMATION_DURATION = 400L  // 副标题动画时长
-        private const val FIRST_LAUNCH_DELAY = 1200L          // 首次启动延迟
+        private const val LOGO_ANIMATION_DURATION = 600L      // Logo 动画时长
+        private const val TITLE_ANIMATION_DELAY = 300L        // 标题延迟
+        private const val TITLE_ANIMATION_DURATION = 500L     // 标题动画时长
+        private const val SUBTITLE_ANIMATION_DELAY = 500L     // 副标题延迟
+        private const val SUBTITLE_ANIMATION_DURATION = 500L  // 副标题动画时长
+        private const val NAVIGATION_DELAY = 1200L            // 总延迟时间（动画结束后短暂停留）
     }
-    
-    // 标记是否为首次启动
-    private var isFirstLaunch = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySplashBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 检查是否为首次启动
-        checkFirstLaunch()
-        
-        Timber.d("SplashActivity created, isFirstLaunch=$isFirstLaunch")
+        Timber.d("SplashActivity created")
 
-        if (isFirstLaunch) {
-            // 首次启动：显示完整动画
-            startAnimations()
-            scheduleNavigation()
-        } else {
-            // 非首次启动：立即跳转
-            navigateToMain()
-        }
+        // 启动完整动画序列
+        startAnimations()
+        scheduleNavigation()
     }
     
-    /**
-     * 检查是否为首次启动
-     */
-    private fun checkFirstLaunch() {
-        val prefs = getSharedPreferences(com.mockloc.util.PrefKeys.PREFS_NAME, MODE_PRIVATE)
-        isFirstLaunch = prefs.getBoolean(com.mockloc.util.PrefKeys.KEY_FIRST_LAUNCH, true)
-        
-        // 标记为非首次启动
-        if (isFirstLaunch) {
-            prefs.edit().putBoolean(com.mockloc.util.PrefKeys.KEY_FIRST_LAUNCH, false).apply()
-            Timber.d("First launch detected, marked as completed")
-        } else {
-            Timber.d("Not first launch")
-        }
-    }
+
 
     /**
      * 启动动画序列
@@ -82,7 +58,7 @@ class SplashActivity : AppCompatActivity() {
     }
     
     /**
-     * Logo 淡入 + 缩放动画（使用弹性插值器）
+     * Logo 淡入 + 缩放动画（从中心放大）
      */
     private fun animateLogo() {
         binding.ivLogo.animate()
@@ -90,44 +66,52 @@ class SplashActivity : AppCompatActivity() {
             .scaleX(1f)
             .scaleY(1f)
             .setDuration(LOGO_ANIMATION_DURATION)
-            .setInterpolator(AccelerateDecelerateInterpolator())
+            .setInterpolator(android.view.animation.OvershootInterpolator(1.2f))
             .start()
     }
     
     /**
-     * 标题淡入动画
+     * 标题淡入 + 轻微上移动画
      */
     private fun animateTitle() {
         binding.tvAppName.postDelayed({
-            binding.tvAppName.animate()
-                .alpha(1f)
-                .setDuration(TITLE_ANIMATION_DURATION)
-                .setInterpolator(AccelerateDecelerateInterpolator())
-                .start()
+            binding.tvAppName.apply {
+                translationY = 20f
+                animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(TITLE_ANIMATION_DURATION)
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .start()
+            }
         }, TITLE_ANIMATION_DELAY)
     }
     
     /**
-     * 副标题淡入动画
+     * 副标题淡入 + 轻微上移动画
      */
     private fun animateSubtitle() {
         binding.tvSubtitle.postDelayed({
-            binding.tvSubtitle.animate()
-                .alpha(1f)
-                .setDuration(SUBTITLE_ANIMATION_DURATION)
-                .setInterpolator(AccelerateDecelerateInterpolator())
-                .start()
+            binding.tvSubtitle.apply {
+                translationY = 20f
+                animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(SUBTITLE_ANIMATION_DURATION)
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .start()
+            }
         }, SUBTITLE_ANIMATION_DELAY)
     }
     
     /**
-     * 调度页面跳转（仅首次启动使用）
+     * 调度页面跳转
      */
     private fun scheduleNavigation() {
         binding.root.postDelayed({
             Timber.d("Splash animation completed, navigating to main")
             navigateToMain()
-        }, FIRST_LAUNCH_DELAY)
+        }, NAVIGATION_DELAY)
     }
 
     /**

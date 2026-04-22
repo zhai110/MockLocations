@@ -27,6 +27,9 @@
     <color name="surface_variant">#F8F9FA</color>
     <color name="on_surface_variant">#666666</color>
     
+    <!-- AppBar/Toolbar 专用背景色（比 surface 稍深） -->
+    <color name="app_bar_background">#F5F5F5</color>
+    
     <!-- MD3 Surface Container 层级 - 用于卡片、对话框等 -->
     <color name="surface_container_lowest">#FFFFFF</color>
     <color name="surface_container_low">#F5F5F5</color>

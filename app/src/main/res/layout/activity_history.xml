@@ -14,8 +14,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fitsSystemWindows="true"
-        android:background="@color/surface"
-        app:elevation="0dp">
+        android:background="@color/app_bar_background"
+        app:elevation="4dp">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
@@ -66,6 +66,15 @@
                     android:textSize="13sp" />
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
+            <!-- 加载中指示器 -->
+            <ProgressBar
+                android:id="@+id/loading_progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="100dp"
+                android:visibility="gone" />
+
             <!-- 历史记录列表 -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/history_list"
@@ -75,9 +84,9 @@
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_history" />
 
-            <!-- 空状态 -->
+            <!-- 空状态 - 位置记录 -->
             <LinearLayout
-                android:id="@+id/empty_state"
+                android:id="@+id/empty_state_location"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="100dp"
@@ -95,9 +104,50 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="@string/no_history"
-                    android:textColor="@color/text_hint"
+                    android:text="暂无位置记录"
+                    android:textColor="@color/text_secondary"
                     android:textSize="16sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="开始模拟定位后会自动记录"
+                    android:textColor="@color/text_hint"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- 空状态 - 搜索记录 -->
+            <LinearLayout
+                android:id="@+id/empty_state_search"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="100dp"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:src="@drawable/ic_search"
+                    app:tint="@color/text_hint" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="暂无搜索记录"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="在地图上搜索地点后会显示在这里"
+                    android:textColor="@color/text_hint"
+                    android:textSize="14sp" />
             </LinearLayout>
 
         </LinearLayout>

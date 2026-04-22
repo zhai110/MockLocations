@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <!-- 深色主题：使用 surface_variant 避免白底按钮 -->
-    <solid android:color="@color/surface_variant" />
+    <!-- 深色主题：使用更亮的背景提高对比度 -->
+    <solid android:color="#3A3A3A" />
     <corners android:radius="12dp" />
 </shape>
