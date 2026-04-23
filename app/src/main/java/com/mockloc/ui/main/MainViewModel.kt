@@ -184,15 +184,28 @@ class MainViewModel(
 
     /**
      * 保存地图状态
+     * @param center 当前地图中心点（可选，如果不传则使用 currentState.center）
+     * @param zoom 当前缩放级别（可选，如果不传则使用 currentState.zoom）
      */
-    fun saveMapState() {
+    fun saveMapState(center: com.amap.api.maps.model.LatLng? = null, zoom: Float? = null) {
         val currentState = _mapState.value
+        val centerToSave = center ?: currentState.center
+        val zoomToSave = zoom ?: currentState.zoom
+        
+        // 更新内部状态
+        _mapState.update { state ->
+            state.copy(
+                center = centerToSave,
+                zoom = zoomToSave
+            )
+        }
+        
         prefs.edit().apply {
-            currentState.center?.let {
+            centerToSave?.let {
                 putFloat(PrefsConfig.MapState.KEY_LATITUDE, it.latitude.toFloat())
                 putFloat(PrefsConfig.MapState.KEY_LONGITUDE, it.longitude.toFloat())
             }
-            putFloat(PrefsConfig.MapState.KEY_ZOOM, currentState.zoom)
+            putFloat(PrefsConfig.MapState.KEY_ZOOM, zoomToSave)
             
             // ✅ 保存标记位置
             currentState.markedPosition?.let {
@@ -202,7 +215,7 @@ class MainViewModel(
             
             apply()
         }
-        Timber.d("地图状态已保存")
+        Timber.d("地图状态已保存: center=$centerToSave, zoom=$zoomToSave")
     }
 
     /**
