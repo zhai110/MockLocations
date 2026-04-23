@@ -354,7 +354,17 @@ class MainFragment : Fragment() {
      * 更新地图 UI
      */
     private fun updateMapUI(state: MainViewModel.MapState) {
-        Timber.d("updateMapUI called: markedPosition=${state.markedPosition}, currentLocation=${state.currentLocation}, shouldMoveCamera=${state.shouldMoveCamera}")
+        Timber.d("updateMapUI called: markedPosition=${state.markedPosition}, currentLocation=${state.currentLocation}, shouldMoveCamera=${state.shouldMoveCamera}, shouldMoveToCurrentLocation=${state.shouldMoveToCurrentLocation}")
+        
+        // ✅ 处理自动定位后移动相机到当前位置
+        if (state.shouldMoveToCurrentLocation && state.currentLocation != null) {
+            Timber.d("Moving camera to current location: ${state.currentLocation}")
+            aMap.animateCamera(
+                com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(state.currentLocation, 16f)
+            )
+            // 重置标志
+            viewModel.resetShouldMoveToCurrentLocation()
+        }
         
         // 更新标记（只在位置改变时更新，避免频繁 remove/add 导致地图跳动）
         state.markedPosition?.let { position ->
@@ -1003,9 +1013,17 @@ class MainFragment : Fragment() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         } else {
-            // ✅ 不再自动定位，虚拟定位应用应该由用户手动选择位置
-            // viewModel.initLocation()  // 已注释，需要时由用户点击定位按钮触发
-            Timber.d("Location permission granted, but auto-location disabled for virtual location app")
+            // ✅ 智能自动定位策略
+            val lastLocation = viewModel.mapState.value.currentLocation
+            
+            if (lastLocation == null) {
+                // 首次启动或没有缓存位置 → 自动定位
+                Timber.d("First launch or no cached location, auto-location enabled")
+                viewModel.initLocation()
+            } else {
+                // 已有缓存位置 → 不自动定位，直接使用缓存
+                Timber.d("Using cached location: $lastLocation")
+            }
         }
     }
 

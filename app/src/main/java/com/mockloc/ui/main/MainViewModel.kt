@@ -13,6 +13,8 @@ import com.mockloc.repository.PoiSearchHelper
 import com.mockloc.service.LocationService
 import com.mockloc.util.MapUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,7 +45,8 @@ class MainViewModel(
         val isPositionPending: Boolean = false,
         val currentLocation: LatLng? = null,
         val address: String = "",
-        val shouldMoveCamera: Boolean = false  // 是否需要移动相机到标记位置
+        val shouldMoveCamera: Boolean = false,  // 是否需要移动相机到标记位置
+        val shouldMoveToCurrentLocation: Boolean = false  // ✅ 新增：是否需要移动相机到当前位置
     )
 
     /** 搜索状态 */
@@ -88,6 +91,13 @@ class MainViewModel(
     private var locationClient: AMapLocationClient? = null
     private var poiSearchHelper: PoiSearchHelper? = null
     private val prefs: SharedPreferences = getApplication<Application>().getSharedPreferences("map_state", Application.MODE_PRIVATE)
+    
+    // 定位超时任务
+    private var locationTimeoutJob: Job? = null
+    
+    companion object {
+        private const val LOCATION_TIMEOUT_MS = 10000L  // 定位超时时间：10秒
+    }
 
     // ==================== 初始化方法 ====================
 
@@ -103,11 +113,16 @@ class MainViewModel(
      */
     fun initLocation() {
         try {
+            // 取消之前的超时任务（如果有）
+            locationTimeoutJob?.cancel()
+            
             locationClient = AMapLocationClient(getApplication())
             locationClient?.setLocationOption(AMapLocationClientOption().apply {
                 locationMode = AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
                 isOnceLocation = true
                 isNeedAddress = true
+                // 设置定位超时时间（单位：毫秒）
+                httpTimeOut = LOCATION_TIMEOUT_MS
             })
             
             locationClient?.setLocationListener { location ->
@@ -115,7 +130,18 @@ class MainViewModel(
             }
             
             locationClient?.startLocation()
-            Timber.d("定位客户端已初始化")
+            Timber.d("定位客户端已初始化，超时时间: ${LOCATION_TIMEOUT_MS}ms")
+            
+            // 启动超时保护
+            locationTimeoutJob = viewModelScope.launch {
+                delay(LOCATION_TIMEOUT_MS)
+                // 如果超时后仍然没有获取到位置，记录警告
+                if (_mapState.value.currentLocation == null) {
+                    Timber.w("定位超时，使用默认位置或上次缓存的位置")
+                    // 可选：设置一个默认位置（例如北京）
+                    // _mapState.update { it.copy(currentLocation = LatLng(39.9042, 116.4074)) }
+                }
+            }
         } catch (e: Exception) {
             Timber.e(e, "初始化定位客户端失败")
         }
@@ -125,6 +151,10 @@ class MainViewModel(
      * 处理定位结果
      */
     private fun handleLocationResult(location: AMapLocation?) {
+        // 取消超时任务
+        locationTimeoutJob?.cancel()
+        locationTimeoutJob = null
+        
         if (location != null && location.errorCode == 0) {
             val latLng = LatLng(location.latitude, location.longitude)
             Timber.d("定位成功: ${latLng.latitude}, ${latLng.longitude}")
@@ -132,12 +162,21 @@ class MainViewModel(
             _mapState.update { state ->
                 state.copy(
                     currentLocation = latLng,
-                    address = location.address ?: ""
+                    address = location.address ?: "",
+                    shouldMoveToCurrentLocation = true  // ✅ 标记需要移动相机到当前位置
                 )
             }
         } else {
             Timber.e("定位失败: ${location?.errorInfo}")
+            // 定位失败时，保持当前位置不变（使用缓存或默认值）
         }
+    }
+    
+    /**
+     * 重置移动到当前位置的标志
+     */
+    fun resetShouldMoveToCurrentLocation() {
+        _mapState.update { it.copy(shouldMoveToCurrentLocation = false) }
     }
 
     // ==================== 地图状态管理 ====================
