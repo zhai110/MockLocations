@@ -58,7 +58,6 @@ class DragHelper(private val view: View) {
             MotionEvent.ACTION_DOWN -> {
                 lastX = ev.rawX.toInt()
                 lastY = ev.rawY.toInt()
-                Timber.d("onTouch ACTION_DOWN, windowManager=$windowManager, windowParams=$windowParams")
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -69,20 +68,14 @@ class DragHelper(private val view: View) {
                 lastX = nowX
                 lastY = nowY
                 
-                Timber.d("onTouch MOVE: dx=$dx, dy=$dy, params=$windowParams")
-                
                 windowParams?.let { params ->
                     params.x += dx
                     params.y += dy
-                    Timber.d("Updating layout to x=${params.x}, y=${params.y}")
                     try {
                         windowManager?.updateViewLayout(view, params)
-                        Timber.d("Update successful")
                     } catch (e: Exception) {
-                        Timber.e(e, "Update failed")
+                        Timber.e(e, "Failed to update view layout")
                     }
-                } ?: run {
-                    Timber.w("windowParams is null!")
                 }
             }
             MotionEvent.ACTION_UP -> {

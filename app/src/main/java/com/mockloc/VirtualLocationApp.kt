@@ -42,6 +42,7 @@ class VirtualLocationApp : Application() {
 
         // 初始化全局异常处理器（最先初始化）
         CrashHandler.init(this)
+        Timber.d("CrashHandler initialized")
 
         // 初始化日志
         initTimber()
