@@ -26,7 +26,7 @@ import com.amap.api.maps.model.MarkerOptions
 import com.amap.api.maps.model.MyLocationStyle
 import com.mockloc.R
 import com.mockloc.repository.PoiSearchHelper
-import com.mockloc.util.AdvancedAnimationHelper
+import com.mockloc.util.AnimationHelper
 import com.mockloc.util.MapUtils
 import com.mockloc.util.PrefsConfig
 import com.mockloc.util.UIFeedbackHelper
@@ -314,7 +314,7 @@ class MapWindowController(
             
             // 启动脉冲动画
             isPositionConfirmed = false
-            btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(it, 2000)
+            btnGoPulseAnimator = AnimationHelper.pulseInfinite(it, 2000)
         }
 
         // POI搜索结果列表（作为覆盖层显示在地图上）
@@ -498,7 +498,7 @@ class MapWindowController(
                         btnGoPulseAnimator?.cancel()
                         isPositionConfirmed = true
                         btnGo?.setImageResource(R.drawable.ic_fly)
-                        btnGo?.let { btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(it, 1200) }
+                        btnGo?.let { btnGoPulseAnimator = AnimationHelper.pulseInfinite(it, 1200) }
                     }
                 }
             })
@@ -604,7 +604,7 @@ class MapWindowController(
         btnGoPulseAnimator?.cancel()
         isPositionConfirmed = true
         btnGo?.setImageResource(R.drawable.ic_fly)
-        btnGo?.let { btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(it, 1200) }
+        btnGo?.let { btnGoPulseAnimator = AnimationHelper.pulseInfinite(it, 1200) }
     }
 
     /**
@@ -651,7 +651,7 @@ class MapWindowController(
             
             // 保持激活状态
             isPositionConfirmed = true
-            btnGo?.let { btnGoPulseAnimator = AdvancedAnimationHelper.pulseInfinite(it, 1200) }
+            btnGo?.let { btnGoPulseAnimator = AnimationHelper.pulseInfinite(it, 1200) }
             
         } else {
             // 没有新位置：切换激活/去激活状态

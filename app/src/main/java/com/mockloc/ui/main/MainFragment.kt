@@ -38,7 +38,6 @@ import com.mockloc.ui.search.SearchResultAdapter
 import com.mockloc.ui.settings.SettingsActivity
 import com.mockloc.util.AnimationConfig
 import com.mockloc.util.AnimationHelper
-import com.mockloc.util.AdvancedAnimationHelper
 import com.mockloc.util.OnboardingManager
 import com.mockloc.util.PermissionHelper
 import com.mockloc.util.UIFeedbackHelper
@@ -157,7 +156,7 @@ class MainFragment : Fragment() {
         // 初始化FAB图标 + 慢速脉冲动画
         binding.fab.setImageResource(R.drawable.ic_position)
         binding.fab.imageTintList = null
-        idlePulseAnimator = AdvancedAnimationHelper.pulseInfinite(binding.fab, 2000)
+        idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
 
         // 观察 ViewModel 状态
         observeViewModel()
@@ -476,7 +475,7 @@ class MainFragment : Fragment() {
             binding.fab.imageTintList = null
             // 重启脉冲动画
             if (idlePulseAnimator == null) {
-                idlePulseAnimator = AdvancedAnimationHelper.pulseInfinite(binding.fab, 2000)
+                idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
             }
             
             // 更新状态徽章

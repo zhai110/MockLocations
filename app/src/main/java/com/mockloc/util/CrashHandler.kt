@@ -215,6 +215,6 @@ object CrashHandler {
         // TODO: 集成崩溃上报服务（如 Firebase Crashlytics、Bugly 等）
         // 示例：
         // FirebaseCrashlytics.getInstance().recordException(throwable)
-        Timber.w("Crash reporting not implemented yet")
+        Timber.w(throwable, "Crash reporting not implemented yet")
     }
 }
