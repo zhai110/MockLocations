@@ -107,37 +107,6 @@ secrets/
 credentials/
 api-keys.txt
 
-# Temporary documentation files (not included in version control)
-ALL_MANAGERS_COMPLETION.md
-ANIMATION_FIX_REPORT.md
-BATCH_INTEGRATION*.md
-BOTTOMSHEET*.md
-CROSS_VERIFICATION_REPORT.md
-DEPENDENCY_FIX.md
-DEEP_MODULE_ANALYSIS.md
-FAB_ICON_IMPROVEMENT.md
-FINAL_*.md
-FIX_*.md
-FLOATING_WINDOW_*.md
-GRADUAL_REFACTORING_PLAN.md
-LOADING_STATE_*.md
-LOCATIONMANAGER_*.md
-MAIN_ACTIVITY_*.md
-MAPMANAGER_*.md
-MAP_RENDERING_OPTIMIZATION.md
-MEMORY_LEAK_CHECKLIST.md
-ONBOARDING_GUIDE.md
-OPTIMIZATION_*.md
-P1_*.md
-P2_*.md
-PERFORMANCE_*.md
-PERMISSION_*.md
-PHASE1_*.md
-PHASE2_*.md
-PROJECT_*.md
-QUICK_REFERENCE.md
-SEARCHMANAGER_*.md
-SEARCH_*.md
-TYPOGRAPHY_*.md
-UI_*.md
-nav_preview.html
+# Temporary documentation files - moved to docs/ directory
+# These are development notes and reports, not needed in version control
+docs/

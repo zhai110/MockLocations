@@ -112,9 +112,6 @@ class MainFragment : Fragment() {
             Timber.e(e, "Failed to set immersive layout")
         }
 
-        // 检测当前是否为夜间模式
-        updateNightModeStatus()
-
         // 获取状态栏高度并调整搜索栏位置
         try {
             val statusBarHeight = getStatusBarHeight()
@@ -308,10 +305,10 @@ class MainFragment : Fragment() {
             val targetLatLng = com.amap.api.maps.model.LatLng(latitude, longitude)
             updateMarker(targetLatLng, moveCamera = true)
             
-            UIFeedbackHelper.showToast(requireContext(), "已启动模拟")
+            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_simulation_started))
         } catch (e: Exception) {
             Timber.e(e, "启动模拟失败")
-            UIFeedbackHelper.showToast(requireContext(), "启动模拟失败: ${e.message}")
+            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_simulation_start_failed, e.message))
         }
     }
     
@@ -366,10 +363,10 @@ class MainFragment : Fragment() {
             }
             requireContext().startService(intent)
             
-            UIFeedbackHelper.showToast(requireContext(), "已停止模拟")
+            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_simulation_stopped))
         } catch (e: Exception) {
             Timber.e(e, "停止模拟失败")
-            UIFeedbackHelper.showToast(requireContext(), "停止模拟失败: ${e.message}")
+            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_simulation_stop_failed, e.message))
         }
     }
     
@@ -895,7 +892,7 @@ class MainFragment : Fragment() {
         
         // 未模拟时需要检查是否有标记位置
         if (!simState.isSimulating && mapState.markedPosition == null) {
-            UIFeedbackHelper.showToast(requireContext(), "请先选择位置")
+            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_please_select_location))
             return
         }
 
@@ -939,7 +936,7 @@ class MainFragment : Fragment() {
                 }
             }
         } ?: run {
-            UIFeedbackHelper.showToast(requireContext(), "请先选择位置")
+            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_please_select_location))
         }
     }
 
@@ -973,9 +970,9 @@ class MainFragment : Fragment() {
             val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             val clip = android.content.ClipData.newPlainText("coordinates", "${location.latitude}, ${location.longitude}")
             clipboard.setPrimaryClip(clip)
-            UIFeedbackHelper.showToast(requireContext(), "坐标已复制")
+            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_coordinates_copied))
         } ?: run {
-            UIFeedbackHelper.showToast(requireContext(), "请先选择位置")
+            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_please_select_location))
         }
     }
 
@@ -1236,6 +1233,7 @@ class MainFragment : Fragment() {
             val backgroundColor = ContextCompat.getColor(requireContext(), R.color.background)
             val primaryColor = ContextCompat.getColor(requireContext(), R.color.primary)
             val surfaceVariantColor = ContextCompat.getColor(requireContext(), R.color.surface_variant)
+            val dividerColor = ContextCompat.getColor(requireContext(), R.color.divider_light)
             
             // 更新 CoordinatorLayout 背景
             binding.fragmentRoot.setBackgroundColor(backgroundColor)
@@ -1246,6 +1244,13 @@ class MainFragment : Fragment() {
             // 更新搜索结果列表背景
             binding.searchResultList.setBackgroundColor(surfaceColor)
             
+            // 更新搜索结果容器顶部分隔线颜色
+            val searchResultContainer = binding.searchResultContainer
+            val topDivider = searchResultContainer.getChildAt(0) // 第一个子 View 是顶部分隔线
+            if (topDivider is android.view.View) {
+                topDivider.setBackgroundColor(dividerColor)
+            }
+            
             // 更新 BottomSheet 背景
             binding.bottomSheet.setBackgroundColor(surfaceColor)
             
@@ -1254,6 +1259,15 @@ class MainFragment : Fragment() {
             
             // 更新底部导航栏背景
             binding.bottomNav.setBackgroundColor(surfaceColor)
+            
+            // ✅ 通知搜索结果列表刷新，让 Item 重新加载颜色资源
+            binding.searchResultList.adapter?.notifyDataSetChanged()
+            Timber.d("Search result list notified for theme change")
+            
+            // ✅ 更新操作按钮组的图标和文字颜色
+            updateButtonIconTint(binding.inputCoordsBtn, primaryColor, surfaceVariantColor)
+            updateButtonIconTint(binding.historyBtn, primaryColor, surfaceVariantColor)
+            updateButtonIconTint(binding.favoriteBtn, primaryColor, surfaceVariantColor)
             
             // 直接设置选中项指示器颜色（绕过 configChanges 导致的资源不刷新问题）
             val indicatorColor = ContextCompat.getColor(requireContext(), R.color.nav_item_selected_background)
@@ -1283,6 +1297,27 @@ class MainFragment : Fragment() {
             shape = android.graphics.drawable.GradientDrawable.RECTANGLE
             cornerRadius = 12.dpToPx().toFloat()
             setColor(color)
+        }
+    }
+
+    /**
+     * 更新操作按钮组的图标和文字颜色
+     */
+    private fun updateButtonIconTint(
+        buttonContainer: android.widget.LinearLayout,
+        iconTint: Int,
+        textColor: Int
+    ) {
+        try {
+            // 更新图标 tint
+            val icon = buttonContainer.getChildAt(0) as? android.widget.ImageView
+            icon?.setColorFilter(iconTint)
+            
+            // 更新文字颜色
+            val text = buttonContainer.getChildAt(1) as? android.widget.TextView
+            text?.setTextColor(textColor)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update button icon tint")
         }
     }
 }

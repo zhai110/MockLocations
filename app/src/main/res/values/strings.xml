@@ -11,8 +11,6 @@
     <string name="nav_history">历史</string>
     <string name="nav_favorite">收藏</string>
     <string name="nav_settings">设置</string>
-    <string name="nav_tracks">轨迹</string>
-    <string name="nav_explore">探索</string>
     
     <!-- 页面标题 -->
     <string name="history_title">历史记录</string>
@@ -35,6 +33,14 @@
     <string name="share_location">分享位置</string>
     <string name="start_simulate">开始模拟</string>
     <string name="stop_simulate">停止模拟</string>
+    
+    <!-- Toast 提示消息 -->
+    <string name="toast_simulation_started">已启动模拟</string>
+    <string name="toast_simulation_stopped">已停止模拟</string>
+    <string name="toast_simulation_start_failed">启动模拟失败: %s</string>
+    <string name="toast_simulation_stop_failed">停止模拟失败: %s</string>
+    <string name="toast_please_select_location">请先选择位置</string>
+    <string name="toast_coordinates_copied">坐标已复制</string>
     
     <!-- 摇杆控制 -->
     <string name="move_control">移动控制</string>

@@ -2,15 +2,13 @@
 <resources>
     <!-- 摇杆类型 -->
     <string-array name="joystick_types">
-        <item>固定摇杆</item>
-        <item>浮动摇杆</item>
-        <item>方向键</item>
+        <item>摇杆模式</item>
+        <item>按钮模式</item>
     </string-array>
 
     <string-array name="joystick_type_values">
-        <item>fixed</item>
-        <item>floating</item>
-        <item>dpad</item>
+        <item>joystick</item>
+        <item>button</item>
     </string-array>
 
     <!-- 历史记录有效期 -->

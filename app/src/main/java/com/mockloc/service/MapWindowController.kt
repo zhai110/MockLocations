@@ -712,51 +712,76 @@ class MapWindowController(
     private fun showSearchResults(results: List<com.mockloc.repository.PoiSearchHelper.PlaceItem>) {
         Timber.d("showSearchResults called with ${results.size} items")
         searchList?.removeAllViews()
-        
+
         if (results.isEmpty()) {
             Timber.d("No results, hiding search scroll")
             searchScroll?.visibility = View.GONE
             return
         }
-        
+
+        // ✅ 提前检查 searchList 是否为 null，避免无效创建
+        val searchListView = searchList ?: run {
+            Timber.w("searchList is null, cannot show results")
+            return
+        }
+
         val density = context.resources.displayMetrics.density
-        val dp = { v: Int -> (v * density).toInt() }
-        
+        val paddingH = (12 * density).toInt()  // ✅ 直接使用，删除未使用的 dp lambda
+        val paddingV = (10 * density).toInt()
+
         results.forEach { result ->
             val item = TextView(context).apply {
                 text = result.name
                 textSize = 14f
                 setTextColor(textPrimary)
-                setPadding(dp(12), dp(10), dp(12), dp(10))
+                setPadding(paddingH, paddingV, paddingH, paddingV)
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
-                // 使用更安全的背景设置方式
+                // ✅ 使用 Material Ripple 效果（更可靠）
                 try {
-                    setBackgroundResource(android.R.attr.selectableItemBackground)
+                    val typedValue = android.util.TypedValue()
+                    context.theme.resolveAttribute(
+                        android.R.attr.selectableItemBackground,
+                        typedValue,
+                        true
+                    )
+                    setBackgroundResource(typedValue.resourceId)
                 } catch (e: Exception) {
-                    Timber.w(e, "Failed to set background resource")
+                    // 降级方案：设置简单的点击反馈
+                    Timber.w(e, "Failed to set ripple background, using fallback")
+                    isClickable = true
+                    isFocusable = true
                 }
             }
-            
+
+            // ✅ 提取点击逻辑，减少 Lambda 创建
             item.setOnClickListener {
-                // 移动到搜索结果位置（使用动画）
-                val pos = LatLng(result.lat, result.lng)
-                aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
-                markMapPoint(pos)
-                
-                searchScroll?.visibility = View.GONE
-                searchEditText?.setText("")
-                searchEditText?.clearFocus()
+                onSearchResultClicked(result)
             }
-            
-            searchList?.addView(item)
+
+            searchListView.addView(item)
             Timber.d("Added search result item: ${result.name}")
         }
-        
+
         searchScroll?.visibility = View.VISIBLE
         Timber.d("Search scroll visibility set to VISIBLE")
+    }
+
+    /**
+     * 处理搜索结果点击事件
+     */
+    private fun onSearchResultClicked(result: com.mockloc.repository.PoiSearchHelper.PlaceItem) {
+        // 移动到搜索结果位置（使用动画）
+        val pos = LatLng(result.lat, result.lng)
+        aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+        markMapPoint(pos)
+
+        // 隐藏搜索列表并清空输入
+        searchScroll?.visibility = View.GONE
+        searchEditText?.setText("")
+        searchEditText?.clearFocus()
     }
 
     /**
