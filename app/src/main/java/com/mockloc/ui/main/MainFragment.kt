@@ -265,14 +265,19 @@ class MainFragment : Fragment() {
      * 处理模拟控制事件
      */
     private fun handleSimulationControlEvent(event: MainViewModel.SimulationControlEvent) {
+        Timber.d("🔔 handleSimulationControlEvent: eventType=${event.eventType}, lat=${event.latitude}, lng=${event.longitude}")
+        
         when (event.eventType) {
             MainViewModel.SimulationControlEvent.EventType.START_SIMULATION -> {
+                Timber.d("🚀 Calling startSimulation...")
                 startSimulation(event.latitude!!, event.longitude!!, event.altitude)
             }
             MainViewModel.SimulationControlEvent.EventType.STOP_SIMULATION -> {
+                Timber.d("⏹️ Calling stopSimulation...")
                 stopSimulation()
             }
             MainViewModel.SimulationControlEvent.EventType.UPDATE_POSITION -> {
+                Timber.d("📍 Calling updatePosition...")
                 updatePosition(event.latitude!!, event.longitude!!, event.altitude)
             }
         }
