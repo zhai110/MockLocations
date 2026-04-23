@@ -315,16 +315,22 @@ class MainFragment : Fragment() {
      * 保存位置到历史记录
      */
     private fun saveToHistory(latitude: Double, longitude: Double) {
+        Timber.d("saveToHistory called: lat=$latitude, lng=$longitude")
+        
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val db = com.mockloc.VirtualLocationApp.getDatabase()
                 val address = viewModel.mapState.value.address
+                Timber.d("Address from ViewModel: '$address'")
+                
                 val name = if (address.isNotEmpty()) {
                     // 使用地址的第一行作为名称
                     address.split(",").firstOrNull()?.trim() ?: "未知位置"
                 } else {
                     String.format("%.4f, %.4f", latitude, longitude)
                 }
+                
+                Timber.d("Creating HistoryLocation: name='$name', address='$address'")
                 
                 val historyLocation = com.mockloc.data.db.HistoryLocation(
                     name = name,
@@ -333,10 +339,15 @@ class MainFragment : Fragment() {
                     longitude = longitude
                 )
                 
+                Timber.d("Inserting into database...")
                 db.historyLocationDao().insert(historyLocation)
-                Timber.d("Saved to history: $name")
+                Timber.d("✅ Saved to history: $name (lat=$latitude, lng=$longitude)")
+                
+                // 验证是否真的保存了
+                val allRecords = db.historyLocationDao().getAll()
+                Timber.d("Total history records in DB: ${allRecords.size}")
             } catch (e: Exception) {
-                Timber.e(e, "Failed to save to history")
+                Timber.e(e, "❌ Failed to save to history")
             }
         }
     }
