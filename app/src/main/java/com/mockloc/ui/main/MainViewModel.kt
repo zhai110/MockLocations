@@ -12,6 +12,7 @@ import com.amap.api.maps.model.LatLng
 import com.mockloc.repository.PoiSearchHelper
 import com.mockloc.service.LocationService
 import com.mockloc.util.MapUtils
+import com.mockloc.util.PrefsConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -90,7 +91,7 @@ class MainViewModel(
     private var locationService: LocationService? = null
     private var locationClient: AMapLocationClient? = null
     private var poiSearchHelper: PoiSearchHelper? = null
-    private val prefs: SharedPreferences = getApplication<Application>().getSharedPreferences("map_state", Application.MODE_PRIVATE)
+    private val prefs: SharedPreferences = getApplication<Application>().getSharedPreferences(PrefsConfig.MAP_STATE, Application.MODE_PRIVATE)
     
     // 定位超时任务
     private var locationTimeoutJob: Job? = null
@@ -188,10 +189,10 @@ class MainViewModel(
         val currentState = _mapState.value
         prefs.edit().apply {
             currentState.center?.let {
-                putFloat("latitude", it.latitude.toFloat())
-                putFloat("longitude", it.longitude.toFloat())
+                putFloat(PrefsConfig.MapState.KEY_LATITUDE, it.latitude.toFloat())
+                putFloat(PrefsConfig.MapState.KEY_LONGITUDE, it.longitude.toFloat())
             }
-            putFloat("zoom", currentState.zoom)
+            putFloat(PrefsConfig.MapState.KEY_ZOOM, currentState.zoom)
             apply()
         }
         Timber.d("地图状态已保存")
@@ -201,9 +202,9 @@ class MainViewModel(
      * 恢复地图状态
      */
     fun restoreMapState(): LatLng? {
-        val lat = prefs.getFloat("latitude", -1f)
-        val lng = prefs.getFloat("longitude", -1f)
-        val zoom = prefs.getFloat("zoom", 15f)
+        val lat = prefs.getFloat(PrefsConfig.MapState.KEY_LATITUDE, -1f)
+        val lng = prefs.getFloat(PrefsConfig.MapState.KEY_LONGITUDE, -1f)
+        val zoom = prefs.getFloat(PrefsConfig.MapState.KEY_ZOOM, 15f)
         
         return if (lat > 0 && lng > 0) {
             val center = LatLng(lat.toDouble(), lng.toDouble())

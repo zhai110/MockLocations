@@ -28,6 +28,7 @@ import com.mockloc.R
 import com.mockloc.repository.PoiSearchHelper
 import com.mockloc.util.AdvancedAnimationHelper
 import com.mockloc.util.MapUtils
+import com.mockloc.util.PrefsConfig
 import com.mockloc.util.UIFeedbackHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -439,10 +440,10 @@ class MapWindowController(
         aMap?.apply {
             // 设置地图类型
             mapType = if (isNightMode) {
-                val prefs = service.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                val prefs = service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
                 prefs.getInt("map_type_night", AMap.MAP_TYPE_NIGHT)
             } else {
-                val prefs = service.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                val prefs = service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
                 prefs.getInt("map_type_day", AMap.MAP_TYPE_NORMAL)
             }
             
@@ -510,11 +511,11 @@ class MapWindowController(
 
                 override fun onCameraChangeFinish(cameraPosition: com.amap.api.maps.model.CameraPosition) {
                     // 相机变化完成，保存状态
-                    val prefs = service.getSharedPreferences("map_state", Context.MODE_PRIVATE)
+                    val prefs = service.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
                     prefs.edit().apply {
-                        putFloat("latitude", cameraPosition.target.latitude.toFloat())
-                        putFloat("longitude", cameraPosition.target.longitude.toFloat())
-                        putFloat("zoom", cameraPosition.zoom)
+                        putFloat(PrefsConfig.MapState.KEY_LATITUDE, cameraPosition.target.latitude.toFloat())
+                        putFloat(PrefsConfig.MapState.KEY_LONGITUDE, cameraPosition.target.longitude.toFloat())
+                        putFloat(PrefsConfig.MapState.KEY_ZOOM, cameraPosition.zoom)
                         apply()
                     }
                     Timber.d("保存地图状态: lat=${cameraPosition.target.latitude}, lng=${cameraPosition.target.longitude}, zoom=${cameraPosition.zoom}")
@@ -537,10 +538,10 @@ class MapWindowController(
             }
             
             // 读取保存的地图状态
-            val prefs = service.getSharedPreferences("map_state", Context.MODE_PRIVATE)
-            val lat = prefs.getFloat("latitude", -1f)
-            val lng = prefs.getFloat("longitude", -1f)
-            val zoom = prefs.getFloat("zoom", 15f)
+            val prefs = service.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
+            val lat = prefs.getFloat(PrefsConfig.MapState.KEY_LATITUDE, -1f)
+            val lng = prefs.getFloat(PrefsConfig.MapState.KEY_LONGITUDE, -1f)
+            val zoom = prefs.getFloat(PrefsConfig.MapState.KEY_ZOOM, 15f)
             
             if (lat > 0 && lng > 0) {
                 // 恢复到上次的位置和缩放级别
