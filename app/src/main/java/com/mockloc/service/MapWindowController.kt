@@ -554,6 +554,15 @@ class MapWindowController(
                 // 如果没有保存的状态，定位到当前位置
                 Timber.d("无保存的地图状态，等待定位")
             }
+            
+            // ✅ 恢复标记位置
+            val markedLat = prefs.getFloat(PrefsConfig.MapState.KEY_MARKED_LAT, -1f)
+            val markedLng = prefs.getFloat(PrefsConfig.MapState.KEY_MARKED_LNG, -1f)
+            if (markedLat > 0 && markedLng > 0) {
+                val markedPos = com.amap.api.maps.model.LatLng(markedLat.toDouble(), markedLng.toDouble())
+                markMapPoint(markedPos)
+                Timber.d("恢复标记位置: $markedPos")
+            }
         } catch (e: Exception) {
             Timber.e(e, "恢复地图状态失败")
         }
@@ -564,6 +573,15 @@ class MapWindowController(
      */
     private fun markMapPoint(latLng: LatLng) {
         markedLatLng = latLng
+        
+        // ✅ 保存标记位置到 SP（同步到主界面）
+        val prefs = service.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putFloat(PrefsConfig.MapState.KEY_MARKED_LAT, latLng.latitude.toFloat())
+            putFloat(PrefsConfig.MapState.KEY_MARKED_LNG, latLng.longitude.toFloat())
+            apply()
+        }
+        Timber.d("保存标记位置: $latLng")
         
         aMap?.apply {
             clear()

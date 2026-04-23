@@ -1125,6 +1125,16 @@ class MainFragment : Fragment() {
         if (_binding != null) {
             binding.mapView.onResume()
             
+            // ✅ 从 SP 恢复最新状态（可能来自悬浮窗的修改）
+            viewModel.restoreMapState()?.let { latLng ->
+                aMap.moveCamera(com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(latLng, viewModel.mapState.value.zoom))
+            }
+            
+            // ✅ 恢复标记位置
+            viewModel.restoreMarkedPosition()?.let { markedPos ->
+                updateMarker(markedPos, moveCamera = false)
+            }
+            
             // 检测夜间模式变化
             updateNightModeStatus()
         }
