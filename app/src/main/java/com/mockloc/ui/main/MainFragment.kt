@@ -1003,7 +1003,9 @@ class MainFragment : Fragment() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         } else {
-            viewModel.initLocation()
+            // ✅ 不再自动定位，虚拟定位应用应该由用户手动选择位置
+            // viewModel.initLocation()  // 已注释，需要时由用户点击定位按钮触发
+            Timber.d("Location permission granted, but auto-location disabled for virtual location app")
         }
     }
 
