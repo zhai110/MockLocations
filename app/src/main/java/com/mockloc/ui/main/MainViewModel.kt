@@ -416,7 +416,10 @@ class MainViewModel(
                     state.copy(isSimulating = true)
                 }
                 _mapState.update { state ->
-                    state.copy(isPositionPending = false)
+                    state.copy(
+                        isPositionPending = false,
+                        shouldMoveCamera = true  // ✅ 启动模拟时移动相机到标记位置
+                    )
                 }
                     
                 Timber.d("启动模拟: ${'$'}{currentState.markedPosition}")

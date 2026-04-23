@@ -640,9 +640,9 @@ class MapWindowController(
             // 修正：gcj02ToWgs84 返回 [经度, 纬度]，而回调参数顺序是 (lat, lng)
             onLocationSelected(wgs[1], wgs[0])
             
-            // 地图相机跟随
+            // 地图相机跟随（使用动画）
             val currentZoom = aMap?.cameraPosition?.zoom ?: 18f
-            aMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(marked, currentZoom))
+            aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(marked, currentZoom))
             
             markedLatLng = null
             
@@ -674,7 +674,8 @@ class MapWindowController(
     private fun resetMapCamera() {
         val (lat, lng) = service.getCurrentLocationGcj02()
         if (lat != 0.0 || lng != 0.0) {
-            aMap?.moveCamera(
+            // ✅ 使用动画平滑移动到当前位置
+            aMap?.animateCamera(
                 CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 15f)
             )
         }
@@ -740,9 +741,9 @@ class MapWindowController(
             }
             
             item.setOnClickListener {
-                // 移动到搜索结果位置
+                // 移动到搜索结果位置（使用动画）
                 val pos = LatLng(result.lat, result.lng)
-                aMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+                aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
                 markMapPoint(pos)
                 
                 searchScroll?.visibility = View.GONE
