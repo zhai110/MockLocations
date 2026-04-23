@@ -450,6 +450,46 @@ class MainViewModel(
         selectPosition(latLng, moveCamera = true)  // 搜索结果需要移动相机
         updateLocationInfo(latLng, place.name)
         hideSearchResults()
+        
+        // ✅ 保存到搜索历史
+        saveToSearchHistory(place)
+    }
+    
+    /**
+     * 保存搜索历史（带去重）
+     */
+    private fun saveToSearchHistory(place: PoiSearchHelper.PlaceItem) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val db = com.mockloc.VirtualLocationApp.getDatabase()
+                
+                // 检查是否已存在相同坐标的记录
+                val existing = db.searchHistoryDao().findByCoordinates(place.lat, place.lng)
+                
+                if (existing != null) {
+                    // 已存在，更新时间戳
+                    db.searchHistoryDao().updateTimestamp(existing.id, System.currentTimeMillis())
+                    Timber.d("Updated search history timestamp: ${place.name}")
+                } else {
+                    // 不存在，插入新记录
+                    val searchHistory = com.mockloc.data.db.SearchHistory(
+                        keyword = place.name,  // 使用地点名称作为关键词
+                        name = place.name,
+                        address = place.address,
+                        latitude = place.lat,
+                        longitude = place.lng
+                    )
+                    
+                    db.searchHistoryDao().insert(searchHistory)
+                    Timber.d("Saved to search history: ${place.name}")
+                    
+                    // 限制最多100条记录
+                    db.searchHistoryDao().limitRecords()
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to save search history")
+            }
+        }
     }
 
     // ==================== 底部面板 ====================

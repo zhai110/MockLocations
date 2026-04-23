@@ -39,7 +39,6 @@ import com.mockloc.ui.settings.SettingsActivity
 import com.mockloc.util.AnimationConfig
 import com.mockloc.util.AnimationHelper
 import com.mockloc.util.AdvancedAnimationHelper
-import com.mockloc.util.MapConfig
 import com.mockloc.util.OnboardingManager
 import com.mockloc.util.PermissionHelper
 import com.mockloc.util.UIFeedbackHelper
@@ -284,6 +283,9 @@ class MainFragment : Fragment() {
      */
     private fun startSimulation(latitude: Double, longitude: Double, altitude: Float) {
         try {
+            // ✅ 保存到历史记录
+            saveToHistory(latitude, longitude)
+            
             val intent = android.content.Intent(requireContext(), LocationService::class.java).apply {
                 action = LocationService.ACTION_START
                 putExtra(LocationService.EXTRA_LATITUDE, latitude)
@@ -306,6 +308,36 @@ class MainFragment : Fragment() {
         } catch (e: Exception) {
             Timber.e(e, "启动模拟失败")
             UIFeedbackHelper.showToast(requireContext(), "启动模拟失败: ${e.message}")
+        }
+    }
+    
+    /**
+     * 保存位置到历史记录
+     */
+    private fun saveToHistory(latitude: Double, longitude: Double) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val db = com.mockloc.VirtualLocationApp.getDatabase()
+                val address = viewModel.mapState.value.address
+                val name = if (address.isNotEmpty()) {
+                    // 使用地址的第一行作为名称
+                    address.split(",").firstOrNull()?.trim() ?: "未知位置"
+                } else {
+                    String.format("%.4f, %.4f", latitude, longitude)
+                }
+                
+                val historyLocation = com.mockloc.data.db.HistoryLocation(
+                    name = name,
+                    address = address,
+                    latitude = latitude,
+                    longitude = longitude
+                )
+                
+                db.historyLocationDao().insert(historyLocation)
+                Timber.d("Saved to history: $name")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to save to history")
+            }
         }
     }
     
