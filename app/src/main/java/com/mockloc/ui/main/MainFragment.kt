@@ -407,9 +407,9 @@ class MainFragment : Fragment() {
         
         // ✅ 处理自动定位后移动相机到当前位置
         if (state.shouldMoveToCurrentLocation && state.currentLocation != null) {
-            Timber.d("Moving camera to current location: ${state.currentLocation}")
-            aMap.animateCamera(
-                com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(state.currentLocation, 16f)
+            Timber.d("Moving camera to current location: ${state.currentLocation}, zoom: ${state.zoom}")
+            aMap.moveCamera(
+                com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(state.currentLocation, state.zoom)
             )
             // 重置标志
             viewModel.resetShouldMoveToCurrentLocation()
@@ -546,8 +546,11 @@ class MainFragment : Fragment() {
             }
             
             override fun onCameraChangeFinish(cameraPosition: com.amap.api.maps.model.CameraPosition) {
-                // 相机变化完成，保存状态
-                viewModel.saveMapState()
+                // 相机变化完成，保存状态（包括最新的缩放级别）
+                viewModel.saveMapState(
+                    center = cameraPosition.target,
+                    zoom = cameraPosition.zoom
+                )
                 Timber.d("onCameraChangeFinish: target=${cameraPosition.target}, zoom=${cameraPosition.zoom}, will reset isMapDragging after 300ms")
                 // 延迟重置拖动标记，避免立即触发的点击事件（增加到 300ms）
                 viewLifecycleOwner.lifecycleScope.launch {
@@ -706,7 +709,7 @@ class MainFragment : Fragment() {
 
         binding.locationBtn.setOnClickListener {
             viewModel.mapState.value.currentLocation?.let { loc ->
-                aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 15f))
+                aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(loc, 15f))
             } ?: run {
                 viewModel.initLocation()
             }
@@ -795,7 +798,7 @@ class MainFragment : Fragment() {
         // 只有在需要时才移动相机（如点击 FAB 确认时）
         if (moveCamera) {
             val currentZoom = aMap.cameraPosition.zoom
-            aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, currentZoom))
+            aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, currentZoom))
             Timber.d("Camera moved to marker position, zoom=$currentZoom")
         } else {
             Timber.d("Camera NOT moved (moveCamera=false), center after update: ${aMap.cameraPosition.target}")

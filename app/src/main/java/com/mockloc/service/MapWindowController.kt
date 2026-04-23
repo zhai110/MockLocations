@@ -546,7 +546,7 @@ class MapWindowController(
             if (lat > 0 && lng > 0) {
                 // 恢复到上次的位置和缩放级别
                 val target = com.amap.api.maps.model.LatLng(lat.toDouble(), lng.toDouble())
-                aMap?.animateCamera(
+                aMap?.moveCamera(
                     com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(target, zoom)
                 )
                 Timber.d("恢复地图状态: lat=$lat, lng=$lng, zoom=$zoom")
@@ -642,7 +642,7 @@ class MapWindowController(
             
             // 地图相机跟随
             val currentZoom = aMap?.cameraPosition?.zoom ?: 18f
-            aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(marked, currentZoom))
+            aMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(marked, currentZoom))
             
             markedLatLng = null
             
@@ -674,7 +674,7 @@ class MapWindowController(
     private fun resetMapCamera() {
         val (lat, lng) = service.getCurrentLocationGcj02()
         if (lat != 0.0 || lng != 0.0) {
-            aMap?.animateCamera(
+            aMap?.moveCamera(
                 CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 15f)
             )
         }
@@ -742,7 +742,7 @@ class MapWindowController(
             item.setOnClickListener {
                 // 移动到搜索结果位置
                 val pos = LatLng(result.lat, result.lng)
-                aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+                aMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
                 markMapPoint(pos)
                 
                 searchScroll?.visibility = View.GONE
