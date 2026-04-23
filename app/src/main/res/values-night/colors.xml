@@ -34,14 +34,16 @@
     <color name="white">#FFFFFF</color>
 
     <!-- 文字颜色 - 深色主题高对比度 -->
-    <color name="text_primary">#E8E8E8</color>
-    <color name="text_secondary">#B8B8B8</color>
-    <color name="text_hint">#7A7A7A</color>
-    <color name="text_light">#909090</color>
+    <color name="text_primary">#FFFFFF</color>  <!-- ✅ 纯白色，提高可读性 -->
+    <color name="text_secondary">#CCCCCC</color>
+    <color name="text_hint">#999999</color>  <!-- ✅ 更亮的提示文字 -->
+    <color name="text_light">#B0B0B0</color>
 
-    <!-- 轮廓和分割线 - 深色主题 -->
-    <color name="outline">#4A4A4A</color>
-    <color name="outline_variant">#3A3A3A</color>
+    <!-- 轮廓和分割线 - 深色主题（降低亮度） -->
+    <color name="outline">#3A3A3A</color>
+    <color name="outline_variant">#2A2A2A</color>
+    <color name="divider">#333333</color>  <!-- ✅ 更暗的分隔线 -->
+    <color name="divider_light">#252525</color>
 
     <!-- 状态颜色 -->
     <color name="error">#F87171</color>
@@ -68,10 +70,6 @@
     
     <!-- 定位精度圈颜色 - 深色主题 -->
     <color name="location_accuracy_fill">#1A667EEA</color>
-
-    <!-- 分割线 - 深色主题 -->
-    <color name="divider">#4A4A4A</color>
-    <color name="divider_light">#3A3A3A</color>
 
     <!-- 透明色 -->
     <color name="transparent">#00000000</color>
