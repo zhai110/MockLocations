@@ -328,8 +328,9 @@ class MainViewModel(
     private fun sendSimulationControlEvent(event: SimulationControlEvent) {
         _simulationControlEvents.value = event
         // 清除事件，防止重复消费
+        // 增加延迟时间到 500ms，确保 Fragment 有足够时间接收
         viewModelScope.launch {
-            kotlinx.coroutines.delay(100)
+            kotlinx.coroutines.delay(500)
             _simulationControlEvents.value = null
         }
     }
