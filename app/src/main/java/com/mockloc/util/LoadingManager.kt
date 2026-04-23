@@ -130,7 +130,7 @@ object LoadingManager {
     suspend fun executeWithTimeout(
         progressBar: View,
         timeoutMs: Long = 10000L,
-        operation: suspend () -> Result<Unit>,
+        operation: suspend () -> kotlin.Result<Unit>,
         onSuccess: () -> Unit,
         onError: (String) -> Unit,
         onTimeout: (() -> Unit)? = null
@@ -156,8 +156,9 @@ object LoadingManager {
                 }
                 else -> {
                     hideLoading(progressBar)
-                    // 使用自定义Result的getErrorMessage()方法
-                    onError(result.getErrorMessage() ?: "操作失败")
+                    // 使用 Kotlin 标准库 Result 的 exceptionOrNull()
+                    val exception = result.exceptionOrNull()
+                    onError(exception?.message ?: "操作失败")
                 }
             }
         } catch (e: Exception) {
