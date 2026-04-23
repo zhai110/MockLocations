@@ -104,6 +104,7 @@ class MainFragment : Fragment() {
 
         // 设置沉浸式布局（需要在 Fragment 中通过 Activity 设置）
         try {
+            @Suppress("DEPRECATION")  // setDecorFitsSystemWindows 在 Android 15+ 已弃用，但当前实现仍然有效
             requireActivity().window.setDecorFitsSystemWindows(false)
             requireActivity().window.insetsController?.let { controller ->
                 controller.show(android.view.WindowInsets.Type.statusBars())
@@ -775,6 +776,7 @@ class MainFragment : Fragment() {
                 try {
                     val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
                     // API 33+: getFromLocation 可能返回 null 或抛出 IOException
+                    @Suppress("DEPRECATION")  // getFromLocation 在 Android 14+ 已弃用，推荐使用异步 API
                     val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
                     if (addresses != null && addresses.isNotEmpty()) {
                         val addr = addresses[0].getAddressLine(0) ?: ""
@@ -895,6 +897,7 @@ class MainFragment : Fragment() {
         return try {
             val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
             // API 33+: getFromLocation 可能返回 null 或抛出 IOException
+            @Suppress("DEPRECATION")  // getFromLocation 在 Android 14+ 已弃用，推荐使用异步 API
             val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
             if (addresses != null && addresses.isNotEmpty()) {
                 addresses[0].getAddressLine(0) ?: String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
