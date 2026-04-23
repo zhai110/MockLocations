@@ -657,7 +657,7 @@ class MapWindowController(
         val (lat, lng) = service.getCurrentLocationGcj02()
         if (lat != 0.0 || lng != 0.0) {
             aMap?.animateCamera(
-                CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 18f)
+                CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 15f)
             )
         }
     }
@@ -724,7 +724,7 @@ class MapWindowController(
             item.setOnClickListener {
                 // 移动到搜索结果位置
                 val pos = LatLng(result.lat, result.lng)
-                aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 18f))
+                aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
                 markMapPoint(pos)
                 
                 searchScroll?.visibility = View.GONE
