@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.mockloc.service.LocationService
+import com.mockloc.util.PrefsConfig
 import timber.log.Timber
 
 /**
@@ -30,7 +31,7 @@ class BootReceiver : BroadcastReceiver() {
             
             try {
                 // 读取设置，判断是否启用开机自启
-                val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                val prefs = context.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
                 val autoStartEnabled = prefs.getBoolean("auto_start", false)
                 
                 if (autoStartEnabled) {

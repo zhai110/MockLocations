@@ -10,6 +10,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import com.mockloc.R
+import com.mockloc.util.PrefsConfig
 import com.mockloc.widget.ButtonView
 import com.mockloc.widget.JoystickView
 import timber.log.Timber
@@ -91,7 +92,7 @@ class JoystickWindowController(
      * 摇杆类型变化时切换显示（圆形摇杆 / 八方向按钮）
      */
     fun onJoystickTypeChanged() {
-        val spJoystickType = service.getSharedPreferences("settings", 0)
+        val spJoystickType = service.getSharedPreferences(PrefsConfig.SETTINGS, 0)
             .getInt("joystick_type", 0)
         if (spJoystickType == 1) {
             // 按钮模式
@@ -238,7 +239,7 @@ class JoystickWindowController(
             layoutParams = FrameLayout.LayoutParams(size, size, Gravity.CENTER)
             
             // 读取触觉反馈设置
-            val prefs = context.getSharedPreferences("settings", 0)
+            val prefs = context.getSharedPreferences(PrefsConfig.SETTINGS, 0)
             val hapticEnabled = prefs.getBoolean("joystick_haptic", true)
             setHapticEnabled(hapticEnabled)
         }
@@ -254,7 +255,7 @@ class JoystickWindowController(
         }
 
         // 根据设置决定显示哪个
-        val spJoystickType = context.getSharedPreferences("settings", 0)
+        val spJoystickType = context.getSharedPreferences(PrefsConfig.SETTINGS, 0)
             .getInt("joystick_type", 0)
         
         if (spJoystickType == 1) {
@@ -346,7 +347,7 @@ class JoystickWindowController(
         }
 
         // 恢复上次的速度模式
-        val savedMode = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val savedMode = context.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
             .getString("speed_mode", "walk") ?: "walk"
         service.setSpeedMode(savedMode)
         

@@ -1,6 +1,7 @@
 package com.mockloc.util
 
 import android.content.Context
+import com.mockloc.util.PrefsConfig
 import timber.log.Timber
 
 /**
@@ -14,7 +15,6 @@ import timber.log.Timber
  */
 object AddressCache {
     
-    private const val PREFS_NAME = "address_cache"
     private const val MAX_CACHE_SIZE = 100  // 最大缓存条目数
     private const val CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000L  // 24小时过期
     
@@ -44,7 +44,7 @@ object AddressCache {
      */
     private fun loadCacheFromPrefs() {
         try {
-            val prefs = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val prefs = appContext?.getSharedPreferences(PrefsConfig.ADDRESS_CACHE, Context.MODE_PRIVATE)
             val allEntries = prefs?.all
             
             if (allEntries.isNullOrEmpty()) {
@@ -83,7 +83,7 @@ object AddressCache {
      */
     private fun saveCacheToPrefs() {
         try {
-            val prefs = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val prefs = appContext?.getSharedPreferences(PrefsConfig.ADDRESS_CACHE, Context.MODE_PRIVATE)
             val editor = prefs?.edit()
             
             // 清除旧数据

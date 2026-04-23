@@ -5,6 +5,7 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import com.google.android.material.snackbar.Snackbar
 import com.mockloc.R
+import com.mockloc.util.PrefsConfig
 
 /**
  * 新手引导管理器
@@ -15,10 +16,6 @@ import com.mockloc.R
  * 3. 避免重复显示相同的引导
  */
 object OnboardingManager {
-    
-    // SharedPreferences键名前缀
-    private const val PREFS_NAME = "onboarding_prefs"
-    private const val KEY_PREFIX = "shown_"
     
     // 引导类型枚举
     enum class GuideType {
@@ -34,16 +31,16 @@ object OnboardingManager {
      * 检查是否已显示过某个引导
      */
     fun hasShownGuide(context: Context, guideType: GuideType): Boolean {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getBoolean(KEY_PREFIX + guideType.name, false)
+        val prefs = context.getSharedPreferences(PrefsConfig.ONBOARDING, Context.MODE_PRIVATE)
+        return prefs.getBoolean(PrefsConfig.Onboarding.KEY_PREFIX + guideType.name, false)
     }
     
     /**
      * 标记引导已显示
      */
     fun markGuideAsShown(context: Context, guideType: GuideType) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putBoolean(KEY_PREFIX + guideType.name, true).apply()
+        val prefs = context.getSharedPreferences(PrefsConfig.ONBOARDING, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(PrefsConfig.Onboarding.KEY_PREFIX + guideType.name, true).apply()
     }
     
     /**
@@ -95,7 +92,7 @@ object OnboardingManager {
      * 重置所有引导状态（用于测试或重新引导）
      */
     fun resetAllGuides(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(PrefsConfig.ONBOARDING, Context.MODE_PRIVATE)
         prefs.edit().clear().apply()
     }
     
@@ -103,7 +100,7 @@ object OnboardingManager {
      * 重置特定引导状态
      */
     fun resetGuide(context: Context, guideType: GuideType) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().remove(KEY_PREFIX + guideType.name).apply()
+        val prefs = context.getSharedPreferences(PrefsConfig.ONBOARDING, Context.MODE_PRIVATE)
+        prefs.edit().remove(PrefsConfig.Onboarding.KEY_PREFIX + guideType.name).apply()
     }
 }
