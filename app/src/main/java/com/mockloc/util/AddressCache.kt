@@ -2,6 +2,11 @@ package com.mockloc.util
 
 import android.content.Context
 import com.mockloc.util.PrefsConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -17,10 +22,15 @@ object AddressCache {
     
     private const val MAX_CACHE_SIZE = 100  // 最大缓存条目数
     private const val CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000L  // 24小时过期
+    private const val SAVE_DELAY_MS = 500L  // 保存延迟（防抖）
     
     private var cache: MutableMap<String, CacheEntry>? = null
     // 强制使用 applicationContext，防止 Activity Context 导致内存泄漏
     private var appContext: Context? = null
+    
+    // ✅ 延迟保存相关
+    private var saveJob: Job? = null
+    private val saveScope = CoroutineScope(Dispatchers.IO)
     
     /**
      * 缓存条目
@@ -79,9 +89,23 @@ object AddressCache {
     }
     
     /**
-     * 保存缓存到 SharedPreferences
+     * 保存缓存到 SharedPreferences（带防抖）
      */
     private fun saveCacheToPrefs() {
+        // 取消之前的保存任务
+        saveJob?.cancel()
+        
+        // 延迟保存，合并短时间内的多次修改
+        saveJob = saveScope.launch {
+            delay(SAVE_DELAY_MS)
+            performSave()
+        }
+    }
+    
+    /**
+     * 执行实际的保存操作
+     */
+    private fun performSave() {
         try {
             val prefs = appContext?.getSharedPreferences(PrefsConfig.ADDRESS_CACHE, Context.MODE_PRIVATE)
             val editor = prefs?.edit()
@@ -95,6 +119,7 @@ object AddressCache {
             }
             
             editor?.apply()
+            Timber.d("Batch saved ${cache?.size ?: 0} cache entries")
         } catch (e: Exception) {
             Timber.e(e, "Failed to save address cache")
         }
