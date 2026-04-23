@@ -349,6 +349,8 @@ class MainViewModel(
     fun confirmSimulation(altitude: Float = 55.0f): Boolean {
         val currentState = _mapState.value
         val simulationState = _simulationState.value
+        
+        Timber.d("confirmSimulation called: isSimulating=${simulationState.isSimulating}, markedPosition=${currentState.markedPosition}, isPositionPending=${currentState.isPositionPending}")
             
         return if (simulationState.isSimulating) {
             if (currentState.isPositionPending && currentState.markedPosition != null) {
@@ -362,6 +364,7 @@ class MainViewModel(
                     )
                 )
                     
+                Timber.d("Clearing markedPosition after position update")
                 _mapState.update { state ->
                     state.copy(isPositionPending = false, markedPosition = null)
                 }
@@ -385,6 +388,7 @@ class MainViewModel(
         } else {
             // 未模拟：发送启动模拟事件
             if (currentState.markedPosition != null) {
+                Timber.d("Starting simulation at: ${'$'}{currentState.markedPosition}")
                 sendSimulationControlEvent(
                     SimulationControlEvent(
                         eventType = SimulationControlEvent.EventType.START_SIMULATION,
@@ -404,7 +408,7 @@ class MainViewModel(
                 Timber.d("启动模拟: ${'$'}{currentState.markedPosition}")
                 true
             } else {
-                Timber.w("未选择位置，无法启动模拟")
+                Timber.w("❌ 未选择位置，无法启动模拟 (markedPosition is null)")
                 false
             }
         }
