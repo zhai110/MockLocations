@@ -33,6 +33,7 @@ import androidx.core.content.ContextCompat
 import com.mockloc.R
 import com.mockloc.ui.main.MainActivity
 import com.mockloc.util.MapUtils
+import com.mockloc.util.PrefsConfig
 import com.mockloc.util.UIFeedbackHelper
 import com.mockloc.widget.JoystickView
 import timber.log.Timber
@@ -169,7 +170,7 @@ class LocationService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        prefs = getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
         altitude = prefs.getFloat("altitude", 55.0f).toDouble()
         currentSpeedMode = prefs.getString("speed_mode", "walk") ?: "walk"
         

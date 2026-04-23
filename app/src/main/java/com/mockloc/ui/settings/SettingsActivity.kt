@@ -8,6 +8,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.mockloc.R
 import com.mockloc.databinding.ActivitySettingsBinding
+import com.mockloc.util.PrefsConfig
 import timber.log.Timber
 
 /**
@@ -23,7 +24,7 @@ class SettingsActivity : AppCompatActivity() {
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
-        prefs = getSharedPreferences("settings", MODE_PRIVATE)
+        prefs = getSharedPreferences(PrefsConfig.SETTINGS, MODE_PRIVATE)
 
         setupToolbar()
         setupMovementSettings()
