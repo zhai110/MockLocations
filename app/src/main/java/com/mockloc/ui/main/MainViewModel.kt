@@ -193,6 +193,13 @@ class MainViewModel(
                 putFloat(PrefsConfig.MapState.KEY_LONGITUDE, it.longitude.toFloat())
             }
             putFloat(PrefsConfig.MapState.KEY_ZOOM, currentState.zoom)
+            
+            // ✅ 保存标记位置
+            currentState.markedPosition?.let {
+                putFloat(PrefsConfig.MapState.KEY_MARKED_LAT, it.latitude.toFloat())
+                putFloat(PrefsConfig.MapState.KEY_MARKED_LNG, it.longitude.toFloat())
+            }
+            
             apply()
         }
         Timber.d("地图状态已保存")
@@ -221,6 +228,25 @@ class MainViewModel(
             }
             Timber.d("显示默认视图: 中国地图概览")
             chinaCenter
+        }
+    }
+    
+    /**
+     * 恢复标记位置
+     */
+    fun restoreMarkedPosition(): LatLng? {
+        val lat = prefs.getFloat(PrefsConfig.MapState.KEY_MARKED_LAT, -1f)
+        val lng = prefs.getFloat(PrefsConfig.MapState.KEY_MARKED_LNG, -1f)
+        
+        return if (lat > 0 && lng > 0) {
+            val marked = LatLng(lat.toDouble(), lng.toDouble())
+            _mapState.update { state ->
+                state.copy(markedPosition = marked)
+            }
+            Timber.d("恢复标记位置: $marked")
+            marked
+        } else {
+            null
         }
     }
 

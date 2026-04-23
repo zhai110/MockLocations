@@ -38,6 +38,8 @@ object PrefsConfig {
         const val KEY_LATITUDE = "latitude"
         const val KEY_LONGITUDE = "longitude"
         const val KEY_ZOOM = "zoom"
+        const val KEY_MARKED_LAT = "marked_lat"      // 标记位置纬度
+        const val KEY_MARKED_LNG = "marked_lng"      // 标记位置经度
     }
     
     // ==================== Onboarding 中的键名前缀 ====================
