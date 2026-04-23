@@ -131,8 +131,8 @@ class MapWindowController(
         // 重启定位（因为 hide() 时停止了）
         locationClient?.startLocation()
         
-        // 注意：restoreMapState() 已经在 setupMap() 中调用
-        // 不需要在这里重复调用
+        // ✅ 每次显示时都恢复最新状态（可能来自主界面的修改）
+        restoreMapState()
         
         Timber.d("Map window shown")
     }
