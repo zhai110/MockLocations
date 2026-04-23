@@ -407,7 +407,8 @@ class MainFragment : Fragment() {
         // ✅ 处理自动定位后移动相机到当前位置
         if (state.shouldMoveToCurrentLocation && state.currentLocation != null) {
             Timber.d("Moving camera to current location: ${state.currentLocation}, zoom: ${state.zoom}")
-            aMap.moveCamera(
+            // ✅ 使用 animateCamera 实现流畅的飞行动画
+            aMap.animateCamera(
                 com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(state.currentLocation, state.zoom)
             )
             // 重置标志
@@ -708,7 +709,8 @@ class MainFragment : Fragment() {
 
         binding.locationBtn.setOnClickListener {
             viewModel.mapState.value.currentLocation?.let { loc ->
-                aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(loc, 15f))
+                // ✅ 使用 animateCamera 实现流畅的飞行动画
+                aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 15f))
             } ?: run {
                 viewModel.initLocation()
             }
@@ -797,8 +799,9 @@ class MainFragment : Fragment() {
         // 只有在需要时才移动相机（如点击 FAB 确认时）
         if (moveCamera) {
             val currentZoom = aMap.cameraPosition.zoom
-            aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, currentZoom))
-            Timber.d("Camera moved to marker position, zoom=$currentZoom")
+            // ✅ 使用 animateCamera 实现流畅的相机移动动画
+            aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, currentZoom))
+            Timber.d("Camera animated to marker position, zoom=$currentZoom")
         } else {
             Timber.d("Camera NOT moved (moveCamera=false), center after update: ${aMap.cameraPosition.target}")
         }
