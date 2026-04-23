@@ -1142,17 +1142,24 @@ class MainFragment : Fragment() {
             binding.mapView.onResume()
             
             // ✅ 从 SP 恢复最新状态（可能来自悬浮窗的修改）
-            // 这会更新 ViewModel 的状态，自动触发 updateMapUI()
-            val restoredCenter = viewModel.restoreMapState()
-            val restoredMarked = viewModel.restoreMarkedPosition()
+            val prefs = requireContext().getSharedPreferences(
+                com.mockloc.util.PrefsConfig.MAP_STATE, 
+                android.content.Context.MODE_PRIVATE
+            )
+            val lat = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_LATITUDE, -1f)
+            val lng = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_LONGITUDE, -1f)
+            val zoom = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_ZOOM, 15f)
             
-            // 如果恢复了中心点，移动相机
-            restoredCenter?.let { latLng ->
-                aMap.moveCamera(com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(latLng, viewModel.mapState.value.zoom))
+            // 如果 SP 中有有效的中心点，直接恢复
+            if (lat > 0 && lng > 0) {
+                val center = com.amap.api.maps.model.LatLng(lat.toDouble(), lng.toDouble())
+                aMap.moveCamera(com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(center, zoom))
+                Timber.d("onResume: 恢复地图状态 center=$center, zoom=$zoom")
             }
             
-            // 如果恢复了标记位置，updateMapUI 会自动处理
-            // 不需要手动调用 updateMarker()
+            // 触发 ViewModel 状态更新（用于标记位置等）
+            viewModel.restoreMapState()
+            viewModel.restoreMarkedPosition()
             
             // 检测夜间模式变化
             updateNightModeStatus()
