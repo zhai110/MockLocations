@@ -1,0 +1,11 @@
+{
+  "versionCode": 2,
+  "versionName": "1.1.0",
+  "downloadUrl": "https://github.com/zhai110/MockLocations/releases/download/v1.1.0/app-release.apk",
+  "releaseNotes": "✨ 新增功能：\n- 远程更新功能\n- 优化夜间模式主题同步\n- 改进悬浮窗动画效果\n\n🐛 Bug修复：\n- 修复搜索框键盘弹出问题\n- 修复定位精度问题\n\n⚡ 性能优化：\n- 提升启动速度\n- 优化内存使用",
+  "forceUpdate": false,
+  "minVersionCode": 1,
+  "fileSize": 15728640,
+  "md5": "",
+  "publishTime": "2026-04-24T10:00:00Z"
+}
