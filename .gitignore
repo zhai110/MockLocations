@@ -119,5 +119,6 @@ docs/
 DESIGN_*.md
 PLAN_*.md
 TODO_*.md
+*_preview.html
 !README.md
 !CHANGELOG.md
