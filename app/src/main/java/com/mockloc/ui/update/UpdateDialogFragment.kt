@@ -122,13 +122,15 @@ class UpdateDialogFragment : DialogFragment() {
         btnUpdate: MaterialButton,
         btnCancel: MaterialButton
     ) {
+        // ✅ 创建主线程 Handler 用于更新 UI
+        val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        
         downloadJob = CoroutineScope(Dispatchers.Main).launch {
             val checker = updateChecker ?: return@launch
             
-            // ✅ 使用 withContext 确保进度回调在主线程执行
+            // ✅ 使用 Handler 确保进度回调在主线程执行
             checker.downloadApk(info) { progress ->
-                // 进度回调已经在 IO 线程，需要切换到主线程更新 UI
-                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                mainHandler.post {
                     progressBar.progress = progress
                     tvProgress.text = "下载中... $progress%"
                 }
