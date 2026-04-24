@@ -125,9 +125,13 @@ class UpdateDialogFragment : DialogFragment() {
         downloadJob = CoroutineScope(Dispatchers.Main).launch {
             val checker = updateChecker ?: return@launch
             
+            // ✅ 使用 withContext 确保进度回调在主线程执行
             checker.downloadApk(info) { progress ->
-                progressBar.progress = progress
-                tvProgress.text = "下载中... $progress%"
+                // 进度回调已经在 IO 线程，需要切换到主线程更新 UI
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    progressBar.progress = progress
+                    tvProgress.text = "下载中... $progress%"
+                }
             }.onSuccess { apkFile ->
                 // 下载成功，触发安装
                 Timber.i("APK downloaded: ${apkFile.absolutePath}")
