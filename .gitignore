@@ -110,3 +110,10 @@ api-keys.txt
 # Temporary documentation files - moved to docs/ directory
 # These are development notes and reports, not needed in version control
 docs/
+
+# Temporary build scripts and guides
+*.bat
+!gradlew.bat
+*_GUIDE.md
+!README.md
+!CHANGELOG.md
