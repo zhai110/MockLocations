@@ -297,4 +297,20 @@ class SettingsActivity : AppCompatActivity() {
         
         Timber.d("Settings loaded: walk=$walkSpeed, run=$runSpeed, bike=$bikeSpeed")
     }
+
+    /**
+     * 处理配置变化（夜间模式切换）
+     */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        
+        val isNight = (newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        Timber.d("SettingsActivity configuration changed: isNight=$isNight")
+        
+        // ✅ 重新加载设置以应用新主题的颜色
+        // 由于使用了 ViewBinding，大部分颜色会自动更新
+        // 这里主要是为了确保 Toolbar 等组件正确刷新
+        loadSettings()
+    }
 }

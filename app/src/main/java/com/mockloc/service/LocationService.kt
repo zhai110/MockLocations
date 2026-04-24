@@ -326,11 +326,10 @@ class LocationService : Service() {
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-        // 只有悬浮窗正在显示时才同步主题，避免夜间模式切换时错误弹出悬浮窗
-        if (isJoystickVisible) {
-            Timber.d("Configuration changed, syncing floating window theme")
-            floatingWindowManager.syncMapWithSystemTheme()
-        }
+        // ✅ 关键修复：无论悬浮窗是否可见，都要同步主题状态
+        // 否则当悬浮窗未打开时切换主题，下次打开悬浮窗会使用旧的 Context
+        Timber.d("Configuration changed, syncing floating window theme")
+        floatingWindowManager.syncMapWithSystemTheme()
     }
 
     override fun onDestroy() {

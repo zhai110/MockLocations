@@ -73,7 +73,7 @@ class MainFragment : Fragment() {
     private var idlePulseAnimator: android.animation.ObjectAnimator? = null
     private var hasFirstLocation = false
     private var isMapDragging = false  // 标记是否正在拖动地图
-    private var isNightMode = false  // 标记当前是否为夜间模式
+    private var isNightMode = false  // ✅ 初始值会在 onViewCreated 中根据系统主题正确设置
     private var isManualLayerSelected = false  // 标记用户是否手动选择了图层
 
     // 定位权限请求启动器
@@ -84,7 +84,16 @@ class MainFragment : Fragment() {
             Timber.d("Location permission granted")
             viewModel.initLocation()
         } else {
-            UIFeedbackHelper.showToast(requireContext(), "定位权限被拒绝，虚拟定位功能不可用")
+            // ✅ 权限被拒绝，检查是否需要显示解释
+            val shouldShowRationale = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)
+            
+            if (shouldShowRationale) {
+                // 用户之前拒绝过，但未选择“不再询问” → 显示解释对话框
+                showPermissionRationaleDialog()
+            } else {
+                // 用户选择了“不再询问”或首次拒绝 → 引导去设置页面
+                showPermissionDeniedDialog()
+            }
         }
     }
 
@@ -341,8 +350,23 @@ class MainFragment : Fragment() {
                 )
                 
                 Timber.d("Inserting into database...")
-                db.historyLocationDao().insert(historyLocation)
-                Timber.d("✅ Saved to history: $name (lat=$latitude, lng=$longitude)")
+                
+                // ✅ 去重检查：如果同一坐标已存在，则更新时间戳而不是插入新记录
+                val existingRecord = db.historyLocationDao().getByCoordinates(latitude, longitude)
+                if (existingRecord != null) {
+                    // 更新已有记录的时间戳和名称/地址（可能用户搜索了不同的名称）
+                    val updatedRecord = existingRecord.copy(
+                        name = name,
+                        address = address,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    db.historyLocationDao().update(updatedRecord)
+                    Timber.d("✅ Updated existing history record: $name (id=${existingRecord.id})")
+                } else {
+                    // 插入新记录
+                    db.historyLocationDao().insert(historyLocation)
+                    Timber.d("✅ Inserted new history record: $name (lat=$latitude, lng=$longitude)")
+                }
                 
                 // 验证是否真的保存了
                 val allRecords = db.historyLocationDao().getAll()
@@ -493,6 +517,11 @@ class MainFragment : Fragment() {
      */
     private fun initMap() {
         aMap = binding.mapView.map
+        
+        // ✅ 初始化夜间模式状态（确保地图类型正确）
+        isNightMode = (resources.configuration.uiMode 
+            and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        Timber.d("initMap: isNightMode=$isNightMode")
         
         // 启用我的位置图层（使用 LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER）
         // 显示蓝点+方向箭头，但不自动移动相机
@@ -824,10 +853,18 @@ class MainFragment : Fragment() {
         } else {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
+                    // ✅ API 33+ 兼容性修复：先检查 Geocoder 是否可用
+                    if (!android.location.Geocoder.isPresent()) {
+                        Timber.w("Geocoder service is not available on this device")
+                        return@launch
+                    }
+                    
                     val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
-                    // API 33+: getFromLocation 可能返回 null 或抛出 IOException
+                    
+                    // ✅ API 33+: getFromLocation 可能返回 null 或抛出 IOException
                     @Suppress("DEPRECATION")  // getFromLocation 在 Android 14+ 已弃用，推荐使用异步 API
                     val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+                    
                     if (addresses != null && addresses.isNotEmpty()) {
                         val addr = addresses[0].getAddressLine(0) ?: ""
                         withContext(Dispatchers.Main) {
@@ -836,11 +873,18 @@ class MainFragment : Fragment() {
                                 binding.addressText.text = addr
                             }
                         }
+                    } else {
+                        Timber.d("Geocoder returned empty result for: ${latLng.latitude}, ${latLng.longitude}")
                     }
                 } catch (e: java.io.IOException) {
+                    // ✅ API 33+ 常见异常：网络问题或服务不可用
                     Timber.w(e, "Geocoder IO error (API 33+ may throw IOException)")
+                } catch (e: IllegalArgumentException) {
+                    // ✅ API 33+ 新增：无效坐标会抛出此异常
+                    Timber.w(e, "Invalid coordinates for Geocoder: ${latLng.latitude}, ${latLng.longitude}")
                 } catch (e: Exception) {
-                    Timber.e(e, "获取地址失败")
+                    // ✅ 捕获其他未知异常
+                    Timber.e(e, "Unexpected Geocoder error")
                 }
             }
         }
@@ -945,19 +989,35 @@ class MainFragment : Fragment() {
      */
     private fun getAddressFromLocation(latLng: LatLng): String {
         return try {
+            // ✅ API 33+ 兼容性修复：先检查 Geocoder 是否可用
+            if (!android.location.Geocoder.isPresent()) {
+                Timber.w("Geocoder service is not available")
+                return String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
+            }
+            
             val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
-            // API 33+: getFromLocation 可能返回 null 或抛出 IOException
+            
+            // ✅ API 33+: getFromLocation 可能返回 null 或抛出 IOException
             @Suppress("DEPRECATION")  // getFromLocation 在 Android 14+ 已弃用，推荐使用异步 API
             val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+            
             if (addresses != null && addresses.isNotEmpty()) {
                 addresses[0].getAddressLine(0) ?: String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
             } else {
+                Timber.d("Geocoder returned empty result")
                 String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
             }
         } catch (e: java.io.IOException) {
+            // ✅ API 33+ 常见异常：网络问题或服务不可用
             Timber.w(e, "Geocoder IO error in getAddressFromLocation")
             String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
+        } catch (e: IllegalArgumentException) {
+            // ✅ API 33+ 新增：无效坐标会抛出此异常
+            Timber.w(e, "Invalid coordinates: ${latLng.latitude}, ${latLng.longitude}")
+            String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
         } catch (e: Exception) {
+            // ✅ 捕获其他未知异常
+            Timber.e(e, "Unexpected Geocoder error in getAddressFromLocation")
             String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
         }
     }
@@ -1078,6 +1138,36 @@ class MainFragment : Fragment() {
                 Timber.d("Using cached location: $lastLocation")
             }
         }
+    }
+
+    /**
+     * 显示权限解释对话框（用户之前拒绝过，但未选择“不再询问”）
+     */
+    private fun showPermissionRationaleDialog() {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.RoundedDialogTheme)
+            .setTitle("需要定位权限")
+            .setMessage("虚拟定位功能需要访问您的位置信息。\n\n请允许定位权限以使用此功能。")
+            .setPositiveButton("授予权限") { _, _ ->
+                // 再次请求权限
+                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /**
+     * 显示权限被拒绝对话框（用户选择了“不再询问”）
+     */
+    private fun showPermissionDeniedDialog() {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.RoundedDialogTheme)
+            .setTitle("定位权限已拒绝")
+            .setMessage("您已拒绝定位权限，虚拟定位功能无法使用。\n\n请在系统设置中手动开启定位权限。")
+            .setPositiveButton("去设置") { _, _ ->
+                // 打开应用设置页面
+                PermissionHelper.openAppSettings(requireContext())
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     /**
@@ -1228,18 +1318,27 @@ class MainFragment : Fragment() {
         if (_binding == null) return
         
         try {
-            // 使用 ContextCompat.getColor 获取当前主题的颜色
-            val surfaceColor = ContextCompat.getColor(requireContext(), R.color.surface)
-            val backgroundColor = ContextCompat.getColor(requireContext(), R.color.background)
-            val primaryColor = ContextCompat.getColor(requireContext(), R.color.primary)
-            val surfaceVariantColor = ContextCompat.getColor(requireContext(), R.color.surface_variant)
-            val dividerColor = ContextCompat.getColor(requireContext(), R.color.divider_light)
+            // ✅ 关键修复：使用 Resources.getColor(resId, theme) 强制从最新主题获取颜色
+            // ContextCompat.getColor() 在 configChanges 下可能返回缓存的旧颜色
+            val resources = requireContext().resources
+            val theme = requireContext().theme
+            
+            val surfaceColor = resources.getColor(R.color.surface, theme)
+            val backgroundColor = resources.getColor(R.color.background, theme)
+            val primaryColor = resources.getColor(R.color.primary, theme)
+            val surfaceVariantColor = resources.getColor(R.color.surface_variant, theme)
+            val dividerColor = resources.getColor(R.color.divider, theme)  // ✅ 搜索结果容器顶部分隔线
+            val dividerLightColor = resources.getColor(R.color.divider_light, theme)  // Item 分隔线
+            val textPrimaryColor = resources.getColor(R.color.text_primary, theme)
+            val textSecondaryColor = resources.getColor(R.color.text_secondary, theme)
+            val navIndicatorColor = resources.getColor(R.color.nav_item_selected_background, theme)
             
             // 更新 CoordinatorLayout 背景
             binding.fragmentRoot.setBackgroundColor(backgroundColor)
             
             // 更新搜索卡片背景
             binding.searchCard.setCardBackgroundColor(surfaceColor)
+            Timber.d("Search card background updated: surfaceColor=#${Integer.toHexString(surfaceColor)}")
             
             // 更新搜索结果列表背景
             binding.searchResultList.setBackgroundColor(surfaceColor)
@@ -1251,28 +1350,71 @@ class MainFragment : Fragment() {
                 topDivider.setBackgroundColor(dividerColor)
             }
             
-            // 更新 BottomSheet 背景
-            binding.bottomSheet.setBackgroundColor(surfaceColor)
+            // ✅ 更新 BottomSheet 背景（重新加载 drawable 以保留圆角）
+            // 关键修复：先清除背景，再重新设置，强制触发颜色重新解析
+            binding.bottomSheet.background = null
+            binding.bottomSheet.setBackgroundResource(R.drawable.bg_bottom_sheet)
+            Timber.d("BottomSheet background updated")
+            
+            // ✅ 更新 BottomSheet 拖拽手柄颜色（重新加载 drawable 以保留圆角）
+            binding.dragHandle.background = null
+            binding.dragHandle.setBackgroundResource(R.drawable.bg_drag_handle)
+            Timber.d("Drag handle background updated")
             
             // 更新位置信息卡片背景
             binding.locationInfoCard.setCardBackgroundColor(primaryColor)
             
-            // 更新底部导航栏背景
-            binding.bottomNav.setBackgroundColor(surfaceColor)
+            // 更新底部导航栏背景（使用 backgroundColor 而非 surfaceColor）
+            binding.bottomNav.setBackgroundColor(backgroundColor)
+            Timber.d("Bottom nav background updated: backgroundColor=#${Integer.toHexString(backgroundColor)}")
             
             // ✅ 通知搜索结果列表刷新，让 Item 重新加载颜色资源
             binding.searchResultList.adapter?.notifyDataSetChanged()
             Timber.d("Search result list notified for theme change")
             
+            // ✅ 额外修复：强制刷新 RecyclerView 的布局管理器（确保所有 Item 重新测量）
+            binding.searchResultList.layoutManager?.requestLayout()
+            
+            // ✅ 更新 BottomNavigationView 的图标和文字颜色（ColorStateList 需要手动刷新）
+            val navItemColorStateList = android.content.res.ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf(-android.R.attr.state_checked)
+                ),
+                intArrayOf(
+                    resources.getColor(R.color.primary, theme),
+                    resources.getColor(R.color.text_secondary, theme)
+                )
+            )
+            binding.bottomNav.itemIconTintList = navItemColorStateList
+            binding.bottomNav.itemTextColor = navItemColorStateList
+            
+            // ✅ 强制刷新 BottomNavigationView 的状态（确保颜色立即生效）
+            binding.bottomNav.post {
+                binding.bottomNav.refreshDrawableState()
+            }
+            
+            Timber.d("BottomNavigationView colors updated: primary=#${Integer.toHexString(primaryColor)}, text_secondary=#${Integer.toHexString(textSecondaryColor)}")
+            
+            // ✅ 更新搜索框文字颜色（EditText 不会自动刷新）
+            binding.searchEdit.setTextColor(textPrimaryColor)
+            binding.searchEdit.setHintTextColor(resources.getColor(R.color.text_hint, theme))
+            
+            // ✅ 更新搜索图标的 tint 颜色（XML 静态绑定不会自动刷新）
+            binding.searchEdit.parent?.let { searchRow ->
+                val searchIcon = (searchRow as? android.widget.LinearLayout)?.getChildAt(0) as? android.widget.ImageView
+                searchIcon?.setColorFilter(resources.getColor(R.color.text_hint, theme))
+            }
+            
             // ✅ 更新操作按钮组的图标和文字颜色
-            updateButtonIconTint(binding.inputCoordsBtn, primaryColor, surfaceVariantColor)
-            updateButtonIconTint(binding.historyBtn, primaryColor, surfaceVariantColor)
-            updateButtonIconTint(binding.favoriteBtn, primaryColor, surfaceVariantColor)
+            updateButtonIconTint(binding.inputCoordsBtn, primaryColor, textSecondaryColor)
+            updateButtonIconTint(binding.historyBtn, primaryColor, textSecondaryColor)
+            updateButtonIconTint(binding.favoriteBtn, primaryColor, textSecondaryColor)
+            updateButtonIconTint(binding.copyBtn, primaryColor, textSecondaryColor)
             
             // 直接设置选中项指示器颜色（绕过 configChanges 导致的资源不刷新问题）
-            val indicatorColor = ContextCompat.getColor(requireContext(), R.color.nav_item_selected_background)
             binding.bottomNav.setItemActiveIndicatorColor(
-                android.content.res.ColorStateList.valueOf(indicatorColor)
+                android.content.res.ColorStateList.valueOf(navIndicatorColor)
             )
             
             // 更新右侧固定栏按钮背景（重要！）
@@ -1282,6 +1424,42 @@ class MainFragment : Fragment() {
             updateButtonBackground(binding.layerBtn, surfaceVariantColor)
             // 定位按钮使用主色调
             updateButtonBackground(binding.locationBtn, primaryColor)
+            
+            // ✅ 更新右侧按钮的图标 tint 颜色
+            binding.zoomInBtn.setColorFilter(textPrimaryColor)
+            binding.zoomOutBtn.setColorFilter(textPrimaryColor)
+            binding.layerBtn.setColorFilter(textPrimaryColor)
+            // 定位按钮图标保持白色
+            binding.locationBtn.setColorFilter(android.graphics.Color.WHITE)
+            
+            // ✅ 更新 FAB 按钮的背景和图标颜色
+            binding.fab.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+            binding.fab.setColorFilter(android.graphics.Color.WHITE)
+            
+            // ✅ 更新搜索加载指示器颜色（ProgressBar indeterminateTint 需要手动刷新）
+            binding.searchProgress.indeterminateTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+            
+            // ✅ 更新状态徽章背景（重新加载 drawable 以应用夜间模式版本）
+            binding.statusBadge.setBackgroundResource(R.drawable.bg_status_badge)
+            
+            // ✅ 更新状态徽章文字颜色（白天白色，夜间深色）
+            // 注意：状态徽章在地图上，背景是半透明的
+            // 白天：白色文字 + 半透明白色背景
+            // 夜间：深色文字 + 半透明黑色背景
+            val statusTextColor = if (isNightMode) {
+                resources.getColor(R.color.text_primary, theme)  // 夜间：白色
+            } else {
+                android.graphics.Color.WHITE  // 白天：白色
+            }
+            binding.statusText.setTextColor(statusTextColor)
+            Timber.d("Status text color updated: isNightMode=$isNightMode")
+            
+            // ✅ 更新位置信息卡片内的文字颜色
+            // 卡片背景是 primary（蓝绿色），所以文字保持白色
+            binding.latitudeText.setTextColor(android.graphics.Color.WHITE)
+            binding.longitudeText.setTextColor(android.graphics.Color.WHITE)
+            binding.addressText.setTextColor(android.graphics.Color.WHITE)
+            Timber.d("Location info card text colors updated")
             
             Timber.d("View backgrounds updated for theme change")
         } catch (e: Exception) {

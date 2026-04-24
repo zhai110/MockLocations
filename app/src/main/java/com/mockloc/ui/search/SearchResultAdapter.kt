@@ -7,6 +7,7 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.mockloc.R
 import com.mockloc.repository.PoiSearchHelper.PlaceItem
 import com.mockloc.databinding.ItemSearchResultBinding
 import com.mockloc.util.AnimationConfig
@@ -38,12 +39,26 @@ class SearchResultAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: PlaceItem, position: Int) {
+            // ✅ 关键修复：每次绑定时都从最新的 resources 和 theme 获取颜色
+            // 确保 resources 和 theme 来自同一个 context，避免主题切换后颜色不一致
+            val resources = binding.root.context.resources
+            val theme = binding.root.context.theme
+            
             binding.apply {
                 nameText.text = item.name
                 addressText.text = item.address
+                
+                // ✅ 强制更新文字颜色（从最新主题获取）
+                nameText.setTextColor(resources.getColor(R.color.text_primary, theme))
+                addressText.setTextColor(resources.getColor(R.color.text_secondary, theme))
+                
+                // ✅ 更新分隔线颜色（主题切换时自动刷新）
+                dividerView.setBackgroundColor(resources.getColor(R.color.divider_light, theme))
+                
                 // 显示距离（周边搜索时有值）
                 if (item.distance >= 0) {
                     distanceText.text = formatDistance(item.distance)
+                    distanceText.setTextColor(resources.getColor(R.color.primary, theme))
                     distanceText.visibility = View.VISIBLE
                 } else {
                     distanceText.visibility = View.GONE

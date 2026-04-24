@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.mockloc.R
 import com.mockloc.databinding.ItemHistoryBinding
 
 /**
@@ -33,12 +34,20 @@ class FavoriteAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: FavoriteItem, onClick: (FavoriteItem) -> Unit, onDelete: (FavoriteItem) -> Unit) {
+            // ✅ 关键修复：每次绑定时都从最新的 resources 和 theme 获取颜色
+            // 确保主题切换后颜色正确更新
+            val resources = binding.root.context.resources
+            val theme = binding.root.context.theme
+            
             binding.nameText.text = item.name
+            binding.nameText.setTextColor(resources.getColor(R.color.text_primary, theme))
+            
             binding.coordsText.text = String.format(
                 "%.4f°N, %.4f°E",
                 item.latitude,
                 item.longitude
             )
+            binding.coordsText.setTextColor(resources.getColor(R.color.text_hint, theme))
             
             binding.root.setOnClickListener {
                 onClick(item)
