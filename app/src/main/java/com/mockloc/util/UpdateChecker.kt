@@ -24,12 +24,14 @@ import java.util.concurrent.TimeUnit
 class UpdateChecker(private val context: Context) {
     
     companion object {
-        // GitHub Release 更新配置文件地址
+        // 远程更新配置文件地址
+        // 使用 Gitee（国内访问速度快）
         private const val UPDATE_JSON_URL = 
-            "https://raw.githubusercontent.com/zhai110/MockLocations/master/update.json"
+            "https://gitee.com/eizmme/MockLocations/raw/master/update.json"
         
-        // 🧪 本地测试地址（注释掉，正式发布时使用上面的 GitHub 地址）
-        // private const val UPDATE_JSON_URL = "http://10.0.2.2:8080/update.json"
+        // 备选方案：GitHub + 代理
+        // private const val UPDATE_JSON_URL = 
+        //     "https://ghproxy.com/https://raw.githubusercontent.com/zhai110/MockLocations/master/update.json"
         
         // 下载超时时间（秒）
         private const val DOWNLOAD_TIMEOUT = 300L
