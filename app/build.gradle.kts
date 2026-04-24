@@ -48,7 +48,7 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "1.0.0"  // 首个正式版本
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -65,9 +65,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // ⚠️ 临时使用 debug 签名进行测试（正式发布前必须改回 release 签名）
-            println("Warning: Using debug signing for release build (testing only)")
-            signingConfig = signingConfigs.getByName("debug")
+            // ✅ 使用正式 release 签名
+            signingConfig = signingConfigs.getByName("release")
+            
+            // ⚠️ 如果遇到文件锁定问题，可以临时禁用 Lint 检查
+            // lintOptions.isCheckReleaseBuilds = false
         }
         debug {
             isMinifyEnabled = false
@@ -134,6 +136,12 @@ dependencies {
 
     // Timber
     implementation("com.jakewharton.timber:timber:5.0.1")
+
+    // OkHttp - 网络请求
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Gson - JSON解析
+    implementation("com.google.code.gson:gson:2.11.0")
 
     // LeakCanary - 内存泄漏检测 (仅debug版本)
     debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")

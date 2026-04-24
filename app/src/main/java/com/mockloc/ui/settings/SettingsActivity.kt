@@ -6,9 +6,14 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.mockloc.R
 import com.mockloc.databinding.ActivitySettingsBinding
+import com.mockloc.ui.update.UpdateDialogFragment
 import com.mockloc.util.PrefsConfig
+import com.mockloc.util.UIFeedbackHelper
+import com.mockloc.util.UpdateChecker
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -223,11 +228,52 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun showAboutDialog() {
+        val updateChecker = UpdateChecker(this)
+        val (versionCode, versionName) = updateChecker.getCurrentVersionInfo()
+        
         AlertDialog.Builder(this, R.style.RoundedDialogTheme)
             .setTitle("关于")
-            .setMessage(R.string.about_message)
+            .setMessage("${getString(R.string.about_message)}\n\n当前版本：$versionName ($versionCode)")
             .setPositiveButton("确定", null)
+            .setNeutralButton("检查更新") { _, _ ->
+                checkForUpdate()
+            }
             .show()
+    }
+    
+    /**
+     * 检查更新
+     */
+    private fun checkForUpdate() {
+        val updateChecker = UpdateChecker(this)
+        
+        lifecycleScope.launch {
+            // 显示加载提示
+            val progressDialog = android.app.ProgressDialog(this@SettingsActivity).apply {
+                setMessage("检查更新中...")
+                setCancelable(false)
+                show()
+            }
+            
+            updateChecker.checkForUpdate()
+                .onSuccess { updateInfo ->
+                    progressDialog.dismiss()
+                    
+                    if (updateInfo != null) {
+                        // 有新版本，显示更新对话框
+                        UpdateDialogFragment.newInstance(updateInfo)
+                            .show(supportFragmentManager, "update_dialog")
+                    } else {
+                        // 已是最新版本
+                        UIFeedbackHelper.showToast(this@SettingsActivity, "当前已是最新版本")
+                    }
+                }
+                .onFailure { error ->
+                    progressDialog.dismiss()
+                    UIFeedbackHelper.showToast(this@SettingsActivity, "检查更新失败：${error.message}")
+                    Timber.e(error, "Update check failed")
+                }
+        }
     }
 
     private fun setupResetButton() {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 外部文件目录下的 updates 文件夹 -->
+    <external-files-path
+        name="updates"
+        path="updates/" />
+</paths>
