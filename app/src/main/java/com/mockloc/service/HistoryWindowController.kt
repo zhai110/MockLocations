@@ -131,13 +131,23 @@ class HistoryWindowController(
 
     /**
      * 创建带主题的 Context
+     * Service 的 context 不会自动跟随系统主题切换，需要手动注入当前 uiMode，
+     * 这样 values-night/themes.xml 中的语义色才能被正确解析。
      */
     private fun createThemedContext(): Context {
         val isNight = (context.resources.configuration.uiMode
                 and android.content.res.Configuration.UI_MODE_NIGHT_MASK
                 ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        val themeRes = if (isNight) R.style.Theme_VirtualLocation else R.style.Theme_VirtualLocation
-        return ContextThemeWrapper(context, themeRes)
+        val nightModeFlags = if (isNight) {
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        } else {
+            android.content.res.Configuration.UI_MODE_NIGHT_NO
+        }
+        val config = android.content.res.Configuration(context.resources.configuration).also {
+            it.uiMode = (it.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or nightModeFlags
+        }
+        val configContext = context.createConfigurationContext(config)
+        return ContextThemeWrapper(configContext, R.style.Theme_VirtualLocation)
     }
 
     /**

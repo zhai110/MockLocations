@@ -48,7 +48,16 @@ class FloatingWindowManager(private val service: LocationService) {
                 and android.content.res.Configuration.UI_MODE_NIGHT_MASK
                 ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         isNightMode = nightMode
-        return ContextThemeWrapper(service, R.style.Theme_VirtualLocation)
+        val nightModeFlags = if (nightMode) {
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        } else {
+            android.content.res.Configuration.UI_MODE_NIGHT_NO
+        }
+        val config = android.content.res.Configuration(service.resources.configuration).also {
+            it.uiMode = (it.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or nightModeFlags
+        }
+        val configContext = service.createConfigurationContext(config)
+        return ContextThemeWrapper(configContext, R.style.Theme_VirtualLocation)
     }
 
     private val windowManager: WindowManager =
@@ -436,22 +445,29 @@ class FloatingWindowManager(private val service: LocationService) {
             // 永远不为 null，导致 wasShowing 永远为 true，夜间模式切换时错误地弹出悬浮窗
             val wasShowing = isJoystickViewShown || isMapViewShown || isHistoryViewShown
             
-            // 重建 themedContext
-            themedContext = createThemedContext()
-            val savedWindowType = currentWindowType
-
-            // 先移除当前显示的窗口
+            // ✅ 关键修复：先清理旧的控制器和视图，避免内存泄漏
+            // 1. 移除所有窗口视图
             joystickController?.rootView?.let { removeViewSafeImmediate(it) }
             mapController?.rootView?.let { removeViewSafeImmediate(it) }
             historyController?.rootView?.let { removeViewSafeImmediate(it) }
 
-            // 清理所有控制器引用
+            // 2. 销毁所有控制器（释放内部资源）
             joystickController?.destroy()
             mapController?.destroy()
             historyController?.destroy()
+            
+            // 3. 清空控制器引用（帮助 GC 回收）
             joystickController = null
             mapController = null
             historyController = null
+            
+            // 4. ✅ 显式清理旧的 themedContext（断开引用链）
+            // 注意：ContextThemeWrapper 本身很轻量，但为了最佳实践，显式置空
+            themedContext = service  // 临时指向 service，避免悬空引用
+            
+            // 5. 创建新的 themedContext
+            themedContext = createThemedContext()
+            val savedWindowType = currentWindowType
 
             // 重新初始化控制器
             initializeControllers()
@@ -468,6 +484,18 @@ class FloatingWindowManager(private val service: LocationService) {
         }
     }
 
+    // ==================== 公共查询方法 ====================
+    
+    /**
+     * 检查地图窗口是否正在显示
+     */
+    fun isMapWindowVisible(): Boolean = isMapViewShown
+    
+    /**
+     * 检查历史记录窗口是否正在显示
+     */
+    fun isHistoryWindowVisible(): Boolean = isHistoryViewShown
+    
     // ==================== 工具方法 ====================
 
     private fun addViewSafe(view: View?) {

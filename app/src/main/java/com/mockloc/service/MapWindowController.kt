@@ -67,6 +67,7 @@ class MapWindowController(
     private var mapView: MapView? = null
     private var aMap: AMap? = null
     private var searchEditText: EditText? = null
+    private var btnClose: ImageButton? = null
     private var btnGo: ImageButton? = null
     private var searchScroll: ScrollView? = null
     private var searchList: LinearLayout? = null
@@ -114,7 +115,11 @@ class MapWindowController(
             createMapLayout()
             
             isInitialized = true
-            Timber.d("MapWindowController initialized")
+            
+            // ✅ 初始化完成后立即校准地图类型，确保首次显示即正确
+            updateMapTypeForNightMode()
+            
+            Timber.d("MapWindowController initialized with isNightMode=$isNightMode")
         } catch (e: Exception) {
             Timber.e(e, "Failed to initialize MapWindowController")
             isInitialized = false
@@ -122,9 +127,37 @@ class MapWindowController(
     }
 
     override fun show() {
+        Timber.d("MapWindowController.show() called: isInitialized=$isInitialized, isNightMode=$isNightMode")
+        
         if (!isInitialized) {
+            Timber.d("Initializing MapWindowController for the first time")
             initialize()
+        } else {
+            // ✅ 每次显示时都检查主题状态（确保地图类型和颜色正确）
+            val currentNightMode = (context.resources.configuration.uiMode
+                and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            
+            Timber.d("Theme check: isNightMode=$isNightMode, currentNightMode=$currentNightMode")
+            
+            if (isNightMode != currentNightMode) {
+                Timber.d("Theme changed while hidden: isNightMode=$currentNightMode")
+                isNightMode = currentNightMode
+                
+                // 重新初始化颜色
+                initColors()
+                
+                // 更新地图类型
+                updateMapTypeForNightMode()
+                
+                // ✅ 更新所有视图的颜色
+                applyColorsToViews()
+            } else {
+                // ✅ 即使主题未变，也再次确认地图类型（防止 SDK 内部状态异常）
+                updateMapTypeForNightMode()
+            }
         }
+        
         isVisible = true
         mapView?.onResume()
         
@@ -161,6 +194,7 @@ class MapWindowController(
         mapView = null
         aMap = null
         searchEditText = null
+        btnClose = null
         btnGo = null
         searchScroll = null
         searchList = null
@@ -186,11 +220,70 @@ class MapWindowController(
     }
 
     /**
+     * 将当前主题颜色应用到所有视图
+     */
+    private fun applyColorsToViews() {
+        try {
+            val rootView = rootView ?: return
+            val density = context.resources.displayMetrics.density
+            
+            // 更新容器背景
+            if (rootView is LinearLayout) {
+                val bg = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    setColor(surface)
+                    cornerRadius = 10f * density
+                    setStroke((3 * density).toInt(), divider)
+                }
+                rootView.background = bg
+            }
+            
+            // 更新搜索框
+            searchEditText?.apply {
+                setTextColor(textPrimary)
+                setHintTextColor(textHint)
+            }
+            
+            // 更新关闭按钮
+            btnClose?.setColorFilter(textSecondary)
+            
+            // 更新确定选点按钮
+            btnGo?.apply {
+                val bg = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(primaryColor)
+                }
+                background = bg
+                setColorFilter(ContextCompat.getColor(context, R.color.on_primary))
+            }
+            
+            Timber.d("Colors applied to views: primary=#${Integer.toHexString(primaryColor)}, surface=#${Integer.toHexString(surface)}")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to apply colors to views")
+        }
+    }
+
+    /**
      * 创建带主题的 Context
+     * Service 的 context 不会自动跟随系统主题切换，需要手动注入当前 uiMode，
+     * 这样 values-night/themes.xml 中的语义色才能被正确解析。
      */
     private fun createThemedContext(): Context {
-        val themeRes = if (isNightMode) R.style.Theme_VirtualLocation else R.style.Theme_VirtualLocation
-        return ContextThemeWrapper(context, themeRes)
+        // ✅ 每次创建都重新读取最新的系统主题状态
+        val currentNightMode = (context.resources.configuration.uiMode
+            and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+            ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        
+        val nightModeFlags = if (currentNightMode) {
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        } else {
+            android.content.res.Configuration.UI_MODE_NIGHT_NO
+        }
+        val config = android.content.res.Configuration(context.resources.configuration).also {
+            it.uiMode = (it.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or nightModeFlags
+        }
+        val configContext = context.createConfigurationContext(config)
+        return ContextThemeWrapper(configContext, R.style.Theme_VirtualLocation)
     }
 
     /**
@@ -254,7 +347,7 @@ class MapWindowController(
         }.also { topBar.addView(it) }
 
         // 关闭按钮
-        val btnClose = ImageButton(context).apply {
+        btnClose = ImageButton(context).apply {
             setImageResource(R.drawable.ic_close)
             background = null
             setColorFilter(textSecondary)
@@ -404,7 +497,7 @@ class MapWindowController(
         })
 
         // ===== 按钮事件 =====
-        btnClose.setOnClickListener {
+        btnClose?.setOnClickListener {
             btnGoPulseAnimator?.cancel()
             isPositionConfirmed = false
             
@@ -525,6 +618,22 @@ class MapWindowController(
         
         // 恢复地图状态（包括模拟位置）
         restoreMapState()
+    }
+
+    /**
+     * 根据夜间模式更新地图类型
+     */
+    private fun updateMapTypeForNightMode() {
+        aMap?.apply {
+            mapType = if (isNightMode) {
+                val prefs = service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
+                prefs.getInt("map_type_night", AMap.MAP_TYPE_NIGHT)
+            } else {
+                val prefs = service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
+                prefs.getInt("map_type_day", AMap.MAP_TYPE_NORMAL)
+            }
+            Timber.d("Map type updated: isNightMode=$isNightMode, mapType=$mapType")
+        }
     }
 
     /**
@@ -725,11 +834,20 @@ class MapWindowController(
             return
         }
 
+        // ✅ 性能优化：限制最大显示数量，避免过多 View 影响性能
+        // 悬浮窗空间有限，显示太多结果反而影响用户体验
+        val maxResults = minOf(results.size, 10)
+        val displayResults = results.take(maxResults)
+        
+        if (results.size > maxResults) {
+            Timber.d("Limiting results from ${results.size} to $maxResults for better performance")
+        }
+
         val density = context.resources.displayMetrics.density
-        val paddingH = (12 * density).toInt()  // ✅ 直接使用，删除未使用的 dp lambda
+        val paddingH = (12 * density).toInt()
         val paddingV = (10 * density).toInt()
 
-        results.forEach { result ->
+        displayResults.forEach { result ->
             val item = TextView(context).apply {
                 text = result.name
                 textSize = 14f

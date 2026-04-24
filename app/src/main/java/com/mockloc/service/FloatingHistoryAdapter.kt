@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.mockloc.R
 import com.mockloc.data.db.HistoryLocation
 import com.mockloc.databinding.ItemHistoryBinding
 import timber.log.Timber
@@ -37,8 +38,14 @@ class FloatingHistoryAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: HistoryLocation, onClick: (HistoryLocation) -> Unit) {
+            // ✅ 关键修复：每次绑定时都从最新的 resources 和 theme 获取颜色
+            // 即使 ViewHolder 被复用，也能确保颜色正确
+            val resources = binding.root.context.resources
+            val theme = binding.root.context.theme
+            
             // 名称：自动适应宽度，超长显示省略号
             binding.nameText.text = item.name
+            binding.nameText.setTextColor(resources.getColor(R.color.text_primary, theme))
             
             // 坐标：统一格式，保留4位小数
             binding.coordsText.text = String.format(
@@ -46,6 +53,7 @@ class FloatingHistoryAdapter(
                 item.latitude,
                 item.longitude
             )
+            binding.coordsText.setTextColor(resources.getColor(R.color.text_secondary, theme))
             
             // 隐藏删除按钮（悬浮窗中不需要删除功能）
             binding.deleteBtn.visibility = android.view.View.GONE

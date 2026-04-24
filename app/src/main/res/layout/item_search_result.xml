@@ -53,6 +53,7 @@
 
     <!-- 底部分隔线 - 使用更柔和的颜色 -->
     <View
+        android:id="@+id/divider_view"
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:background="@color/divider_light"

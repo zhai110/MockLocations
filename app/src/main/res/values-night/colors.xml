@@ -28,6 +28,13 @@
     <color name="on_surface_variant">#B8B8B8</color>
     <color name="inverse_surface">#E8E8E8</color>
     <color name="inverse_on_surface">#121212</color>
+
+    <!-- Surface Container 层级颜色 -->
+    <color name="surface_container_lowest">#0A0A0A</color>
+    <color name="surface_container_low">#161616</color>
+    <color name="surface_container">#1E1E1E</color>
+    <color name="surface_container_high">#262626</color>
+    <color name="surface_container_highest">#2E2E2E</color>
     
     <!-- AppBar/Toolbar 专用背景色（比 surface 稍亮） -->
     <color name="app_bar_background">#2A2A2A</color>
