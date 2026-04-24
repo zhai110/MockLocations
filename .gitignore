@@ -115,5 +115,9 @@ docs/
 *.bat
 !gradlew.bat
 *_GUIDE.md
+*_SPEC.md
+DESIGN_*.md
+PLAN_*.md
+TODO_*.md
 !README.md
 !CHANGELOG.md

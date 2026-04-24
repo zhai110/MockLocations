@@ -61,12 +61,12 @@ android {
             isMinifyEnabled = false  // 暂时禁用混淆，避免高德地图死锁
             isShrinkResources = false
             
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            // ✅ 使用正式 release 签名
-            signingConfig = signingConfigs.getByName("release")
+            // proguardFiles(
+            //     getDefaultProguardFile("proguard-android-optimize.txt"),
+            //     "proguard-rules.pro"
+            // )
+            // ✅ 开发阶段改回 debug 签名，方便调试
+            signingConfig = signingConfigs.getByName("debug")
             
             // ⚠️ 如果遇到文件锁定问题，可以临时禁用 Lint 检查
             // lintOptions.isCheckReleaseBuilds = false

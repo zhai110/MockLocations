@@ -128,13 +128,16 @@ class UpdateDialogFragment : DialogFragment() {
         downloadJob = CoroutineScope(Dispatchers.Main).launch {
             val checker = updateChecker ?: return@launch
             
-            // ✅ 使用 Handler 确保进度回调在主线程执行
-            checker.downloadApk(info) { progress ->
+            // ✅ 下载 APK，进度回调通过 Handler 更新 UI
+            val result = checker.downloadApk(info) { progress ->
                 mainHandler.post {
                     progressBar.progress = progress
                     tvProgress.text = "下载中... $progress%"
                 }
-            }.onSuccess { apkFile ->
+            }
+            
+            // ✅ 处理下载结果
+            result.onSuccess { apkFile ->
                 // 下载成功，触发安装
                 Timber.i("APK downloaded: ${apkFile.absolutePath}")
                 installApk(apkFile)
