@@ -31,6 +31,24 @@ object PrefsConfig {
         const val KEY_JOYSTICK_TYPE = "joystick_type"
         const val KEY_JOYSTICK_SIZE = "joystick_size"
         const val KEY_JOYSTICK_TRANSPARENCY = "joystick_transparency"
+        
+        // 移动速度设置
+        const val KEY_WALK_SPEED = "walk_speed"              // 步行速度 (km/h)
+        const val KEY_RUN_SPEED = "run_speed"                // 跑步速度 (km/h)
+        const val KEY_BIKE_SPEED = "bike_speed"              // 骑行速度 (km/h)
+        
+        // 位置设置
+        const val KEY_ALTITUDE = "altitude"                  // 海拔高度 (米)
+        const val KEY_LOCATION_UPDATE_INTERVAL = "location_update_interval"  // 位置更新频率 (ms)
+        const val KEY_RANDOM_OFFSET = "random_offset"        // 随机偏移开关
+        
+        // 摇杆设置
+        const val KEY_JOYSTICK_HAPTIC = "joystick_haptic"    // 摇杆触觉反馈
+        
+        // 其他设置
+        const val KEY_AUTO_START = "auto_start"              // 开机自启
+        const val KEY_LOGGING = "logging"                    // 日志开关
+        const val KEY_HISTORY_EXPIRY = "history_expiry"      // 历史记录有效期 (天)
     }
     
     // ==================== Map State 中的键名 ====================

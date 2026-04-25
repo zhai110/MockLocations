@@ -96,7 +96,12 @@ object MapUtils {
     }
     
     /**
-     * 判断是否在中国境内
+     * 判断是否在中国境外
+     * 
+     * GCJ02 坐标加密算法仅对中国境内坐标有效，境外坐标不做转换。
+     * 边界范围基于 GCJ02 算法的标准应用区域定义。
+     * 
+     * @return true 表示在境外（不需要转换），false 表示在境内（需要转换）
      */
     private fun outOfChina(lng: Double, lat: Double): Boolean {
         return lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271
