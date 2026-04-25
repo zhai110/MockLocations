@@ -1,6 +1,6 @@
 # 虚拟定位应用 (MockLoc)
 
-> **最新版本**: v1.2.0 | [下载 APK](https://gitee.com/eizmme/MockLocations/releases)
+> **最新版本**: v1.3.0 | [下载 APK](https://gitee.com/eizmme/MockLocations/releases)
 
 基于 **Kotlin + MVVM + Android 10+** 实现的现代化虚拟定位应用，采用 **Material Design 3** 设计规范，无需 ROOT 权限即可修改设备位置。
 
@@ -419,6 +419,7 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 
 ### 高优先级 🔴
 - [x] 悬浮窗地图搜索范围过小（5km → 已优化为20km，自动扩大到50km）
+- [x] 更新对话框内容显示不全（已添加滚动支持）
 - [ ] Release 版本禁用混淆（高德地图死锁问题）
 
 ### 中优先级 🟡
