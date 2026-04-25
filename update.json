@@ -1,7 +1,7 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1.0",
-  "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.1.0/app-release.apk",
+  "versionCode": 3,
+  "versionName": "1.2.0",
+  "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.2.0/app-release.apk",
   "releaseNotes": "✨ 新增功能：\n- 自动检查更新（启动时静默检查）\n- 搜索框清除按钮（一键重置搜索）\n- 智能搜索范围（默认20km，结果少时自动扩大到50km）\n\n🎨 体验优化：\n- 地图默认缩放级别优化（首次进入显示城市级别）\n- 定位后自动缩放到街道级别\n- 权限引导完成后自动进入主界面\n\n⚡ 性能优化：\n- 优化TextWatcher避免冗余调用\n- 搜索结果保持按距离排序",
   "forceUpdate": false,
   "minVersionCode": 1,
