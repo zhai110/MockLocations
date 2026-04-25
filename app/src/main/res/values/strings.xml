@@ -19,6 +19,7 @@
     
     <!-- 主界面 -->
     <string name="search_hint">搜索地点、地址…</string>
+    <string name="clear_search">清除搜索</string>
     <string name="current_location">当前位置</string>
     <string name="simulating">模拟中</string>
     <string name="status_stopped">已停止</string>

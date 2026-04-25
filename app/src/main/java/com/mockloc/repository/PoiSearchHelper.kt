@@ -21,9 +21,24 @@ class PoiSearchHelper(private val context: Context) {
         callback: (List<PlaceItem>) -> Unit,
         centerLat: Double? = null,
         centerLng: Double? = null,
-        radius: Int = 5000
+        radius: Int = 20000  // ✅ 默认搜索半径改为20km
     ) {
         Timber.d("搜索地点: keyword=$keyword, center=[$centerLat,$centerLng], radius=$radius")
+        performSearch(keyword, callback, centerLat, centerLng, radius, attempt = 1)
+    }
+    
+    /**
+     * 执行搜索（支持自动扩大范围）
+     * @param attempt 当前尝试次数（1=首次20km, 2=扩大至50km）
+     */
+    private fun performSearch(
+        keyword: String,
+        callback: (List<PlaceItem>) -> Unit,
+        centerLat: Double?,
+        centerLng: Double?,
+        radius: Int,
+        attempt: Int
+    ) {
         val query = PoiSearch.Query(keyword, "", "全国")
         query.pageSize = 20
         query.pageNum = 0
@@ -48,7 +63,15 @@ class PoiSearchHelper(private val context: Context) {
                             distance = it.distance
                         )
                     }
-                    Timber.d("搜索成功，找到${list.size}个结果")
+                    
+                    // ✅ 方案D：如果结果少于3条且是首次搜索，自动扩大到50km重新搜索
+                    if (list.size < 3 && attempt == 1 && centerLat != null && centerLng != null) {
+                        Timber.d("搜索结果较少(${list.size}条)，自动扩大搜索范围至50km")
+                        performSearch(keyword, callback, centerLat, centerLng, 50000, attempt = 2)
+                        return
+                    }
+                    
+                    Timber.d("搜索成功，找到${list.size}个结果 (attempt=$attempt, radius=${radius/1000}km)")
                     callback(list)
                 } else {
                     val errorMsg = getErrorMessage(rCode)

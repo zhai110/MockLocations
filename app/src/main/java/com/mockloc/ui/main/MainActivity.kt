@@ -9,8 +9,12 @@ import android.os.IBinder
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.commit
+import androidx.lifecycle.lifecycleScope
 import com.mockloc.R
 import com.mockloc.service.LocationService
+import com.mockloc.ui.update.UpdateDialogFragment
+import com.mockloc.util.UpdateChecker
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -55,6 +59,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        // ✅ 自动检查更新（静默检查，有新版本才提示）
+        checkForUpdate()
+        
         // 只在首次创建时添加 Fragment
         if (savedInstanceState == null) {
             supportFragmentManager.commit {
@@ -93,6 +100,36 @@ class MainActivity : AppCompatActivity() {
                 Timber.w(e, "Error unbinding LocationService")
             }
             isServiceBound = false
+        }
+    }
+    
+    /**
+     * ✅ 自动检查更新（静默检查，有新版本才提示）
+     */
+    private fun checkForUpdate() {
+        lifecycleScope.launch {
+            try {
+                val updateChecker = UpdateChecker(this@MainActivity)
+                val result = updateChecker.checkForUpdate()
+                
+                result.onSuccess { updateInfo ->
+                    if (updateInfo != null) {
+                        // 有新版本，显示更新对话框
+                        Timber.d("发现新版本: ${updateInfo.versionName}")
+                        UpdateDialogFragment.newInstance(updateInfo)
+                            .show(supportFragmentManager, "update_dialog")
+                    } else {
+                        // 没有新版本，静默处理
+                        Timber.d("当前已是最新版本")
+                    }
+                }.onFailure { error ->
+                    // 检查失败，静默处理（不显示错误提示）
+                    Timber.w(error, "检查更新失败")
+                }
+            } catch (e: Exception) {
+                // 捕获所有异常，确保不影响应用启动
+                Timber.e(e, "检查更新异常")
+            }
         }
     }
 }
