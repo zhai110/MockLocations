@@ -1,6 +1,7 @@
 package com.mockloc.util
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,14 @@ class UpdateChecker(private val context: Context) {
         
         // APK 保存目录
         private const val APK_DIR_NAME = "updates"
+        
+        // ✅ 更新检查频率控制：1 小时（毫秒）
+        private const val CHECK_INTERVAL = 60 * 60 * 1000L
+        
+        // SharedPreferences 键名
+        private const val PREF_NAME = "update_checker"
+        private const val KEY_LAST_CHECK_TIME = "last_check_time"
+        private const val KEY_LAST_CHECK_RESULT = "last_check_result"
     }
     
     private val client = OkHttpClient.Builder()
@@ -47,6 +56,7 @@ class UpdateChecker(private val context: Context) {
         .build()
     
     private val gson = Gson()
+    private val prefs: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     
     /**
      * 获取当前应用版本信息
@@ -64,13 +74,34 @@ class UpdateChecker(private val context: Context) {
     }
     
     /**
-     * 检查更新
+     * 检查更新（带频率控制）
      * 
+     * @param forceCheck 是否强制检查（忽略频率限制）
      * @return Result<UpdateInfo?> 如果有新版本返回更新信息，否则返回 null
      */
-    suspend fun checkForUpdate(): Result<UpdateInfo?> = withContext(Dispatchers.IO) {
+    suspend fun checkForUpdate(forceCheck: Boolean = false): Result<UpdateInfo?> = withContext(Dispatchers.IO) {
         try {
-            Timber.d("Checking for updates from: $UPDATE_JSON_URL")
+            // ✅ 频率控制：检查是否在冷却时间内
+            if (!forceCheck) {
+                val lastCheckTime = prefs.getLong(KEY_LAST_CHECK_TIME, 0L)
+                val currentTime = System.currentTimeMillis()
+                val timeSinceLastCheck = currentTime - lastCheckTime
+                
+                if (timeSinceLastCheck < CHECK_INTERVAL) {
+                    val remainingMinutes = (CHECK_INTERVAL - timeSinceLastCheck) / 1000 / 60
+                    Timber.d("⏭️ Skip update check (last checked ${remainingMinutes} minutes ago)")
+                    
+                    // 返回上次缓存的结果
+                    val cachedResult = prefs.getString(KEY_LAST_CHECK_RESULT, null)
+                    return@withContext if (cachedResult != null) {
+                        Result.success(gson.fromJson(cachedResult, UpdateInfo::class.java))
+                    } else {
+                        Result.success(null)
+                    }
+                }
+            }
+            
+            Timber.d("🔄 Checking for updates from: $UPDATE_JSON_URL")
             
             // 1. 获取远程更新信息
             val request = Request.Builder()
@@ -106,13 +137,27 @@ class UpdateChecker(private val context: Context) {
             Timber.d("Remote version: ${updateInfo.versionName} (${updateInfo.versionCode})")
             
             // 5. 判断是否有新版本
-            if (updateInfo.hasUpdate(currentVersionCode)) {
+            val result = if (updateInfo.hasUpdate(currentVersionCode)) {
                 Timber.i("✅ New version available: ${updateInfo.versionName} (${updateInfo.versionCode})")
                 Result.success(updateInfo)
             } else {
                 Timber.d("✓ Already up to date")
                 Result.success(null)
             }
+            
+            // ✅ 保存检查结果和时间戳
+            prefs.edit().apply {
+                putLong(KEY_LAST_CHECK_TIME, System.currentTimeMillis())
+                // 如果有更新，缓存更新信息
+                if (result.isSuccess && result.getOrNull() != null) {
+                    putString(KEY_LAST_CHECK_RESULT, gson.toJson(result.getOrNull()))
+                } else {
+                    remove(KEY_LAST_CHECK_RESULT)
+                }
+                apply()
+            }
+            
+            result
             
         } catch (e: Exception) {
             Timber.e(e, "Failed to check for updates")

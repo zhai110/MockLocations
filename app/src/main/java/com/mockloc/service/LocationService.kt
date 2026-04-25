@@ -174,6 +174,9 @@ class LocationService : Service() {
         altitude = prefs.getFloat("altitude", 55.0f).toDouble()
         currentSpeedMode = prefs.getString("speed_mode", "walk") ?: "walk"
         
+        // ✅ 应用保存的速度模式（防止服务重启后速度重置为默认值）
+        applySpeedMode(currentSpeedMode)
+        
         // 读取位置更新间隔设置（毫秒）
         locationUpdateInterval = prefs.getLong("location_update_interval", DEFAULT_LOCATION_UPDATE_INTERVAL_MS)
         Timber.d("Location update interval: ${locationUpdateInterval}ms")

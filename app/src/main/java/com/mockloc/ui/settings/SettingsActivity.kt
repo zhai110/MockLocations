@@ -7,10 +7,12 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.mockloc.R
 import com.mockloc.databinding.ActivitySettingsBinding
 import com.mockloc.ui.update.UpdateDialogFragment
 import com.mockloc.util.PrefsConfig
+import com.mockloc.util.PrefsConfig.Settings
 import com.mockloc.util.UIFeedbackHelper
 import com.mockloc.util.UpdateChecker
 import kotlinx.coroutines.launch
@@ -56,7 +58,7 @@ class SettingsActivity : AppCompatActivity() {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
                 val speed = binding.seekbarWalkingSpeed.progress + 3
-                prefs.edit().putInt("walk_speed", speed).apply()
+                prefs.edit().putInt(Settings.KEY_WALK_SPEED, speed).apply()
                 Timber.d("Walking speed saved: $speed km/h")
             }
         })
@@ -71,7 +73,7 @@ class SettingsActivity : AppCompatActivity() {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
                 val speed = binding.seekbarRunningSpeed.progress + 5
-                prefs.edit().putInt("run_speed", speed).apply()
+                prefs.edit().putInt(Settings.KEY_RUN_SPEED, speed).apply()
                 Timber.d("Running speed saved: $speed km/h")
             }
         })
@@ -86,7 +88,7 @@ class SettingsActivity : AppCompatActivity() {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
                 val speed = binding.seekbarCyclingSpeed.progress + 10
-                prefs.edit().putInt("bike_speed", speed).apply()
+                prefs.edit().putInt(Settings.KEY_BIKE_SPEED, speed).apply()
                 Timber.d("Cycling speed saved: $speed km/h")
             }
         })
@@ -105,7 +107,7 @@ class SettingsActivity : AppCompatActivity() {
 
         // 随机偏移开关
         binding.switchRandomOffset.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("random_offset", isChecked).apply()
+            prefs.edit().putBoolean(Settings.KEY_RANDOM_OFFSET, isChecked).apply()
             Timber.d("Random offset saved: $isChecked")
         }
         
@@ -114,15 +116,15 @@ class SettingsActivity : AppCompatActivity() {
             showJoystickTypeDialog()
         }
         
-        // 触觉反馈开关
+        // 摇杆触觉反馈开关
         binding.switchJoystickHaptic.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("joystick_haptic", isChecked).apply()
+            prefs.edit().putBoolean(Settings.KEY_JOYSTICK_HAPTIC, isChecked).apply()
             Timber.d("Joystick haptic feedback saved: $isChecked")
         }
     }
 
     private fun showAltitudeDialog() {
-        val currentAltitude = prefs.getFloat("altitude", 0f)
+        val currentAltitude = prefs.getFloat(Settings.KEY_ALTITUDE, 0f)
         val input = android.widget.EditText(this).apply {
             setText(currentAltitude.toString())
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
@@ -134,7 +136,7 @@ class SettingsActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton("确定") { _, _ ->
                 val altitude = input.text.toString().toFloatOrNull() ?: 0f
-                prefs.edit().putFloat("altitude", altitude).apply()
+                prefs.edit().putFloat(Settings.KEY_ALTITUDE, altitude).apply()
                 Timber.d("Altitude saved: $altitude")
             }
             .setNegativeButton("取消", null)
@@ -147,14 +149,14 @@ class SettingsActivity : AppCompatActivity() {
     private fun showLocationUpdateIntervalDialog() {
         val options = arrayOf("极速模式", "快速模式", "标准模式", "省电模式")
         val intervals = longArrayOf(50L, 100L, 200L, 500L)
-        val currentInterval = prefs.getLong("location_update_interval", 100L)
+        val currentInterval = prefs.getLong(Settings.KEY_LOCATION_UPDATE_INTERVAL, 100L)
         val currentIndex = intervals.indexOf(currentInterval).takeIf { it >= 0 } ?: 1 // 默认选"快速"
             
         AlertDialog.Builder(this, R.style.RoundedDialogTheme)
             .setTitle("更新频率")
             .setSingleChoiceItems(options, currentIndex) { dialog, which ->
                 val interval = intervals[which]
-                prefs.edit().putLong("location_update_interval", interval).apply()
+                prefs.edit().putLong(Settings.KEY_LOCATION_UPDATE_INTERVAL, interval).apply()
                 // 更新显示文本
                 binding.textLocationUpdateInterval.text = options[which]
                 Timber.d("Location update interval saved: ${interval}ms")
@@ -166,7 +168,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupOtherSettings() {
         // 开机自启开关
         binding.switchAutoStart.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("auto_start", isChecked).apply()
+            prefs.edit().putBoolean(Settings.KEY_AUTO_START, isChecked).apply()
             Timber.d("Auto start saved: $isChecked")
         }
         
@@ -177,7 +179,7 @@ class SettingsActivity : AppCompatActivity() {
         
         // 日志开关
         binding.switchLog.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("logging", isChecked).apply()
+            prefs.edit().putBoolean(Settings.KEY_LOGGING, isChecked).apply()
             Timber.d("Logging saved: $isChecked")
         }
 
@@ -189,12 +191,12 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun showJoystickTypeDialog() {
         val types = arrayOf("摇杆模式", "按钮模式")
-        val currentType = prefs.getInt("joystick_type", 0)
+        val currentType = prefs.getInt(Settings.KEY_JOYSTICK_TYPE, 0)
         
         AlertDialog.Builder(this, R.style.RoundedDialogTheme)
             .setTitle("摇杆类型")
             .setSingleChoiceItems(types, currentType) { dialog, which ->
-                prefs.edit().putInt("joystick_type", which).apply()
+                prefs.edit().putInt(Settings.KEY_JOYSTICK_TYPE, which).apply()
                 // 更新显示文本
                 binding.textJoystickType.text = types[which]
                 Timber.d("Joystick type saved: ${types[which]}")
@@ -206,7 +208,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun showHistoryExpiryDialog() {
         val options = arrayOf("7天有效", "14天有效", "30天有效", "永久保存")
         val expiryDays = intArrayOf(7, 14, 30, -1)
-        val currentExpiry = prefs.getInt("history_expiry", 30)
+        val currentExpiry = prefs.getInt(Settings.KEY_HISTORY_EXPIRY, 30)
         val currentIndex = when (currentExpiry) {
             7 -> 0
             14 -> 1
@@ -218,7 +220,7 @@ class SettingsActivity : AppCompatActivity() {
             .setTitle("有效记录")
             .setSingleChoiceItems(options, currentIndex) { dialog, which ->
                 val expiry = expiryDays[which]
-                prefs.edit().putInt("history_expiry", expiry).apply()
+                prefs.edit().putInt(Settings.KEY_HISTORY_EXPIRY, expiry).apply()
                 // 更新显示文本
                 binding.textHistoryExpiry.text = options[which]
                 Timber.d("History expiry saved: ${options[which]}")
@@ -248,16 +250,37 @@ class SettingsActivity : AppCompatActivity() {
         val updateChecker = UpdateChecker(this)
         
         lifecycleScope.launch {
-            // 显示加载提示
-            val progressDialog = android.app.ProgressDialog(this@SettingsActivity).apply {
-                setMessage("检查更新中...")
-                setCancelable(false)
-                show()
-            }
+            // ✅ 使用 Material 3 风格的加载对话框（替换已废弃的 ProgressDialog）
+            val loadingDialog = AlertDialog.Builder(this@SettingsActivity, R.style.RoundedDialogTheme)
+                .setView(
+                    android.widget.LinearLayout(this@SettingsActivity).apply {
+                        orientation = android.widget.LinearLayout.HORIZONTAL
+                        setPadding(48, 48, 48, 48)
+                        gravity = android.view.Gravity.CENTER
+                        addView(
+                            CircularProgressIndicator(this@SettingsActivity).apply {
+                                isIndeterminate = true
+                            }
+                        )
+                        addView(
+                            android.widget.TextView(this@SettingsActivity).apply {
+                                text = "检查更新中..."
+                                setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16f)
+                                setPadding(24, 0, 0, 0)
+                                setTextColor(getColor(R.color.text_primary))
+                            }
+                        )
+                    }
+                )
+                .setCancelable(false)
+                .create()
             
-            updateChecker.checkForUpdate()
+            loadingDialog.show()
+            
+            // ✅ 手动检查更新时强制检查，忽略频率限制
+            updateChecker.checkForUpdate(forceCheck = true)
                 .onSuccess { updateInfo ->
-                    progressDialog.dismiss()
+                    loadingDialog.dismiss()
                     
                     if (updateInfo != null) {
                         // 有新版本，显示更新对话框
@@ -269,7 +292,7 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 }
                 .onFailure { error ->
-                    progressDialog.dismiss()
+                    loadingDialog.dismiss()
                     UIFeedbackHelper.showToast(this@SettingsActivity, "检查更新失败：${error.message}")
                     Timber.e(error, "Update check failed")
                 }
@@ -299,9 +322,9 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun loadSettings() {
         // 加载速度设置
-        val walkSpeed = prefs.getInt("walk_speed", 5)
-        val runSpeed = prefs.getInt("run_speed", 12)
-        val bikeSpeed = prefs.getInt("bike_speed", 20)
+        val walkSpeed = prefs.getInt(Settings.KEY_WALK_SPEED, 5)
+        val runSpeed = prefs.getInt(Settings.KEY_RUN_SPEED, 12)
+        val bikeSpeed = prefs.getInt(Settings.KEY_BIKE_SPEED, 20)
         
         binding.seekbarWalkingSpeed.progress = walkSpeed - 3
         binding.seekbarRunningSpeed.progress = runSpeed - 5
@@ -313,17 +336,17 @@ class SettingsActivity : AppCompatActivity() {
         binding.textCyclingSpeed.text = "约 $bikeSpeed km/h"
         
         // 加载开关设置
-        binding.switchRandomOffset.isChecked = prefs.getBoolean("random_offset", false)
-        binding.switchAutoStart.isChecked = prefs.getBoolean("auto_start", false)
-        binding.switchLog.isChecked = prefs.getBoolean("logging", true)
-        binding.switchJoystickHaptic.isChecked = prefs.getBoolean("joystick_haptic", true)
+        binding.switchRandomOffset.isChecked = prefs.getBoolean(Settings.KEY_RANDOM_OFFSET, false)
+        binding.switchAutoStart.isChecked = prefs.getBoolean(Settings.KEY_AUTO_START, false)
+        binding.switchLog.isChecked = prefs.getBoolean(Settings.KEY_LOGGING, true)
+        binding.switchJoystickHaptic.isChecked = prefs.getBoolean(Settings.KEY_JOYSTICK_HAPTIC, true)
         
         // 加载摇杆类型显示
-        val joystickType = prefs.getInt("joystick_type", 0)
+        val joystickType = prefs.getInt(Settings.KEY_JOYSTICK_TYPE, 0)
         binding.textJoystickType.text = if (joystickType == 0) "摇杆模式" else "按钮模式"
         
         // 加载历史记录有效期显示
-        val historyExpiry = prefs.getInt("history_expiry", 30)
+        val historyExpiry = prefs.getInt(Settings.KEY_HISTORY_EXPIRY, 30)
         binding.textHistoryExpiry.text = when (historyExpiry) {
             7 -> "7天有效"
             14 -> "14天有效"
@@ -332,7 +355,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         
         // 加载位置更新频率显示
-        val locationUpdateInterval = prefs.getLong("location_update_interval", 100L)
+        val locationUpdateInterval = prefs.getLong(Settings.KEY_LOCATION_UPDATE_INTERVAL, 100L)
         binding.textLocationUpdateInterval.text = when (locationUpdateInterval) {
             50L -> "极速模式"
             100L -> "快速模式"
