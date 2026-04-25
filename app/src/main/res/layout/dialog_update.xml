@@ -44,16 +44,21 @@
         android:textStyle="bold"
         android:textColor="?attr/colorOnSurface" />
 
-    <!-- 更新说明内容 -->
-    <TextView
-        android:id="@+id/tv_release_notes"
+    <!-- 更新说明内容（支持滚动） -->
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:maxHeight="200dp"
-        android:scrollbars="vertical"
-        android:textSize="14sp"
-        android:textColor="?attr/colorOnSurfaceVariant" />
+        android:fillViewport="true">
+
+        <TextView
+            android:id="@+id/tv_release_notes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+    </ScrollView>
 
     <!-- 下载进度条 -->
     <ProgressBar
