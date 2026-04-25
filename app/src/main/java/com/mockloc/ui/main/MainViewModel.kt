@@ -164,6 +164,7 @@ class MainViewModel(
                 state.copy(
                     currentLocation = latLng,
                     address = location.address ?: "",
+                    zoom = 15f,  // ✅ 定位成功后缩放到街道级别（15级）
                     shouldMoveToCurrentLocation = true  // ✅ 标记需要移动相机到当前位置
                 )
             }
@@ -234,12 +235,12 @@ class MainViewModel(
             Timber.d("恢复地图状态: $center, zoom=$zoom")
             center
         } else {
-            // 无上次状态，显示中国地图概览
+            // 无上次状态，显示中国地图（城市级别）
             val chinaCenter = LatLng(35.8617, 104.1954)
             _mapState.update { state ->
-                state.copy(center = chinaCenter, zoom = 5f)
+                state.copy(center = chinaCenter, zoom = 12f)  // ✅ 修改为城市级别（12级）
             }
-            Timber.d("显示默认视图: 中国地图概览")
+            Timber.d("显示默认视图: 中国地图（城市级别，zoom=12）")
             chinaCenter
         }
     }

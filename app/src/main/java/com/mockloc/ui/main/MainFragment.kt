@@ -75,6 +75,15 @@ class MainFragment : Fragment() {
     private var isMapDragging = false  // 标记是否正在拖动地图
     private var isNightMode = false  // ✅ 初始值会在 onViewCreated 中根据系统主题正确设置
     private var isManualLayerSelected = false  // 标记用户是否手动选择了图层
+    
+    // ✅ 搜索框文本监听器（用于清除时临时移除）
+    private val searchTextWatcher = object : android.text.TextWatcher {
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        override fun afterTextChanged(s: android.text.Editable?) {
+            updateClearButtonVisibility()
+        }
+    }
 
     // 定位权限请求启动器
     private val locationPermissionLauncher = registerForActivityResult(
@@ -477,6 +486,9 @@ class MainFragment : Fragment() {
         } else {
             hideSearchResults()
         }
+        
+        // ✅ 更新清除按钮可见性
+        updateClearButtonVisibility()
     }
 
     /**
@@ -603,6 +615,14 @@ class MainFragment : Fragment() {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = searchAdapter
         }
+        
+        // ✅ 初始化搜索清除按钮
+        binding.searchClearBtn.setOnClickListener {
+            clearSearch()
+        }
+        
+        // 监听输入框变化，动态显示/隐藏清除按钮
+        binding.searchEdit.addTextChangedListener(searchTextWatcher)
     }
 
     /**
@@ -919,6 +939,37 @@ class MainFragment : Fragment() {
             }
             isSearchResultVisible = false
         }
+    }
+    
+    /**
+     * ✅ 清除搜索（清空输入框、隐藏结果、隐藏清除按钮）
+     */
+    private fun clearSearch() {
+        // 先移除监听器，避免 setText 触发 TextWatcher
+        binding.searchEdit.removeTextChangedListener(searchTextWatcher)
+        
+        binding.searchEdit.setText("")
+        binding.searchEdit.clearFocus()
+        viewModel.hideSearchResults()
+        
+        // 手动更新按钮状态
+        binding.searchClearBtn.visibility = View.GONE
+        
+        // 重新添加监听器
+        binding.searchEdit.addTextChangedListener(searchTextWatcher)
+        
+        UIFeedbackHelper.showToast(requireContext(), "已清除搜索")
+    }
+    
+    /**
+     * ✅ 更新清除按钮的可见性
+     */
+    private fun updateClearButtonVisibility() {
+        val hasText = binding.searchEdit.text.isNotEmpty()
+        val hasResults = isSearchResultVisible
+        
+        // 当有输入内容或有搜索结果时显示清除按钮
+        binding.searchClearBtn.visibility = if (hasText || hasResults) View.VISIBLE else View.GONE
     }
 
     /**

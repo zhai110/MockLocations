@@ -47,8 +47,8 @@ android {
         applicationId = "com.mockloc"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"  // 首个正式版本
+        versionCode = 2
+        versionName = "1.1.0"  // ✅ 正式发布版本
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -65,8 +65,8 @@ android {
             //     getDefaultProguardFile("proguard-android-optimize.txt"),
             //     "proguard-rules.pro"
             // )
-            // ✅ 开发阶段改回 debug 签名，方便调试
-            signingConfig = signingConfigs.getByName("debug")
+            // ✅ 使用 Release 签名配置
+            signingConfig = signingConfigs.getByName("release")
             
             // ⚠️ 如果遇到文件锁定问题，可以临时禁用 Lint 检查
             // lintOptions.isCheckReleaseBuilds = false

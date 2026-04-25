@@ -73,6 +73,9 @@ class PermissionGuideActivity : AppCompatActivity() {
         // 完成按钮
         binding.btnComplete.setOnClickListener {
             if (checkAllPermissions()) {
+                // ✅ 权限齐全，跳转到主界面
+                val intent = Intent(this, com.mockloc.ui.main.MainActivity::class.java)
+                startActivity(intent)
                 finish()
             } else {
                 showMissingPermissionsMessage()

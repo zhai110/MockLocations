@@ -67,16 +67,34 @@
                         android:textSize="16sp" />
                 </LinearLayout>
 
-                <!-- 搜索加载指示器 -->
-                <ProgressBar
-                    android:id="@+id/search_progress"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                <!-- 搜索加载指示器和关闭按钮 -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_gravity="end|center_vertical"
                     android:layout_marginEnd="12dp"
-                    android:indeterminateTint="@color/primary"
-                    android:visibility="gone" />
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <ProgressBar
+                        android:id="@+id/search_progress"
+                        style="?android:attr/progressBarStyleSmall"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:indeterminateTint="@color/primary"
+                        android:visibility="gone" />
+
+                    <ImageButton
+                        android:id="@+id/search_clear_btn"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:src="@drawable/ic_close"
+                        android:contentDescription="@string/clear_search"
+                        android:padding="6dp"
+                        app:tint="@color/text_secondary"
+                        android:visibility="gone" />
+                </LinearLayout>
             </FrameLayout>
 
             <!-- 搜索结果列表（默认隐藏） -->

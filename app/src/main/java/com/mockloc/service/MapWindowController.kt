@@ -810,8 +810,8 @@ class MapWindowController(
                 showSearchResults(results)
             },
             centerLat = centerLat,
-            centerLng = centerLng,
-            radius = 5000  // 5公里范围
+            centerLng = centerLng
+            // ✅ 使用默认半径20km（支持自动扩大到50km）
         )
     }
 
