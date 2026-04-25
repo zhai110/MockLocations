@@ -47,8 +47,8 @@ android {
         applicationId = "com.mockloc"
         minSdk = 29
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"  // ✅ 测试自动更新版本
+        versionCode = 4
+        versionName = "1.3.0"  // ✅ 正式发布版本
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
