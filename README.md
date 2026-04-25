@@ -1,5 +1,7 @@
 # 虚拟定位应用 (MockLoc)
 
+> **最新版本**: v1.1.0 | [下载 APK](https://gitee.com/eizmme/MockLocations/releases)
+
 基于 **Kotlin + MVVM + Android 10+** 实现的现代化虚拟定位应用，采用 **Material Design 3** 设计规范，无需 ROOT 权限即可修改设备位置。
 
 ## ✨ 项目亮点
@@ -10,6 +12,7 @@
 - 🎮 **悬浮窗控制**: Manager + Controller 架构，窗口切换带动画
 - 🚀 **性能优化**: 协程异步处理、LeakCanary 内存检测、地址缓存
 - 📱 **用户体验**: 丰富的弹簧动画、渐进式权限请求、新手引导
+- 🔄 **自动更新**: 启动时静默检查新版本，一键下载安装
 
 ## 📱 核心功能
 
@@ -24,12 +27,14 @@
 - ✅ **标记选点** - 点击/长按地图添加红色标记，支持拖拽调整
 - ✅ **定位蓝点** - 实时显示当前位置，跟随模拟位置移动
 - ✅ **图层切换** - 标准地图、卫星地图、夜景地图
+- ✅ **智能搜索** - 默认20km范围，结果少时自动扩大到50km
 
 ### 位置管理
 - ✅ **历史记录** - 自动保存使用过的位置，支持搜索过滤
 - ✅ **收藏功能** - 收藏常用位置，快速切换
 - ✅ **坐标输入** - 手动输入经纬度，精确选点
 - ✅ **位置分享** - 分享位置给好友
+- ✅ **一键清除** - 搜索框清除按钮，快速重置搜索
 
 ### 悬浮窗系统
 - ✅ **三种窗口** - 摇杆窗、地图窗、历史窗，一键切换
@@ -413,12 +418,12 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 ## 🚧 已知问题与改进计划
 
 ### 高优先级 🔴
-- [ ] 悬浮窗地图搜索范围过小（5km → 建议 50km）
+- [x] 悬浮窗地图搜索范围过小（5km → 已优化为20km，自动扩大到50km）
 - [ ] Release 版本禁用混淆（高德地图死锁问题）
 
 ### 中优先级 🟡
 - [ ] 添加单元测试覆盖核心逻辑
-- [ ] Tertiary 颜色重新设计（当前与 Secondary 相同）
+- [x] Tertiary 颜色重新设计（已完成主题色重构）
 - [ ] 摇杆颜色主题化（目前硬编码）
 
 ### 低优先级 🟢
@@ -469,6 +474,6 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 
 **Made with ❤️ by MockLoc Team**
 
-[⭐ Star this repo](https://github.com/yourusername/mockloc) · [🐛 Report Bug](https://github.com/yourusername/mockloc/issues) · [💡 Request Feature](https://github.com/yourusername/mockloc/issues)
+[⭐ Star this repo](https://github.com/zhai110/MockLocations) · [🐛 Report Bug](https://github.com/zhai110/MockLocations/issues) · [💡 Request Feature](https://github.com/zhai110/MockLocations/issues)
 
 </div>
