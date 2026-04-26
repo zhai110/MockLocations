@@ -277,10 +277,11 @@ class MainViewModel(
             state.copy(
                 markedPosition = latLng,
                 isPositionPending = true,
-                shouldMoveCamera = moveCamera
+                shouldMoveCamera = moveCamera,
+                address = ""  // ✅ 清空地址，防止读到旧值导致历史记录名称重复
             )
         }
-        Timber.d("selectPosition: markedPosition updated to $latLng")
+        Timber.d("selectPosition: markedPosition updated to $latLng, address cleared")
     }
 
     /**
@@ -326,7 +327,8 @@ class MainViewModel(
         val eventType: EventType,
         val latitude: Double? = null,
         val longitude: Double? = null,
-        val altitude: Float = 55.0f
+        val altitude: Float = 55.0f,
+        val isTeleport: Boolean = false // ✅ 新增：标记是否为主动传送
     ) {
         enum class EventType {
             START_SIMULATION, STOP_SIMULATION, UPDATE_POSITION
@@ -375,7 +377,8 @@ class MainViewModel(
                         eventType = SimulationControlEvent.EventType.UPDATE_POSITION,
                         latitude = currentState.markedPosition!!.latitude,
                         longitude = currentState.markedPosition!!.longitude,
-                        altitude = altitude
+                        altitude = altitude,
+                        isTeleport = true // ✅ 标记为主动传送
                     )
                 )
                     

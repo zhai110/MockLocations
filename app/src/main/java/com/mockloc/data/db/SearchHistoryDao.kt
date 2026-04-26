@@ -3,6 +3,7 @@ package com.mockloc.data.db
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 
 /**
@@ -30,9 +31,9 @@ interface SearchHistoryDao {
     suspend fun getAll(): List<SearchHistory>
     
     /**
-     * 插入搜索历史
+     * 插入搜索历史（如果坐标已存在则替换并更新时间戳）
      */
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(history: SearchHistory): Long
     
     /**

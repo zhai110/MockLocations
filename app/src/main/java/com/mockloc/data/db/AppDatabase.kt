@@ -19,7 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [HistoryLocation::class, FavoriteLocation::class, SearchHistory::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,6 +28,28 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun searchHistoryDao(): SearchHistoryDao
     
     companion object {
+        /**
+         * 从版本2升级到版本3：
+         * 1. 清理搜索历史表中的重复坐标记录（保留最早的一条）
+         * 2. 为搜索历史表添加唯一索引，防止后续产生重复
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 1. 清理重复数据：保留每个坐标下 id 最小（最早插入）的那条记录
+                database.execSQL("""
+                    DELETE FROM search_history 
+                    WHERE id NOT IN (
+                        SELECT MIN(id) FROM search_history GROUP BY latitude, longitude
+                    )
+                """.trimIndent())
+                
+                // 2. 创建唯一索引：同一经纬度只保留一条记录
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_search_lat_lng_unique ON search_history(latitude, longitude)"
+                )
+            }
+        }
+
         /**
          * 从版本1升级到版本2：
          * 1. 创建搜索历史表
