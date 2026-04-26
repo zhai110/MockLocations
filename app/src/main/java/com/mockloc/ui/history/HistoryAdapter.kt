@@ -42,10 +42,15 @@ class HistoryAdapter(
             binding.nameText.text = item.name
             binding.nameText.setTextColor(resources.getColor(R.color.text_primary, theme))
             
+            // ✅ 优化：根据经纬度正负自动添加方向标识
+            val latDir = if (item.latitude >= 0) "N" else "S"
+            val lngDir = if (item.longitude >= 0) "E" else "W"
             binding.coordsText.text = String.format(
-                "%.4f°N, %.4f°E",
-                item.latitude,
-                item.longitude
+                "%.4f°%s, %.4f°%s",
+                Math.abs(item.latitude),
+                latDir,
+                Math.abs(item.longitude),
+                lngDir
             )
             binding.coordsText.setTextColor(resources.getColor(R.color.text_hint, theme))
             

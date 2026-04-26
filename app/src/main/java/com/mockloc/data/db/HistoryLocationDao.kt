@@ -23,16 +23,16 @@ interface HistoryLocationDao {
     
     /**
      * 检查是否存在相同坐标的历史记录
-     * 用于去重：如果同一坐标已存在，则更新时间戳而不是插入新记录
+     * ✅ 修复：使用 ROUND 函数处理浮点数精度问题，保留6位小数（约0.1米精度）
      */
-    @Query("SELECT EXISTS(SELECT 1 FROM history_location WHERE latitude = :lat AND longitude = :lng)")
+    @Query("SELECT EXISTS(SELECT 1 FROM history_location WHERE ROUND(latitude, 6) = ROUND(:lat, 6) AND ROUND(longitude, 6) = ROUND(:lng, 6))")
     suspend fun exists(lat: Double, lng: Double): Boolean
     
     /**
      * 根据坐标查询历史记录
-     * 用于更新已有记录的时间戳
+     * ✅ 修复：同样使用 ROUND 确保查询准确性
      */
-    @Query("SELECT * FROM history_location WHERE latitude = :lat AND longitude = :lng LIMIT 1")
+    @Query("SELECT * FROM history_location WHERE ROUND(latitude, 6) = ROUND(:lat, 6) AND ROUND(longitude, 6) = ROUND(:lng, 6) LIMIT 1")
     suspend fun getByCoordinates(lat: Double, lng: Double): HistoryLocation?
     
     @Insert
@@ -52,4 +52,10 @@ interface HistoryLocationDao {
     
     @Query("DELETE FROM history_location WHERE id = :id")
     suspend fun deleteById(id: Long)
+    
+    /**
+     * ✅ 新增：清理旧数据，只保留最近的 limit 条记录
+     */
+    @Query("DELETE FROM history_location WHERE id NOT IN (SELECT id FROM history_location ORDER BY timestamp DESC LIMIT :limit)")
+    suspend fun keepRecentRecords(limit: Int)
 }
