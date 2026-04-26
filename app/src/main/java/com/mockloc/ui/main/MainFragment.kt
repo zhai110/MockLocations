@@ -337,7 +337,7 @@ class MainFragment : Fragment() {
     
     /**
      * 保存位置到历史记录
-     * ✅ 修复：强制重新获取地址，不依赖可能过时的 ViewModel 缓存
+     * ✅ 修复：使用高德异步逆地理编码，避免原生 Geocoder 阻塞 IO 线程
      */
     private fun saveToHistory(latitude: Double, longitude: Double) {
         Timber.d("saveToHistory called: lat=$latitude, lng=$longitude")
@@ -346,18 +346,29 @@ class MainFragment : Fragment() {
             try {
                 val db = com.mockloc.VirtualLocationApp.getDatabase()
                 
-                // ✅ 修复：强制重新获取地址，不依赖 ViewModel 中可能过时的缓存
-                // 防止用户操作快时读取到上一次的位置地址
-                val latLng = com.amap.api.maps.model.LatLng(latitude, longitude)
-                val address = getAddressFromLocation(latLng)
+                // ✅ 优化：使用 PoiSearchHelper 进行异步逆地理编码
+                val helper = com.mockloc.repository.PoiSearchHelper(requireContext())
+                var address = ""
+                
+                // 使用 suspendCancellableCoroutine 将回调转为协程
+                kotlinx.coroutines.suspendCancellableCoroutine<String> { cont ->
+                    helper.latLngToAddress(latitude, longitude) { result ->
+                        if (cont.isActive) cont.resume(result) {}
+                    }
+                }.let { resolvedAddress ->
+                    address = resolvedAddress
+                }
+                
                 Timber.d("Fresh address resolved: '$address'")
                 
                 val name = if (address.isNotEmpty() && !address.contains("°N")) {
                     // 使用地址的第一行作为名称
                     address.split(",").firstOrNull()?.trim() ?: "未知位置"
                 } else {
-                    // 地址解析失败，使用坐标格式
-                    String.format("%.4f, %.4f", latitude, longitude)
+                    // ✅ 优化：添加方向标识，使坐标显示更友好 (例如: 39.9042°N, 116.4074°E)
+                    val latDir = if (latitude >= 0) "N" else "S"
+                    val lngDir = if (longitude >= 0) "E" else "W"
+                    String.format("%.4f°%s, %.4f°%s", Math.abs(latitude), latDir, Math.abs(longitude), lngDir)
                 }
                 
                 Timber.d("Creating HistoryLocation: name='$name', address='$address'")
@@ -371,14 +382,32 @@ class MainFragment : Fragment() {
                 
                 Timber.d("Inserting into database...")
                 
-                // ✅ 简化逻辑：直接插入，不再进行业务层去重
-                // 这样每次点击都会产生一条新的历史记录，完整保留用户的操作轨迹
-                db.historyLocationDao().insert(historyLocation)
-                Timber.d("✅ Inserted new history record: $name (lat=$latitude, lng=$longitude)")
-                
-                // 验证是否真的保存了
+                // ✅ 优化：检查是否与上一条历史记录坐标相同，避免重复
                 val allRecords = db.historyLocationDao().getAll()
-                Timber.d("Total history records in DB: ${allRecords.size}")
+                val lastRecord = allRecords.firstOrNull()
+                
+                if (lastRecord != null && 
+                    lastRecord.latitude == latitude && 
+                    lastRecord.longitude == longitude) {
+                    // 坐标相同，只更新时间戳和名称
+                    val updatedRecord = lastRecord.copy(
+                        name = name,
+                        address = address,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    db.historyLocationDao().update(updatedRecord)
+                    Timber.d("✅ Updated last history record timestamp: $name")
+                } else {
+                    // 坐标不同，插入新记录
+                    db.historyLocationDao().insert(historyLocation)
+                    Timber.d("✅ Inserted new history record: $name")
+                }
+                
+                // ✅ 新增：自动清理旧数据，只保留最近 100 条
+                db.historyLocationDao().keepRecentRecords(100)
+                
+                val finalCount = db.historyLocationDao().getAll().size
+                Timber.d("Total history records in DB (after cleanup): $finalCount")
             } catch (e: Exception) {
                 Timber.e(e, "❌ Failed to save to history")
             }
