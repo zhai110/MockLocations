@@ -293,6 +293,11 @@ class MainFragment : Fragment() {
             MainViewModel.SimulationControlEvent.EventType.UPDATE_POSITION -> {
                 Timber.d("📍 Calling updatePosition...")
                 updatePosition(event.latitude!!, event.longitude!!, event.altitude)
+                
+                // ✅ 修复：只有主动传送（Teleport）时才保存历史记录，摇杆移动不保存
+                if (event.isTeleport) {
+                    saveToHistory(event.latitude, event.longitude)
+                }
             }
         }
     }
@@ -332,6 +337,7 @@ class MainFragment : Fragment() {
     
     /**
      * 保存位置到历史记录
+     * ✅ 修复：强制重新获取地址，不依赖可能过时的 ViewModel 缓存
      */
     private fun saveToHistory(latitude: Double, longitude: Double) {
         Timber.d("saveToHistory called: lat=$latitude, lng=$longitude")
@@ -339,13 +345,18 @@ class MainFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val db = com.mockloc.VirtualLocationApp.getDatabase()
-                val address = viewModel.mapState.value.address
-                Timber.d("Address from ViewModel: '$address'")
                 
-                val name = if (address.isNotEmpty()) {
+                // ✅ 修复：强制重新获取地址，不依赖 ViewModel 中可能过时的缓存
+                // 防止用户操作快时读取到上一次的位置地址
+                val latLng = com.amap.api.maps.model.LatLng(latitude, longitude)
+                val address = getAddressFromLocation(latLng)
+                Timber.d("Fresh address resolved: '$address'")
+                
+                val name = if (address.isNotEmpty() && !address.contains("°N")) {
                     // 使用地址的第一行作为名称
                     address.split(",").firstOrNull()?.trim() ?: "未知位置"
                 } else {
+                    // 地址解析失败，使用坐标格式
                     String.format("%.4f, %.4f", latitude, longitude)
                 }
                 
@@ -360,22 +371,10 @@ class MainFragment : Fragment() {
                 
                 Timber.d("Inserting into database...")
                 
-                // ✅ 去重检查：如果同一坐标已存在，则更新时间戳而不是插入新记录
-                val existingRecord = db.historyLocationDao().getByCoordinates(latitude, longitude)
-                if (existingRecord != null) {
-                    // 更新已有记录的时间戳和名称/地址（可能用户搜索了不同的名称）
-                    val updatedRecord = existingRecord.copy(
-                        name = name,
-                        address = address,
-                        timestamp = System.currentTimeMillis()
-                    )
-                    db.historyLocationDao().update(updatedRecord)
-                    Timber.d("✅ Updated existing history record: $name (id=${existingRecord.id})")
-                } else {
-                    // 插入新记录
-                    db.historyLocationDao().insert(historyLocation)
-                    Timber.d("✅ Inserted new history record: $name (lat=$latitude, lng=$longitude)")
-                }
+                // ✅ 简化逻辑：直接插入，不再进行业务层去重
+                // 这样每次点击都会产生一条新的历史记录，完整保留用户的操作轨迹
+                db.historyLocationDao().insert(historyLocation)
+                Timber.d("✅ Inserted new history record: $name (lat=$latitude, lng=$longitude)")
                 
                 // 验证是否真的保存了
                 val allRecords = db.historyLocationDao().getAll()
