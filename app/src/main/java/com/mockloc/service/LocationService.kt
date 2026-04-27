@@ -28,6 +28,7 @@ import android.widget.LinearLayout
 import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlinx.coroutines.*
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.mockloc.R
@@ -53,6 +54,10 @@ import com.mockloc.VirtualLocationApp
  * 悬浮窗管理委托给 FloatingWindowManager（参考项目 JoyStick.java 的职责拆分）。
  */
 class LocationService : Service() {
+
+    // ✅ 新增：服务专属的协程作用域，确保服务停止时所有任务自动取消
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var moveJob: Job? = null
 
     companion object {
         const val ACTION_START = "com.mockloc.action.START"
@@ -92,8 +97,9 @@ class LocationService : Service() {
     }
 
     private lateinit var locationManager: LocationManager
-    private lateinit var handlerThread: HandlerThread
-    private lateinit var handler: Handler
+    // ✅ 已迁移至协程实现，移除旧的 HandlerThread 变量
+    // private lateinit var handlerThread: HandlerThread
+    // private lateinit var handler: Handler
 
     @Volatile private var isRunning = false
 
@@ -122,29 +128,28 @@ class LocationService : Service() {
     // SP 变更监听器：设置页修改后即时生效
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
-            "altitude" -> {
-                locationLock.withLock { altitude = prefs.getFloat("altitude", 55.0f).toDouble() }
+            PrefsConfig.Settings.KEY_ALTITUDE -> {
+                locationLock.withLock { altitude = prefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 55.0f).toDouble() }
                 Timber.d("Altitude updated from settings: $altitude")
             }
-            "walk_speed", "run_speed", "bike_speed" -> {
+            PrefsConfig.Settings.KEY_WALK_SPEED, PrefsConfig.Settings.KEY_RUN_SPEED, PrefsConfig.Settings.KEY_BIKE_SPEED -> {
                 // 当前模式的速度值被修改了，重新应用
                 applySpeedMode(currentSpeedMode)
             }
-            "joystick_type" -> {
+            PrefsConfig.Settings.KEY_JOYSTICK_TYPE -> {
                 // 摇杆类型变化，通知悬浮窗切换
                 floatingWindowManager.onJoystickTypeChanged()
             }
-            "logging" -> {
-                val enabled = prefs.getBoolean("logging", true)
+            PrefsConfig.Settings.KEY_LOGGING -> {
+                val enabled = prefs.getBoolean(PrefsConfig.Settings.KEY_LOGGING, true)
                 updateLoggingTree(enabled)
                 Timber.d("Logging updated from settings: $enabled")
             }
-            "location_update_interval" -> {
-                // 位置更新间隔变化
-                locationUpdateInterval = prefs.getLong("location_update_interval", DEFAULT_LOCATION_UPDATE_INTERVAL_MS)
-                Timber.d("Location update interval updated: ${locationUpdateInterval}ms")
+            PrefsConfig.Settings.KEY_LOCATION_UPDATE_INTERVAL -> {
+                // 位置更新间隔变化（协程循环中会自动读取最新值）
+                Timber.d("Location update interval setting changed")
             }
-            "history_expiry" -> {
+            PrefsConfig.Settings.KEY_HISTORY_EXPIRY -> {
                 // 历史有效期变化，立即清理过期记录
                 cleanupExpiredHistory()
             }
@@ -178,7 +183,7 @@ class LocationService : Service() {
         applySpeedMode(currentSpeedMode)
         
         // 读取位置更新间隔设置（毫秒）
-        locationUpdateInterval = prefs.getLong("location_update_interval", DEFAULT_LOCATION_UPDATE_INTERVAL_MS)
+        locationUpdateInterval = prefs.getLong(PrefsConfig.Settings.KEY_LOCATION_UPDATE_INTERVAL, DEFAULT_LOCATION_UPDATE_INTERVAL_MS)
         Timber.d("Location update interval: ${locationUpdateInterval}ms")
         
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
@@ -342,28 +347,16 @@ class LocationService : Service() {
         isRunning = false
         staticIsRunning = false
         
-        // 2. 取消自动移动任务
+        // 2. 取消协程任务（✅ 替代 HandlerThread 清理）
+        moveJob?.cancel()
+        serviceScope.cancel() // 取消作用域内所有子协程
+        
+        // 3. 取消自动移动任务
         cancelAutoMove()
         
-        // 3. 销毁悬浮窗管理器（会清理所有视图和协程）
+        // 4. 销毁悬浮窗管理器（会清理所有视图和协程）
         floatingWindowManager.destroy()
         isJoystickVisible = false
-
-        // 4. 清理 Handler 消息队列
-        handler.removeMessages(HANDLER_MSG_ID)
-        handler.removeCallbacksAndMessages(null) // 清除所有回调和消息
-        
-        // 5. 安全停止 HandlerThread（使用 quitSafely 而非 quit）
-        if (::handlerThread.isInitialized) {
-            handlerThread.quitSafely() // ✅ 等待当前任务完成后再退出
-            try {
-                handlerThread.join(2000) // 等待最多2秒
-                Timber.d("HandlerThread stopped successfully")
-            } catch (e: InterruptedException) {
-                Timber.e(e, "HandlerThread interrupted during cleanup")
-                Thread.currentThread().interrupt() // 恢复中断状态
-            }
-        }
         
         // 6. 关闭 ExecutorService
         moveExecutor.shutdown()
@@ -453,21 +446,19 @@ class LocationService : Service() {
 
     // ==================== 位置更新循环 ====================
 
+    // ✅ 优化：使用协程替代 HandlerThread + Thread.sleep，实现配置实时生效
     private fun initLocationUpdateLoop() {
-        handlerThread = HandlerThread("LocationUpdate", Process.THREAD_PRIORITY_FOREGROUND)
-        handlerThread.start()
-        handler = Handler(handlerThread.looper) {
-            try {
-                Thread.sleep(locationUpdateInterval)
+        moveJob = serviceScope.launch {
+            while (isActive) {
+                // 动态读取最新的更新间隔
+                val interval = prefs.getLong(PrefsConfig.Settings.KEY_LOCATION_UPDATE_INTERVAL, DEFAULT_LOCATION_UPDATE_INTERVAL_MS)
+                delay(interval)
+                
                 if (isRunning) {
                     setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
                     setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-                    handler.sendEmptyMessage(HANDLER_MSG_ID)
                 }
-            } catch (_: InterruptedException) {
-                Thread.currentThread().interrupt()
             }
-            true
         }
     }
 
@@ -486,7 +477,7 @@ class LocationService : Service() {
         staticIsRunning = true
         setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
         setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-        handler.sendEmptyMessage(HANDLER_MSG_ID)
+        // 协程循环已在 initLocationUpdateLoop 中自动启动，无需手动触发
         
         // 保存当前位置信息，用于开机自启恢复
         saveLastLocation()
@@ -499,7 +490,7 @@ class LocationService : Service() {
         
         isRunning = false
         staticIsRunning = false
-        handler.removeMessages(HANDLER_MSG_ID)
+        moveJob?.cancel() // ✅ 取消协程任务
         cancelAutoMove()
         floatingWindowManager.hide()
         isJoystickVisible = false
@@ -645,7 +636,7 @@ class LocationService : Service() {
     fun setPositionGcj02(gcjLng: Double, gcjLat: Double, alt: Double) {
         val wgs = MapUtils.gcj02ToWgs84(gcjLng, gcjLat)
         moveExecutor.execute {
-            handler.removeMessages(HANDLER_MSG_ID)
+            // ✅ 协程循环会自动处理更新，无需手动触发 handler
             locationLock.withLock {
                 currentLongitude = wgs[0]
                 currentLatitude = wgs[1]
@@ -653,13 +644,12 @@ class LocationService : Service() {
             }
             setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
             setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-            if (isRunning) handler.sendEmptyMessage(HANDLER_MSG_ID)
         }
     }
 
     fun setPositionWgs84(wgsLng: Double, wgsLat: Double, alt: Double) {
         moveExecutor.execute {
-            handler.removeMessages(HANDLER_MSG_ID)
+            // ✅ 协程循环会自动处理更新，无需手动触发 handler
             locationLock.withLock {
                 currentLongitude = wgsLng
                 currentLatitude = wgsLat
@@ -667,7 +657,6 @@ class LocationService : Service() {
             }
             setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
             setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-            if (isRunning) handler.sendEmptyMessage(HANDLER_MSG_ID)
         }
     }
 
