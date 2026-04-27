@@ -84,6 +84,7 @@ lint/reports/
 
 # AI assistant memory - do not commit AI assistant caches
 .workbuddy/
+.arts/
 
 # OS generated files
 .DS_Store

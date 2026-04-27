@@ -1422,12 +1422,8 @@ class MainFragment : Fragment() {
             // 更新搜索结果列表背景
             binding.searchResultList.setBackgroundColor(surfaceColor)
             
-            // 更新搜索结果容器顶部分隔线颜色
-            val searchResultContainer = binding.searchResultContainer
-            val topDivider = searchResultContainer.getChildAt(0) // 第一个子 View 是顶部分隔线
-            if (topDivider is android.view.View) {
-                topDivider.setBackgroundColor(dividerColor)
-            }
+            // ✅ 优化：使用 ID 引用替代 getChildAt(0)，提高代码健壮性
+            binding.searchTopDivider.setBackgroundColor(dividerColor)
             
             // ✅ 更新 BottomSheet 背景（重新加载 drawable 以保留圆角）
             // 关键修复：先清除背景，再重新设置，强制触发颜色重新解析
