@@ -49,6 +49,12 @@ object PrefsConfig {
         const val KEY_AUTO_START = "auto_start"              // 开机自启
         const val KEY_LOGGING = "logging"                    // 日志开关
         const val KEY_HISTORY_EXPIRY = "history_expiry"      // 历史记录有效期 (天)
+        
+        // 模拟状态记录
+        const val KEY_SPEED_MODE = "speed_mode"              // 当前速度模式 (walk/run/bike)
+        const val KEY_LAST_LAT = "last_lat"                  // 上次模拟纬度
+        const val KEY_LAST_LNG = "last_lng"                  // 上次模拟经度
+        const val KEY_LAST_ALT = "last_alt"                  // 上次模拟海拔
     }
     
     // ==================== Map State 中的键名 ====================
