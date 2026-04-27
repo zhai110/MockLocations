@@ -171,8 +171,8 @@ class LocationService : Service() {
         super.onCreate()
 
         prefs = getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
-        altitude = prefs.getFloat("altitude", 55.0f).toDouble()
-        currentSpeedMode = prefs.getString("speed_mode", "walk") ?: "walk"
+        altitude = prefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 55.0f).toDouble()
+        currentSpeedMode = prefs.getString(PrefsConfig.Settings.KEY_SPEED_MODE, "walk") ?: "walk"
         
         // ✅ 应用保存的速度模式（防止服务重启后速度重置为默认值）
         applySpeedMode(currentSpeedMode)
@@ -627,9 +627,9 @@ class LocationService : Service() {
     private fun applySpeedMode(mode: String) {
         currentSpeedMode = mode
         val speedKmh = when (mode) {
-            "walk" -> prefs.getInt("walk_speed", 5).coerceIn(1, 15)    // 步行：1-15 km/h
-            "run" -> prefs.getInt("run_speed", 12).coerceIn(5, 30)     // 跑步：5-30 km/h
-            "bike" -> prefs.getInt("bike_speed", 20).coerceIn(10, 50)  // 骑行：10-50 km/h
+            "walk" -> prefs.getInt(PrefsConfig.Settings.KEY_WALK_SPEED, 5).coerceIn(1, 15)    // 步行：1-15 km/h
+            "run" -> prefs.getInt(PrefsConfig.Settings.KEY_RUN_SPEED, 12).coerceIn(5, 30)     // 跑步：5-30 km/h
+            "bike" -> prefs.getInt(PrefsConfig.Settings.KEY_BIKE_SPEED, 20).coerceIn(10, 50)  // 骑行：10-50 km/h
             else -> 5
         }
         currentSpeed = (speedKmh / 3.6).toFloat().coerceIn(MIN_SPEED_MS, MAX_SPEED_MS)
@@ -717,7 +717,7 @@ class LocationService : Service() {
     // ==================== 历史记录清理 ====================
 
     private fun cleanupExpiredHistory() {
-        val expiryDays = prefs.getInt("history_expiry", 30)
+        val expiryDays = prefs.getInt(PrefsConfig.Settings.KEY_HISTORY_EXPIRY, 30)
         if (expiryDays <= 0) return  // -1 = 永久保存
         val cutoffTime = System.currentTimeMillis() - (expiryDays.toLong() * 24 * 60 * 60 * 1000)
         moveExecutor.execute {
