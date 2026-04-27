@@ -106,6 +106,7 @@
 
                 <!-- 顶部分隔线 -->
                 <View
+                    android:id="@+id/search_top_divider"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:background="@color/divider"

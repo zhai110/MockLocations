@@ -127,4 +127,16 @@
     <string name="unit_meter">米</string>
     <string name="unit_km_h">km/h</string>
     <string name="unit_day">天</string>
+    
+    <!-- 更新对话框 -->
+    <string name="update_title">发现新版本</string>
+    <string name="update_content_label">更新内容：</string>
+    <string name="update_cancel">取消</string>
+    <string name="update_now">立即更新</string>
+    
+    <!-- 地图图层选择 -->
+    <string name="map_layers_title">选择地图类型</string>
+    <string name="map_type_standard">标准地图</string>
+    <string name="map_type_satellite">卫星地图</string>
+    <string name="map_type_night">夜景地图</string>
 </resources>
