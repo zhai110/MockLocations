@@ -371,14 +371,15 @@ class MainViewModel(
             
         return if (simulationState.isSimulating) {
             if (currentState.isPositionPending && currentState.markedPosition != null) {
+                val marked = currentState.markedPosition
                 // 模拟中且有新位置：发送更新位置事件
                 sendSimulationControlEvent(
                     SimulationControlEvent(
                         eventType = SimulationControlEvent.EventType.UPDATE_POSITION,
-                        latitude = currentState.markedPosition!!.latitude,
-                        longitude = currentState.markedPosition!!.longitude,
+                        latitude = marked.latitude,
+                        longitude = marked.longitude,
                         altitude = altitude,
-                        isTeleport = true // ✅ 标记为主动传送
+                        isTeleport = true
                     )
                 )
                     
@@ -406,12 +407,13 @@ class MainViewModel(
         } else {
             // 未模拟：发送启动模拟事件
             if (currentState.markedPosition != null) {
-                Timber.d("Starting simulation at: ${'$'}{currentState.markedPosition}")
+                val marked = currentState.markedPosition
+                Timber.d("Starting simulation at: $marked")
                 sendSimulationControlEvent(
                     SimulationControlEvent(
                         eventType = SimulationControlEvent.EventType.START_SIMULATION,
-                        latitude = currentState.markedPosition!!.latitude,
-                        longitude = currentState.markedPosition!!.longitude,
+                        latitude = marked.latitude,
+                        longitude = marked.longitude,
                         altitude = altitude
                     )
                 )
