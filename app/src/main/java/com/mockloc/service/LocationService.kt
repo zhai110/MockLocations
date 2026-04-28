@@ -162,9 +162,9 @@ class LocationService : Service() {
 
     // ==================== 摇杆自动移动 ====================
     private var autoMoveTimer: android.os.CountDownTimer? = null
-    private var isAutoMoving = false
-    private var joystickAngle = 0.0
-    private var joystickR = 0.0
+    @Volatile private var isAutoMoving = false
+    @Volatile private var joystickAngle = 0.0
+    @Volatile private var joystickR = 0.0
 
     inner class LocalBinder : Binder() {
         fun getService(): LocationService = this@LocationService
@@ -276,11 +276,24 @@ class LocationService : Service() {
                 val longitude = intent.getDoubleExtra(EXTRA_LONGITUDE, curLng)
                 val isGcj02 = intent.getBooleanExtra(EXTRA_COORD_GCJ02, true)
 
+                Timber.d("📍 Received UPDATE_POSITION: lat=$latitude, lng=$longitude, isGcj02=$isGcj02")
+
                 if (isGcj02) {
                     val wgs = MapUtils.gcj02ToWgs84(longitude, latitude)
                     updateTargetLocation(wgs[1], wgs[0])
+                    Timber.d("🔄 Converted to WGS84: lat=${wgs[1]}, lng=${wgs[0]}")
                 } else {
                     updateTargetLocation(latitude, longitude)
+                }
+                
+                // ✅ 修复：传送后立即注入一次位置，解决协程 delay 导致的延迟感
+                // 注意：这里不再判断 isRunning，只要服务活着就尝试注入
+                try {
+                    setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                    setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                    Timber.d("✅ Manual location injection triggered for UPDATE_POSITION")
+                } catch (e: Exception) {
+                    Timber.e(e, "❌ Failed to inject location manually")
                 }
             }
         }
@@ -477,7 +490,10 @@ class LocationService : Service() {
         staticIsRunning = true
         setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
         setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-        // 协程循环已在 initLocationUpdateLoop 中自动启动，无需手动触发
+        // 如果协程循环已被取消（stopSimulation后重启），需要重新启动
+        if (moveJob?.isActive != true) {
+            initLocationUpdateLoop()
+        }
         
         // 保存当前位置信息，用于开机自启恢复
         saveLastLocation()
@@ -510,9 +526,9 @@ class LocationService : Service() {
             // 获取GCJ02坐标（高德地图坐标）用于保存
             val gcj = MapUtils.wgs84ToGcj02(lng, lat)
             prefs.edit()
-                .putString("last_lat", gcj[1].toString())  // GCJ02纬度，使用String保存Double精度
-                .putString("last_lng", gcj[0].toString())  // GCJ02经度，使用String保存Double精度
-                .putString("last_alt", alt.toString())
+                .putString(PrefsConfig.Settings.KEY_LAST_LAT, gcj[1].toString())  // GCJ02纬度，使用String保存Double精度
+                .putString(PrefsConfig.Settings.KEY_LAST_LNG, gcj[0].toString())  // GCJ02经度，使用String保存Double精度
+                .putString(PrefsConfig.Settings.KEY_LAST_ALT, alt.toString())
                 .apply()
             Timber.d("Last location saved: GCJ02 (${gcj[1]}, ${gcj[0]}), alt=$alt")
         } catch (e: Exception) {
@@ -594,7 +610,7 @@ class LocationService : Service() {
             var distanceLat = currentSpeed * (JOYSTICK_MOVE_INTERVAL_MS / 1000.0) * joystickR *
                     Math.sin(angleRad) / 1000.0
             // 随机偏移
-            if (prefs.getBoolean("random_offset", false)) {
+            if (prefs.getBoolean(PrefsConfig.Settings.KEY_RANDOM_OFFSET, false)) {
                 distanceLng += (Math.random() - 0.5) * 5.0 / 1000.0
                 distanceLat += (Math.random() - 0.5) * 5.0 / 1000.0
             }
@@ -629,7 +645,7 @@ class LocationService : Service() {
 
     /** 切换速度模式（由悬浮窗调用） */
     fun setSpeedMode(mode: String) {
-        prefs.edit().putString("speed_mode", mode).apply()
+        prefs.edit().putString(PrefsConfig.Settings.KEY_SPEED_MODE, mode).apply()
         applySpeedMode(mode)
     }
 
@@ -697,7 +713,7 @@ class LocationService : Service() {
     }
 
     private fun initLoggingFromPrefs() {
-        loggingEnabled = prefs.getBoolean("logging", true)
+        loggingEnabled = prefs.getBoolean(PrefsConfig.Settings.KEY_LOGGING, true)
         if (!loggingEnabled) {
             updateLoggingTree(false)
         }
