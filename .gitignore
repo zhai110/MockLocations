@@ -95,6 +95,9 @@ lint/reports/
 ehthumbs.db
 Thumbs.db
 
+# Windows reserved device names (accidentally created by some tools)
+nul
+
 # Editor / backup files
 *~
 *.swp
