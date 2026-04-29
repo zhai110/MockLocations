@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="20dp">
 
     <!-- 标题 -->
     <TextView
@@ -21,7 +21,7 @@
         android:id="@+id/tv_version"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:textSize="16sp"
         android:textColor="?attr/colorOnSurface" />
 
@@ -30,7 +30,7 @@
         android:id="@+id/tv_file_size"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:textSize="14sp"
         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -38,7 +38,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:text="@string/update_content_label"
         android:textSize="14sp"
         android:textStyle="bold"
@@ -48,8 +48,8 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:maxHeight="300dp"
+        android:layout_marginTop="6dp"
+        android:maxHeight="400dp"
         android:fillViewport="true">
 
         <TextView
@@ -84,7 +84,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="16dp"
         android:orientation="horizontal"
         android:gravity="end">
 
