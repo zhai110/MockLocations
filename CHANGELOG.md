@@ -7,6 +7,45 @@
 
 ---
 
+## [v1.4.0] - 2026-04-29
+
+### Added - 新增
+- **双模式交互设计**：
+  - App 内历史记录/收藏点击后返回主界面，红点移动但不立即模拟
+  - FAB 确认后才开始模拟，蓝点跟随移动（两步确认）
+  - 悬浮窗历史记录点击直接生效，快速切换位置（一步直达）
+- **坐标系支持说明**：在关于页面明确标注支持 GCJ-02/WGS-84/BD-09
+
+### Changed - 变更
+- **MainViewModel 事件通信**：MutableStateFlow → MutableSharedFlow，避免一次性事件丢失
+- **selectPosition 方法**：新增 clearAddress 参数，支持从历史/收藏返回时保留地址信息
+- **launcher 回调优化**：pendingPositionFromResult 标志，避免 onResume 覆盖用户新选择的位置
+- **更新日志**：update.json 详细描述 v1.4.0 所有改进
+
+### Fixed - 修复
+- **坐标转换逻辑**：
+  - 修复 startSimulation 和 teleportToPosition 的 EXTRA_COORD_GCJ02 标志设置
+  - 确保所有外部传入的 GCJ-02 坐标正确转换为 WGS-84 注入系统
+- **悬浮窗历史记录坐标系**：FloatingWindowManager 中 GCJ-02 → WGS-84 转换
+- **连续选点偏差问题**：修复第二次及以后选点传送时红点和蓝点不重合的问题
+- **FavoriteLocationDao 浮点精度**：使用 ROUND(latitude, 6) 与 HistoryLocationDao 保持一致
+- **AddressCache 线程安全**：HashMap → ConcurrentHashMap，去除可空类型
+- **AddressCache 协程泄漏**：新增 destroy() 方法，在 Application.onTerminate() 中调用
+- **UpdateDialogFragment 生命周期**：独立 CoroutineScope → lifecycleScope，自动绑定生命周期
+- **LocationService 日志管理**：uprootAll() → 只移除 DebugTree，保留其他 Tree（如 LeakCanary）
+- **BootReceiver 硬编码**：SP 键名改用 PrefsConfig.Settings.KEY_* 常量
+- **VirtualLocationApp database**：添加 @Volatile 注解保证多线程可见性
+
+### Technical Details - 技术细节
+- **数据库版本**：保持 v3，无结构变更
+- **versionCode**：4 → 5
+- **versionName**：1.3.0 → 1.4.0
+- **编译 SDK**：36 (Android 15)
+- **目标 SDK**：36 (Android 15)
+- **最低 SDK**：29 (Android 10)
+
+---
+
 ## [Unreleased]
 
 ### Added - 新增

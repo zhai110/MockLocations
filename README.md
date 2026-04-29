@@ -1,6 +1,6 @@
 # 虚拟定位应用 (MockLoc)
 
-> **最新版本**: v1.3.0 | [下载 APK](https://gitee.com/eizmme/MockLocations/releases)
+> **最新版本**: v1.4.0 | [下载 APK](https://gitee.com/eizmme/MockLocations/releases)
 
 基于 **Kotlin + MVVM + Android 10+** 实现的现代化虚拟定位应用，采用 **Material Design 3** 设计规范，无需 ROOT 权限即可修改设备位置。
 
