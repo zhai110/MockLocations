@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -291,13 +292,12 @@ class MainFragment : Fragment() {
                 stopSimulation()
             }
             MainViewModel.SimulationControlEvent.EventType.UPDATE_POSITION -> {
-                Timber.d("📍 Calling updatePosition...")
-                updatePosition(event.latitude!!, event.longitude!!, event.altitude)
+                Timber.d("📍 Calling teleportToPosition (manual teleport)...")
+                // ✅ 修复：模拟中手动传送，坐标来自地图（GCJ-02），需要转换
+                teleportToPosition(event.latitude!!, event.longitude!!, event.altitude)
                 
-                // ✅ 修复：只有主动传送（Teleport）时才保存历史记录，摇杆移动不保存
-                if (event.isTeleport) {
-                    saveToHistory(event.latitude, event.longitude)
-                }
+                // ✅ 修复：只有主动传送（Teleport）时才保存历史记录
+                saveToHistory(event.latitude, event.longitude)
             }
         }
     }
@@ -310,11 +310,14 @@ class MainFragment : Fragment() {
             // ✅ 保存到历史记录
             saveToHistory(latitude, longitude)
             
+            Timber.d("🚀 Starting simulation: lat=$latitude, lng=$longitude (GCJ-02)")
+            
             val intent = android.content.Intent(requireContext(), LocationService::class.java).apply {
                 action = LocationService.ACTION_START
                 putExtra(LocationService.EXTRA_LATITUDE, latitude)
                 putExtra(LocationService.EXTRA_LONGITUDE, longitude)
                 putExtra(LocationService.EXTRA_ALTITUDE, altitude.toDouble())
+                // ✅ 修复：所有传给Service的坐标都是GCJ-02，需要转换为WGS-84
                 putExtra(LocationService.EXTRA_COORD_GCJ02, true)
             }
             
@@ -327,6 +330,12 @@ class MainFragment : Fragment() {
             // 移动相机到目标位置（用户确认传送时）
             val targetLatLng = com.amap.api.maps.model.LatLng(latitude, longitude)
             updateMarker(targetLatLng, moveCamera = true)
+            
+            // ✅ 调试：打印红色标记和蓝色蓝点的预期位置
+            val wgs84 = com.mockloc.util.MapUtils.gcj02ToWgs84(longitude, latitude)
+            Timber.d("📍 Red marker (GCJ-02): ($latitude, $longitude)")
+            Timber.d("📍 Blue dot expected (WGS-84 injected): (${wgs84[1]}, ${wgs84[0]})")
+            Timber.d("📍 Blue dot will display as GCJ-02 by AMap: ($latitude, $longitude)")
             
             UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_simulation_started))
         } catch (e: Exception) {
@@ -432,7 +441,33 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 更新位置
+     * 传送到新位置（手动传送，坐标来自地图GCJ-02）
+     */
+    private fun teleportToPosition(latitude: Double, longitude: Double, altitude: Float) {
+        try {
+            val intent = android.content.Intent(requireContext(), LocationService::class.java).apply {
+                action = LocationService.ACTION_UPDATE
+                putExtra(LocationService.EXTRA_LATITUDE, latitude)
+                putExtra(LocationService.EXTRA_LONGITUDE, longitude)
+                putExtra(LocationService.EXTRA_ALTITUDE, altitude.toDouble())
+                // ✅ 修复：手动传送的坐标是GCJ-02，需要转换为WGS-84
+                putExtra(LocationService.EXTRA_COORD_GCJ02, true)
+            }
+            requireContext().startService(intent)
+            
+            // 移动相机到新位置
+            val targetLatLng = com.amap.api.maps.model.LatLng(latitude, longitude)
+            updateMarker(targetLatLng, moveCamera = true)
+            
+            UIFeedbackHelper.showToast(requireContext(), "已传送到新位置")
+        } catch (e: Exception) {
+            Timber.e(e, "传送位置失败")
+            UIFeedbackHelper.showToast(requireContext(), "传送失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 更新位置（摇杆移动，坐标来自Service内部WGS-84）
      */
     private fun updatePosition(latitude: Double, longitude: Double, altitude: Float) {
         try {
@@ -441,7 +476,8 @@ class MainFragment : Fragment() {
                 putExtra(LocationService.EXTRA_LATITUDE, latitude)
                 putExtra(LocationService.EXTRA_LONGITUDE, longitude)
                 putExtra(LocationService.EXTRA_ALTITUDE, altitude.toDouble())
-                putExtra(LocationService.EXTRA_COORD_GCJ02, true)
+                // ✅ 修复：摇杆移动的坐标来自LocationService内部（已是WGS-84），不需要再转换
+                putExtra(LocationService.EXTRA_COORD_GCJ02, false)
             }
             requireContext().startService(intent)
             
@@ -1122,6 +1158,7 @@ class MainFragment : Fragment() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_input_coords, null)
         val latEdit = dialogView.findViewById<android.widget.EditText>(R.id.edit_latitude)
         val lngEdit = dialogView.findViewById<android.widget.EditText>(R.id.edit_longitude)
+        val radioGroup = dialogView.findViewById<RadioGroup>(R.id.radio_group_coordinate_system)
         
         // 使用 MaterialAlertDialogBuilder 自带圆角样式，去掉标题
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
@@ -1130,11 +1167,42 @@ class MainFragment : Fragment() {
                 try {
                     val lat = latEdit.text.toString().toDouble()
                     val lng = lngEdit.text.toString().toDouble()
-                    val latLng = LatLng(lat, lng)
+                    
+                    // 验证坐标范围
+                    if (lat < -90.0 || lat > 90.0 || lng < -180.0 || lng > 180.0) {
+                        UIFeedbackHelper.showToast(requireContext(), "坐标超出有效范围")
+                        return@setPositiveButton
+                    }
+                    
+                    // 获取用户选择的坐标系
+                    val selectedCoordType = when (radioGroup.checkedRadioButtonId) {
+                        R.id.radio_gcj02 -> "GCJ02"
+                        R.id.radio_wgs84 -> "WGS84"
+                        R.id.radio_bd09 -> "BD09"
+                        else -> "GCJ02"
+                    }
+                    
+                    // 转换为 GCJ-02（高德地图坐标系）用于显示
+                    val gcjLatLng = when (selectedCoordType) {
+                        "GCJ02" -> com.amap.api.maps.model.LatLng(lat, lng)
+                        "WGS84" -> {
+                            val gcj = com.mockloc.util.MapUtils.wgs84ToGcj02(lng, lat)
+                            com.amap.api.maps.model.LatLng(gcj[1], gcj[0])
+                        }
+                        "BD09" -> {
+                            val gcj = com.mockloc.util.MapUtils.bd09ToGcj02(lng, lat)
+                            com.amap.api.maps.model.LatLng(gcj[1], gcj[0])
+                        }
+                        else -> com.amap.api.maps.model.LatLng(lat, lng)
+                    }
+                    
                     // 手动输入坐标需要移动相机
-                    viewModel.selectPosition(latLng, moveCamera = true)
-                    updateLocationInfo(latLng)
+                    viewModel.selectPosition(gcjLatLng, moveCamera = true)
+                    updateLocationInfo(gcjLatLng)
+                    
+                    Timber.d("📍 Input coords: $lat, $lng ($selectedCoordType) -> GCJ02: ${gcjLatLng.latitude}, ${gcjLatLng.longitude}")
                 } catch (e: Exception) {
+                    Timber.e(e, "Failed to parse coordinates")
                     UIFeedbackHelper.showToast(requireContext(), "坐标格式错误")
                 }
             }
