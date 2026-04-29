@@ -2,7 +2,7 @@
   "versionCode": 5,
   "versionName": "1.4.0",
   "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.4.0/app-release.apk",
-  "releaseNotes": "✨ 新增功能：\n- 历史记录/收藏点击后返回主界面，红点移动但不立即模拟\n- FAB确认后才开始模拟，蓝点跟随移动\n- 悬浮窗历史记录点击直接生效（快速切换）\n\n🔧 核心修复：\n- 修复坐标转换逻辑，确保 GCJ-02/WGS-84 正确转换\n- 修复悬浮窗历史记录的坐标系问题\n- 修复连续选点传送位置偏差问题\n\n⚡ 健壮性优化：\n- FavoriteLocationDao 浮点精度修复（ROUND函数）\n- AddressCache 线程安全优化（ConcurrentHashMap）\n- AddressCache 协程泄漏修复（destroy方法）\n- MainViewModel 改用 SharedFlow 传递一次性事件\n- UpdateDialogFragment 生命周期绑定优化\n- LocationService 日志管理优化\n- BootReceiver 使用常量替代硬编码\n- VirtualLocationApp database 添加 @Volatile\n\n🎨 体验优化：\n- 历史记录/收藏返回时保留地址信息\n- 优化 launcher 返回后的相机恢复逻辑\n- 避免覆盖用户新选择的位置",
+  "releaseNotes": "✨ 新增功能：\n• 历史记录/收藏点击后返回主界面，FAB确认后才模拟\n• 悬浮窗历史记录点击直接生效（快速切换）\n\n🔧 核心修复：\n• 修复坐标转换逻辑，确保 GCJ-02/WGS-84 正确转换\n• 修复悬浮窗历史记录的坐标系问题\n• 修复连续选点传送位置偏差\n\n⚡ 健壮性优化：\n• FavoriteLocationDao 浮点精度修复\n• AddressCache 线程安全和资源泄漏修复\n• 改用 SharedFlow 传递一次性事件\n• 生命周期绑定和日志管理优化\n\n🎨 体验优化：\n• 历史/收藏返回时保留地址信息\n• 优化相机恢复逻辑",
   "forceUpdate": false,
   "minVersionCode": 1,
   "fileSize": 15728640,
