@@ -32,18 +32,17 @@ class BootReceiver : BroadcastReceiver() {
             try {
                 // 读取设置，判断是否启用开机自启
                 val prefs = context.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
-                val autoStartEnabled = prefs.getBoolean("auto_start", false)
+                val autoStartEnabled = prefs.getBoolean(PrefsConfig.Settings.KEY_AUTO_START, false)
                 
                 if (autoStartEnabled) {
                     Timber.d("Auto start enabled, starting service...")
                     
-                    // 读取上次保存的位置信息（使用String保存Double精度，兼容旧版Float格式）
-                    val lastLat = prefs.getString("last_lat", null)?.toDouble()
-                        ?: prefs.getFloat("last_lat", 0f).toDouble()
-                    val lastLng = prefs.getString("last_lng", null)?.toDouble()
-                        ?: prefs.getFloat("last_lng", 0f).toDouble()
-                    val lastAlt = prefs.getString("last_alt", null)?.toDouble()
-                        ?: prefs.getFloat("last_alt", 55.0f).toDouble()
+                    val lastLat = prefs.getString(PrefsConfig.Settings.KEY_LAST_LAT, null)?.toDouble()
+                        ?: prefs.getFloat(PrefsConfig.Settings.KEY_LAST_LAT, 0f).toDouble()
+                    val lastLng = prefs.getString(PrefsConfig.Settings.KEY_LAST_LNG, null)?.toDouble()
+                        ?: prefs.getFloat(PrefsConfig.Settings.KEY_LAST_LNG, 0f).toDouble()
+                    val lastAlt = prefs.getString(PrefsConfig.Settings.KEY_LAST_ALT, null)?.toDouble()
+                        ?: prefs.getFloat(PrefsConfig.Settings.KEY_LAST_ALT, 55.0f).toDouble()
                     
                     // 如果有有效的位置信息，则启动服务
                     if (lastLat != 0.0 && lastLng != 0.0) {

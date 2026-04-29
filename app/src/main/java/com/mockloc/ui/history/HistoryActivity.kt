@@ -177,12 +177,13 @@ class HistoryActivity : AppCompatActivity() {
                         HistoryItem(it.id, it.name, it.latitude, it.longitude)
                     }
                     
-                    // 切换到位置记录适配器
-                    binding.historyList.adapter = locationAdapter
-                    // 确保动画配置一致
-                    binding.historyList.itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator().apply {
-                        addDuration = com.mockloc.util.AnimationConfig.getFadeInDuration()
-                        removeDuration = com.mockloc.util.AnimationConfig.getFadeOutDuration()
+                    // 仅在适配器未设置时才切换（避免重置 RecyclerView 状态）
+                    if (binding.historyList.adapter !is HistoryAdapter) {
+                        binding.historyList.adapter = locationAdapter
+                        binding.historyList.itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator().apply {
+                            addDuration = com.mockloc.util.AnimationConfig.getFadeInDuration()
+                            removeDuration = com.mockloc.util.AnimationConfig.getFadeOutDuration()
+                        }
                     }
                     locationAdapter.submitList(historyItems)
                     updateEmptyState(historyItems.isEmpty(), isSearchTab = false)
@@ -194,12 +195,13 @@ class HistoryActivity : AppCompatActivity() {
                         SearchHistoryItem(it.id, it.keyword, it.name, it.address, it.latitude, it.longitude)
                     }
                     
-                    // 切换到搜索历史适配器
-                    binding.historyList.adapter = searchAdapter
-                    // 确保动画配置一致
-                    binding.historyList.itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator().apply {
-                        addDuration = com.mockloc.util.AnimationConfig.getFadeInDuration()
-                        removeDuration = com.mockloc.util.AnimationConfig.getFadeOutDuration()
+                    // 仅在适配器未设置时才切换（避免重置 RecyclerView 状态）
+                    if (binding.historyList.adapter !is SearchHistoryAdapter) {
+                        binding.historyList.adapter = searchAdapter
+                        binding.historyList.itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator().apply {
+                            addDuration = com.mockloc.util.AnimationConfig.getFadeInDuration()
+                            removeDuration = com.mockloc.util.AnimationConfig.getFadeOutDuration()
+                        }
                     }
                     searchAdapter.submitList(searchItems)
                     updateEmptyState(searchItems.isEmpty(), isSearchTab = true)

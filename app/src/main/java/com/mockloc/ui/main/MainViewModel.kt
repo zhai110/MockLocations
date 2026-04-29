@@ -16,8 +16,11 @@ import com.mockloc.util.PrefsConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -270,18 +273,19 @@ class MainViewModel(
      * 选择地图位置
      * @param latLng 位置坐标
      * @param moveCamera 是否移动相机到该位置（默认 false）
+     * @param clearAddress 是否清空地址（默认 true，从历史/收藏返回时传 false）
      */
-    fun selectPosition(latLng: LatLng, moveCamera: Boolean = false) {
-        Timber.d("selectPosition called: latLng=$latLng, moveCamera=$moveCamera")
+    fun selectPosition(latLng: LatLng, moveCamera: Boolean = false, clearAddress: Boolean = true) {
+        Timber.d("selectPosition called: latLng=$latLng, moveCamera=$moveCamera, clearAddress=$clearAddress")
         _mapState.update { state ->
             state.copy(
                 markedPosition = latLng,
                 isPositionPending = true,
                 shouldMoveCamera = moveCamera,
-                address = ""  // ✅ 清空地址，防止读到旧值导致历史记录名称重复
+                address = if (clearAddress) "" else state.address
             )
         }
-        Timber.d("selectPosition: markedPosition updated to $latLng, address cleared")
+        Timber.d("selectPosition: markedPosition updated to $latLng")
     }
 
     /**
@@ -335,19 +339,15 @@ class MainViewModel(
         }
     }
     
-    private val _simulationControlEvents = MutableStateFlow<SimulationControlEvent?>(null)
-    val simulationControlEvents: StateFlow<SimulationControlEvent?> = _simulationControlEvents.asStateFlow()
+    private val _simulationControlEvents = MutableSharedFlow<SimulationControlEvent>(extraBufferCapacity = 1)
+    val simulationControlEvents: SharedFlow<SimulationControlEvent> = _simulationControlEvents.asSharedFlow()
     
     /**
      * 发送模拟控制事件
      */
     private fun sendSimulationControlEvent(event: SimulationControlEvent) {
-        _simulationControlEvents.value = event
-        // 清除事件，防止重复消费
-        // 增加延迟时间到 500ms，确保 Fragment 有足够时间接收
         viewModelScope.launch {
-            kotlinx.coroutines.delay(500)
-            _simulationControlEvents.value = null
+            _simulationControlEvents.emit(event)
         }
     }
     

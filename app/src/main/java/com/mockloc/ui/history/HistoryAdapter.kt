@@ -66,7 +66,7 @@ class HistoryAdapter(
 
     class DiffCallback : DiffUtil.ItemCallback<HistoryItem>() {
         override fun areItemsTheSame(oldItem: HistoryItem, newItem: HistoryItem): Boolean {
-            return oldItem.latitude == newItem.latitude && oldItem.longitude == newItem.longitude
+            return oldItem.id == newItem.id
         }
 
         override fun areContentsTheSame(oldItem: HistoryItem, newItem: HistoryItem): Boolean {
