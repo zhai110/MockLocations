@@ -91,6 +91,22 @@ class UpdateDialogFragment : DialogFragment() {
             .setCancelable(!info.forceUpdate)
             .create()
         
+        // ✅ 优化：设置对话框窗口属性，确保 maxHeight 生效
+        dialog.window?.let { window ->
+            // 设置对话框最大高度为屏幕的 80%
+            val displayMetrics = context.resources.displayMetrics
+            val maxHeight = (displayMetrics.heightPixels * 0.8).toInt()
+            window.setLayout(
+                (displayMetrics.widthPixels * 0.9).toInt(), // 宽度 90%
+                maxHeight
+            )
+            // 允许对话框滚动
+            window.setFlags(
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+            )
+        }
+        
         // 按钮点击事件
         btnUpdate.setOnClickListener {
             btnUpdate.isEnabled = false
