@@ -2,7 +2,7 @@
   "versionCode": 5,
   "versionName": "1.4.0",
   "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.4.0/app-release.apk",
-  "releaseNotes": "✨ 新增功能\n• 历史/收藏点击后返回主界面，FAB确认模拟\n• 悬浮窗历史点击直接生效（快速切换）\n\n 核心修复\n• 修复坐标转换逻辑（GCJ-02/WGS-84）\n• 修复悬浮窗历史坐标系问题\n• 修复连续选点位置偏差\n\n⚡ 健壮性优化\n• FavoriteLocationDao 浮点精度修复\n• AddressCache 线程安全和资源泄漏修复\n• SharedFlow 传递一次性事件\n• 生命周期和日志管理优化\n\n 体验优化\n• 历史/收藏返回时保留地址\n• 优化相机恢复逻辑",
+  "releaseNotes": "✨ 新增：历史/收藏FAB确认模拟，悬浮窗直接生效\n\n 修复：坐标转换/悬浮窗坐标系/连续选点偏差\n\n⚡ 优化：数据库精度/线程安全/SharedFlow/生命周期\n\n 体验：保留地址信息/相机恢复优化",
   "forceUpdate": false,
   "minVersionCode": 1,
   "fileSize": 15728640,
