@@ -91,21 +91,28 @@
     <string name="settings_auto_start">开机自启</string>
     <string name="settings_auto_start_desc">开机后自动恢复上次模拟位置</string>
     <string name="settings_about">关于应用</string>
-    <string name="settings_about_desc">版本 1.3.0</string>
-    <string name="about_message">虚拟定位应用 v1.3.0
+    <string name="settings_about_desc">版本 1.4.0</string>
+    <string name="about_message">虚拟定位应用 v1.4.0
 
 基于 Kotlin + 高德地图 SDK 开发
 无需 ROOT 权限即可修改设备位置
 
 功能特性：
-• 虚拟定位
-• 摇杆移动
+• 虚拟定位（支持 GCJ-02/WGS-84/BD-09）
+• 摇杆移动控制
 • 智能搜索（20km默认，自动扩大至50km）
 • 自动检查更新
-• 历史记录
-• 收藏管理
+• 历史记录管理
+• 收藏位置管理
 • 一键清除搜索
-• 更新对话框内容滚动查看</string>
+• 悬浮窗快速切换
+• 两步确认模式（App内）/ 一步直达（悬浮窗）
+
+v1.4.0 更新：
+• 修复坐标转换逻辑，确保位置准确
+• 优化健壮性（线程安全、资源泄漏、生命周期）
+• 历史记录/收藏点击后需FAB确认才模拟
+• 悬浮窗历史点击直接生效</string>
     
     <!-- 权限 -->
     <string name="permission_location">定位权限</string>
