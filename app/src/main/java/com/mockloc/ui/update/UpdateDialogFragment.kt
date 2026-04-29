@@ -12,6 +12,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.content.FileProvider
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mockloc.R
@@ -125,7 +126,7 @@ class UpdateDialogFragment : DialogFragment() {
         // ✅ 创建主线程 Handler 用于更新 UI
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
         
-        downloadJob = CoroutineScope(Dispatchers.Main).launch {
+        downloadJob = lifecycleScope.launch(Dispatchers.Main) {
             val checker = updateChecker ?: return@launch
             
             // ✅ 下载 APK，进度回调通过 Handler 更新 UI

@@ -61,7 +61,7 @@ class FavoriteAdapter(
 
     class DiffCallback : DiffUtil.ItemCallback<FavoriteItem>() {
         override fun areItemsTheSame(oldItem: FavoriteItem, newItem: FavoriteItem): Boolean {
-            return oldItem.latitude == newItem.latitude && oldItem.longitude == newItem.longitude
+            return oldItem.id == newItem.id
         }
 
         override fun areContentsTheSame(oldItem: FavoriteItem, newItem: FavoriteItem): Boolean {

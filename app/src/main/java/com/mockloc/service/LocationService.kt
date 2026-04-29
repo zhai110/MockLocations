@@ -707,8 +707,10 @@ class LocationService : Service() {
                 Timber.plant(Timber.DebugTree())
             }
         } else {
-            // 移除所有 Tree（Debug 模式下只有 DebugTree）
-            Timber.forest().forEach { Timber.uproot(it) }
+            // 仅移除 DebugTree，保留其他组件（如 LeakCanary）种植的 Tree
+            Timber.forest()
+                .filterIsInstance<Timber.DebugTree>()
+                .forEach { Timber.uproot(it) }
         }
     }
 

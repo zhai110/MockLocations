@@ -1,6 +1,7 @@
 package com.mockloc.ui.main
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -74,6 +75,7 @@ class MainFragment : Fragment() {
     private var idlePulseAnimator: android.animation.ObjectAnimator? = null
     private var hasFirstLocation = false
     private var isMapDragging = false  // 标记是否正在拖动地图
+    private var pendingPositionFromResult = false  // launcher 回调设置了新位置，onResume 不应覆盖
     private var isNightMode = false  // ✅ 初始值会在 onViewCreated 中根据系统主题正确设置
     private var isManualLayerSelected = false  // 标记用户是否手动选择了图层
     
@@ -83,6 +85,44 @@ class MainFragment : Fragment() {
         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         override fun afterTextChanged(s: android.text.Editable?) {
             updateClearButtonVisibility()
+        }
+    }
+
+    // 历史记录结果启动器
+    private val historyLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.let { data ->
+                val latitude = data.getDoubleExtra("latitude", 0.0)
+                val longitude = data.getDoubleExtra("longitude", 0.0)
+                val name = data.getStringExtra("name") ?: ""
+                if (latitude != 0.0 && longitude != 0.0) {
+                    pendingPositionFromResult = true
+                    val latLng = LatLng(latitude, longitude)
+                    viewModel.selectPosition(latLng, moveCamera = true, clearAddress = false)
+                    updateLocationInfo(latLng, name)
+                }
+            }
+        }
+    }
+
+    // 收藏结果启动器
+    private val favoriteLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.let { data ->
+                val latitude = data.getDoubleExtra("latitude", 0.0)
+                val longitude = data.getDoubleExtra("longitude", 0.0)
+                val name = data.getStringExtra("name") ?: ""
+                if (latitude != 0.0 && longitude != 0.0) {
+                    pendingPositionFromResult = true
+                    val latLng = LatLng(latitude, longitude)
+                    viewModel.selectPosition(latLng, moveCamera = true, clearAddress = false)
+                    updateLocationInfo(latLng, name)
+                }
+            }
         }
     }
 
@@ -267,9 +307,7 @@ class MainFragment : Fragment() {
                 // 观察模拟控制事件
                 launch {
                     viewModel.simulationControlEvents.collect { event ->
-                        event?.let {
-                            handleSimulationControlEvent(it)
-                        }
+                        handleSimulationControlEvent(event)
                     }
                 }
             }
@@ -511,12 +549,16 @@ class MainFragment : Fragment() {
         
         // 更新标记（只在位置改变时更新，避免频繁 remove/add 导致地图跳动）
         state.markedPosition?.let { position ->
-            // 只有当标记位置真正改变时才更新
-            if (currentMarker == null || currentMarker!!.position != position) {
+            val positionChanged = currentMarker == null || currentMarker!!.position != position
+            if (positionChanged) {
                 Timber.d("updateMapUI: updating marker at $position")
-                // 根据 ViewModel 的状态决定是否移动相机
                 updateMarker(position, moveCamera = state.shouldMoveCamera)
-                // 重置 shouldMoveCamera 标志
+                viewModel.resetShouldMoveCamera()
+            } else if (state.shouldMoveCamera) {
+                // 标记位置未变但需要移动相机（如从历史记录/收藏返回同一位置）
+                Timber.d("updateMapUI: marker position unchanged, but moving camera to $position")
+                val currentZoom = aMap.cameraPosition.zoom
+                aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, currentZoom))
                 viewModel.resetShouldMoveCamera()
             } else {
                 Timber.d("updateMapUI: marker position unchanged, skip update")
@@ -745,12 +787,12 @@ class MainFragment : Fragment() {
                     true
                 }
                 R.id.nav_history -> {
-                    startActivity(Intent(requireContext(), HistoryActivity::class.java))
+                    historyLauncher.launch(Intent(requireContext(), HistoryActivity::class.java))
                     applyActivityTransition()
                     true
                 }
                 R.id.nav_favorite -> {
-                    startActivity(Intent(requireContext(), FavoriteActivity::class.java))
+                    favoriteLauncher.launch(Intent(requireContext(), FavoriteActivity::class.java))
                     applyActivityTransition()
                     true
                 }
@@ -836,7 +878,7 @@ class MainFragment : Fragment() {
         }
 
         binding.historyBtn.setOnClickListener {
-            startActivity(Intent(requireContext(), HistoryActivity::class.java))
+            historyLauncher.launch(Intent(requireContext(), HistoryActivity::class.java))
         }
 
         binding.favoriteBtn.setOnClickListener {
@@ -1381,24 +1423,34 @@ class MainFragment : Fragment() {
             binding.mapView.onResume()
             
             // ✅ 从 SP 恢复最新状态（可能来自悬浮窗的修改）
-            val prefs = requireContext().getSharedPreferences(
-                com.mockloc.util.PrefsConfig.MAP_STATE, 
-                android.content.Context.MODE_PRIVATE
-            )
-            val lat = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_LATITUDE, -1f)
-            val lng = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_LONGITUDE, -1f)
-            val zoom = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_ZOOM, 15f)
-            
-            // 如果 SP 中有有效的中心点，直接恢复
-            if (lat > 0 && lng > 0) {
-                val center = com.amap.api.maps.model.LatLng(lat.toDouble(), lng.toDouble())
-                aMap.moveCamera(com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(center, zoom))
-                Timber.d("onResume: 恢复地图状态 center=$center, zoom=$zoom")
+            // 但如果 launcher 刚设置了新位置，跳过相机恢复，避免覆盖
+            if (!pendingPositionFromResult) {
+                val prefs = requireContext().getSharedPreferences(
+                    com.mockloc.util.PrefsConfig.MAP_STATE, 
+                    android.content.Context.MODE_PRIVATE
+                )
+                val lat = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_LATITUDE, -1f)
+                val lng = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_LONGITUDE, -1f)
+                val zoom = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_ZOOM, 15f)
+                
+                // 如果 SP 中有有效的中心点，直接恢复
+                if (lat > 0 && lng > 0) {
+                    val center = com.amap.api.maps.model.LatLng(lat.toDouble(), lng.toDouble())
+                    aMap.moveCamera(com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(center, zoom))
+                    Timber.d("onResume: 恢复地图状态 center=$center, zoom=$zoom")
+                }
             }
             
             // 触发 ViewModel 状态更新（用于标记位置等）
             viewModel.restoreMapState()
-            viewModel.restoreMarkedPosition()
+            
+            // 如果 launcher 刚设置了新位置（来自历史/收藏），跳过恢复标记位置，避免覆盖
+            if (pendingPositionFromResult) {
+                pendingPositionFromResult = false
+                Timber.d("onResume: 跳过 restoreMarkedPosition（来自历史/收藏的新位置）")
+            } else {
+                viewModel.restoreMarkedPosition()
+            }
             
             // 检测夜间模式变化
             updateNightModeStatus()

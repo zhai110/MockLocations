@@ -164,7 +164,9 @@ class FloatingWindowManager(private val service: LocationService) {
                     switchToMap()
                 },
                 onHistorySelected = { location ->
-                    listener?.onPositionSelected(location.longitude, location.latitude, 0.0)
+                    // ✅ 修复：数据库中存储的是 GCJ-02，需要转换为 WGS-84
+                    val wgs = com.mockloc.util.MapUtils.gcj02ToWgs84(location.longitude, location.latitude)
+                    listener?.onPositionSelected(wgs[0], wgs[1], 0.0)
                 }
             )
             historyController?.initialize()

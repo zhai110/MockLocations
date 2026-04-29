@@ -2,9 +2,11 @@ package com.mockloc.util
 
 import android.content.Context
 import com.mockloc.util.PrefsConfig
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -24,7 +26,7 @@ object AddressCache {
     private const val CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000L  // 24小时过期
     private const val SAVE_DELAY_MS = 500L  // 保存延迟（防抖）
     
-    private var cache: MutableMap<String, CacheEntry>? = null
+    private var cache: MutableMap<String, CacheEntry> = ConcurrentHashMap()
     // 强制使用 applicationContext，防止 Activity Context 导致内存泄漏
     private var appContext: Context? = null
     
@@ -46,7 +48,7 @@ object AddressCache {
     fun init(appContext: Context) {
         this.appContext = appContext.applicationContext
         loadCacheFromPrefs()
-        Timber.d("AddressCache initialized with ${cache?.size ?: 0} entries")
+        Timber.d("AddressCache initialized with ${cache.size} entries")
     }
     
     /**
@@ -58,11 +60,11 @@ object AddressCache {
             val allEntries = prefs?.all
             
             if (allEntries.isNullOrEmpty()) {
-                cache = mutableMapOf()
+                cache.clear()
                 return
             }
             
-            cache = mutableMapOf()
+            cache.clear()
             for ((key, value) in allEntries) {
                 if (value is String) {
                     val parts = value.split("|", limit = 2)
@@ -70,21 +72,19 @@ object AddressCache {
                         val address = parts[0]
                         val timestamp = parts[1].toLongOrNull() ?: 0L
                         
-                        // 检查是否过期
                         if (System.currentTimeMillis() - timestamp < CACHE_EXPIRY_MS) {
-                            cache!![key] = CacheEntry(address, timestamp)
+                            cache[key] = CacheEntry(address, timestamp)
                         }
                     }
                 }
             }
             
-            // 如果缓存过大，清理最旧的条目
-            if (cache!!.size > MAX_CACHE_SIZE) {
+            if (cache.size > MAX_CACHE_SIZE) {
                 cleanupOldEntries()
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to load address cache")
-            cache = mutableMapOf()
+            cache.clear()
         }
     }
     
@@ -114,12 +114,12 @@ object AddressCache {
             editor?.clear()
             
             // 保存新数据
-            cache?.forEach { (key, entry) ->
+            cache.forEach { (key, entry) ->
                 editor?.putString(key, "${entry.address}|${entry.timestamp}")
             }
             
             editor?.apply()
-            Timber.d("Batch saved ${cache?.size ?: 0} cache entries")
+            Timber.d("Batch saved ${cache.size} cache entries")
         } catch (e: Exception) {
             Timber.e(e, "Failed to save address cache")
         }
@@ -134,15 +134,14 @@ object AddressCache {
      */
     fun getAddress(lat: Double, lng: Double): String? {
         val key = "${lat},${lng}"
-        val entry = cache?.get(key)
+        val entry = cache[key]
         
         return if (entry != null && !isExpired(entry)) {
             Timber.d("Cache hit for: $key")
             entry.address
         } else {
-            // 如果存在但已过期，移除
             if (entry != null) {
-                cache?.remove(key)
+                cache.remove(key)
                 saveCacheToPrefs()
             }
             null
@@ -159,12 +158,11 @@ object AddressCache {
     fun putAddress(lat: Double, lng: Double, address: String) {
         val key = "${lat},${lng}"
         
-        // 如果缓存已满，清理最旧的条目
-        if (cache?.size ?: 0 >= MAX_CACHE_SIZE) {
+        if (cache.size >= MAX_CACHE_SIZE) {
             cleanupOldEntries()
         }
         
-        cache?.put(key, CacheEntry(address))
+        cache[key] = CacheEntry(address)
         saveCacheToPrefs()
         Timber.d("Cached address for: $key")
     }
@@ -181,28 +179,27 @@ object AddressCache {
      */
     private fun cleanupOldEntries() {
         val currentTime = System.currentTimeMillis()
-        val expiredKeys = cache?.filterValues { 
+        val expiredKeys = cache.filterValues { 
             currentTime - it.timestamp > CACHE_EXPIRY_MS 
-        }?.keys ?: emptySet()
+        }.keys
         
-        expiredKeys.forEach { cache?.remove(it) }
+        expiredKeys.forEach { cache.remove(it) }
         
-        // 如果仍然超过限制，删除最旧的
-        if ((cache?.size ?: 0) > MAX_CACHE_SIZE) {
-            val sortedEntries = cache?.entries?.sortedBy { it.value.timestamp }
-            val toRemove = sortedEntries?.take(sortedEntries.size - MAX_CACHE_SIZE)
-            toRemove?.forEach { cache?.remove(it.key) }
+        if (cache.size > MAX_CACHE_SIZE) {
+            val sortedEntries = cache.entries.sortedBy { it.value.timestamp }
+            val toRemove = sortedEntries.take(sortedEntries.size - MAX_CACHE_SIZE)
+            toRemove.forEach { cache.remove(it.key) }
         }
         
         saveCacheToPrefs()
-        Timber.d("Cleaned up cache, remaining: ${cache?.size}")
+        Timber.d("Cleaned up cache, remaining: ${cache.size}")
     }
     
     /**
      * 清空所有缓存
      */
     fun clear() {
-        cache?.clear()
+        cache.clear()
         saveCacheToPrefs()
         Timber.d("Address cache cleared")
     }
@@ -212,9 +209,18 @@ object AddressCache {
      */
     fun getStats(): Map<String, Any> {
         return mapOf(
-            "size" to (cache?.size ?: 0),
+            "size" to cache.size,
             "maxSize" to MAX_CACHE_SIZE,
             "expiryHours" to CACHE_EXPIRY_MS / (60 * 60 * 1000)
         )
+    }
+    
+    /**
+     * 释放资源，取消协程作用域
+     */
+    fun destroy() {
+        saveJob?.cancel()
+        saveScope.cancel()
+        Timber.d("AddressCache destroyed")
     }
 }

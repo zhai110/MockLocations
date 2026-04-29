@@ -25,6 +25,7 @@ class VirtualLocationApp : Application() {
 
         @Volatile
         private var instance: VirtualLocationApp? = null
+        @Volatile
         private var database: AppDatabase? = null
 
         fun getInstance(): VirtualLocationApp {
@@ -70,6 +71,9 @@ class VirtualLocationApp : Application() {
 
     override fun onTerminate() {
         super.onTerminate()
+        // 释放 AddressCache 资源，取消协程作用域
+        com.mockloc.util.AddressCache.destroy()
+        Timber.d("Application terminated, resources cleaned up")
     }
 
     /**

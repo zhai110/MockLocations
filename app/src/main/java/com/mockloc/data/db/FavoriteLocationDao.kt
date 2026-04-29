@@ -21,7 +21,7 @@ interface FavoriteLocationDao {
     @Query("SELECT * FROM favorite_location WHERE id = :id")
     suspend fun getById(id: Long): FavoriteLocation?
     
-    @Query("SELECT EXISTS(SELECT 1 FROM favorite_location WHERE latitude = :lat AND longitude = :lng)")
+    @Query("SELECT EXISTS(SELECT 1 FROM favorite_location WHERE ROUND(latitude, 6) = ROUND(:lat, 6) AND ROUND(longitude, 6) = ROUND(:lng, 6))")
     suspend fun exists(lat: Double, lng: Double): Boolean
     
     @Insert
