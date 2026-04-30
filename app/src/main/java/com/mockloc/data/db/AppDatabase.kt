@@ -30,23 +30,34 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         /**
          * 从版本2升级到版本3：
-         * 1. 清理搜索历史表中的重复坐标记录（保留最早的一条）
+         * 1. 清理搜索历史表中的重复坐标记录（保留最新的一条）
          * 2. 为搜索历史表添加唯一索引，防止后续产生重复
          */
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // 1. 清理重复数据：保留每个坐标下 id 最小（最早插入）的那条记录
-                database.execSQL("""
-                    DELETE FROM search_history 
-                    WHERE id NOT IN (
-                        SELECT MIN(id) FROM search_history GROUP BY latitude, longitude
+                try {
+                    // 1. 清理重复数据：保留每个坐标下 timestamp 最大（最新）的那条记录
+                    database.execSQL("""
+                        DELETE FROM search_history 
+                        WHERE id NOT IN (
+                            SELECT id FROM (
+                                SELECT id, MAX(timestamp) as max_ts 
+                                FROM search_history 
+                                GROUP BY latitude, longitude
+                            )
+                        )
+                    """.trimIndent())
+                    
+                    // 2. 创建唯一索引：同一经纬度只保留一条记录
+                    database.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS idx_search_lat_lng_unique ON search_history(latitude, longitude)"
                     )
-                """.trimIndent())
-                
-                // 2. 创建唯一索引：同一经纬度只保留一条记录
-                database.execSQL(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_search_lat_lng_unique ON search_history(latitude, longitude)"
-                )
+                } catch (e: Exception) {
+                    // 如果迁移失败，记录日志但不崩溃
+                    android.util.Log.e("AppDatabase", "MIGRATION_2_3 failed: ${e.message}", e)
+                    // 不抛出异常，让 Room 继续尝试其他方案
+                    throw e
+                }
             }
         }
 

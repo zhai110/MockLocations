@@ -99,14 +99,9 @@ class VirtualLocationApp : Application() {
             // 添加迁移策略：从版本1升级到版本2，再升级到版本3
             .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
         
-        // ✅ DEBUG 模式：允许破坏性迁移（快速重置数据库）
-        // ✅ 生产模式：仅使用 Migration，失败时抛出异常由上层处理
-        if (BuildConfig.DEBUG) {
-            builder.fallbackToDestructiveMigration()
-            Timber.d("Database initialized with fallbackToDestructiveMigration (DEBUG mode)")
-        } else {
-            Timber.d("Database initialized with strict migration policy (RELEASE mode)")
-        }
+        // ✅ 生产环境 & 测试环境：严格使用 Migration，保护用户数据
+        // ✅ 如需调试，手动清除应用数据后重新安装
+        Timber.d("Database initialized with strict migration policy")
         
         database = builder.build()
     }
