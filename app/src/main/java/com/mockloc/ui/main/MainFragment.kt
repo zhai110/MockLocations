@@ -395,34 +395,26 @@ class MainFragment : Fragment() {
                 
                 // ✅ 优化：使用 PoiSearchHelper 进行异步逆地理编码
                 val helper = com.mockloc.repository.PoiSearchHelper(requireContext())
-                var address = ""
                 
-                // 使用 suspendCancellableCoroutine 将回调转为协程
-                kotlinx.coroutines.suspendCancellableCoroutine<String> { cont ->
-                    helper.latLngToAddress(latitude, longitude) { result ->
-                        if (cont.isActive) cont.resume(result) {}
+                val (resolvedName, resolvedAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
+                    helper.latLngToAddress(latitude, longitude) { name, fullAddress ->
+                        if (cont.isActive) cont.resume(Pair(name, fullAddress)) {}
                     }
-                }.let { resolvedAddress ->
-                    address = resolvedAddress
                 }
                 
-                Timber.d("Fresh address resolved: '$address'")
-                
-                val name = if (address.isNotEmpty() && !address.contains("°N")) {
-                    // 使用地址的第一行作为名称
-                    address.split(",").firstOrNull()?.trim() ?: "未知位置"
+                val name = if (resolvedName.isNotEmpty()) {
+                    resolvedName
                 } else {
-                    // ✅ 优化：添加方向标识，使坐标显示更友好 (例如: 39.9042°N, 116.4074°E)
                     val latDir = if (latitude >= 0) "N" else "S"
                     val lngDir = if (longitude >= 0) "E" else "W"
                     String.format("%.4f°%s, %.4f°%s", Math.abs(latitude), latDir, Math.abs(longitude), lngDir)
                 }
                 
-                Timber.d("Creating HistoryLocation: name='$name', address='$address'")
+                Timber.d("Creating HistoryLocation: name='$name', address='$resolvedAddress'")
                 
                 val historyLocation = com.mockloc.data.db.HistoryLocation(
                     name = name,
-                    address = address,
+                    address = resolvedAddress,
                     latitude = latitude,
                     longitude = longitude
                 )
@@ -439,7 +431,7 @@ class MainFragment : Fragment() {
                     // 坐标相同，只更新时间戳和名称
                     val updatedRecord = lastRecord.copy(
                         name = name,
-                        address = address,
+                        address = resolvedAddress,
                         timestamp = System.currentTimeMillis()
                     )
                     db.historyLocationDao().update(updatedRecord)
@@ -979,38 +971,20 @@ class MainFragment : Fragment() {
         } else {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    // ✅ API 33+ 兼容性修复：先检查 Geocoder 是否可用
-                    if (!android.location.Geocoder.isPresent()) {
-                        Timber.w("Geocoder service is not available on this device")
-                        return@launch
-                    }
-                    
-                    val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
-                    
-                    // ✅ API 33+: getFromLocation 可能返回 null 或抛出 IOException
-                    @Suppress("DEPRECATION")  // getFromLocation 在 Android 14+ 已弃用，推荐使用异步 API
-                    val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
-                    
-                    if (addresses != null && addresses.isNotEmpty()) {
-                        val addr = addresses[0].getAddressLine(0) ?: ""
-                        withContext(Dispatchers.Main) {
-                            if (_binding != null && addr.isNotEmpty()) {
-                                AnimationHelper.fadeIn(binding.addressText, 200)
-                                binding.addressText.text = addr
-                            }
+                    val helper = com.mockloc.repository.PoiSearchHelper(requireContext())
+                    val (_, fullAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
+                        helper.latLngToAddress(latLng.latitude, latLng.longitude) { name, addr ->
+                            if (cont.isActive) cont.resume(Pair(name, addr)) {}
                         }
-                    } else {
-                        Timber.d("Geocoder returned empty result for: ${latLng.latitude}, ${latLng.longitude}")
                     }
-                } catch (e: java.io.IOException) {
-                    // ✅ API 33+ 常见异常：网络问题或服务不可用
-                    Timber.w(e, "Geocoder IO error (API 33+ may throw IOException)")
-                } catch (e: IllegalArgumentException) {
-                    // ✅ API 33+ 新增：无效坐标会抛出此异常
-                    Timber.w(e, "Invalid coordinates for Geocoder: ${latLng.latitude}, ${latLng.longitude}")
+                    withContext(Dispatchers.Main) {
+                        if (_binding != null && fullAddress.isNotEmpty()) {
+                            AnimationHelper.fadeIn(binding.addressText, 200)
+                            binding.addressText.text = fullAddress
+                        }
+                    }
                 } catch (e: Exception) {
-                    // ✅ 捕获其他未知异常
-                    Timber.e(e, "Unexpected Geocoder error")
+                    Timber.w(e, "逆地理编码失败")
                 }
             }
         }
@@ -1116,10 +1090,10 @@ class MainFragment : Fragment() {
                             UIFeedbackHelper.showToast(requireContext(), "该位置已在收藏中")
                         }
                     } else {
-                        val address = getAddressFromLocation(location)
+                        val (name, fullAddress) = getAddressFromLocation(location)
                         val favorite = com.mockloc.data.db.FavoriteLocation(
-                            name = address,
-                            address = address,
+                            name = name,
+                            address = fullAddress,
                             latitude = location.latitude,
                             longitude = location.longitude
                         )
@@ -1142,40 +1116,23 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 获取地址名称
+     * 获取地址名称（使用高德逆地理编码）
      */
-    private fun getAddressFromLocation(latLng: LatLng): String {
+    private suspend fun getAddressFromLocation(latLng: LatLng): Pair<String, String> {
         return try {
-            // ✅ API 33+ 兼容性修复：先检查 Geocoder 是否可用
-            if (!android.location.Geocoder.isPresent()) {
-                Timber.w("Geocoder service is not available")
-                return String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
+            val helper = com.mockloc.repository.PoiSearchHelper(requireContext())
+            val (name, fullAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
+                helper.latLngToAddress(latLng.latitude, latLng.longitude) { n, addr ->
+                    if (cont.isActive) cont.resume(Pair(n, addr)) {}
+                }
             }
-            
-            val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
-            
-            // ✅ API 33+: getFromLocation 可能返回 null 或抛出 IOException
-            @Suppress("DEPRECATION")  // getFromLocation 在 Android 14+ 已弃用，推荐使用异步 API
-            val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
-            
-            if (addresses != null && addresses.isNotEmpty()) {
-                addresses[0].getAddressLine(0) ?: String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
-            } else {
-                Timber.d("Geocoder returned empty result")
-                String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
-            }
-        } catch (e: java.io.IOException) {
-            // ✅ API 33+ 常见异常：网络问题或服务不可用
-            Timber.w(e, "Geocoder IO error in getAddressFromLocation")
-            String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
-        } catch (e: IllegalArgumentException) {
-            // ✅ API 33+ 新增：无效坐标会抛出此异常
-            Timber.w(e, "Invalid coordinates: ${latLng.latitude}, ${latLng.longitude}")
-            String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
+            val displayName = if (name.isNotEmpty()) name else String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
+            val displayAddress = if (fullAddress.isNotEmpty()) fullAddress else displayName
+            Pair(displayName, displayAddress)
         } catch (e: Exception) {
-            // ✅ 捕获其他未知异常
-            Timber.e(e, "Unexpected Geocoder error in getAddressFromLocation")
-            String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
+            Timber.w(e, "逆地理编码失败")
+            val fallback = String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
+            Pair(fallback, fallback)
         }
     }
 
