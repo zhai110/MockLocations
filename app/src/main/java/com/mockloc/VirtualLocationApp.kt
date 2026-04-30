@@ -96,8 +96,8 @@ class VirtualLocationApp : Application() {
             AppDatabase::class.java,
             "virtual_location.db"
         )
-            // 添加迁移策略：从版本1升级到版本2，再升级到版本3
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+            // 添加迁移策略：从版本1→2→3→4
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
         
         // ✅ 生产环境 & 测试环境：严格使用 Migration，保护用户数据
         // ✅ 如需调试，手动清除应用数据后重新安装
