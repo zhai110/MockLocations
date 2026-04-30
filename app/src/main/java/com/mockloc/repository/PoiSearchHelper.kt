@@ -88,7 +88,7 @@ class PoiSearchHelper(private val context: Context) {
     }
 
     // 坐标 -> 地址
-    fun latLngToAddress(lat: Double, lng: Double, callback: (String) -> Unit) {
+    fun latLngToAddress(lat: Double, lng: Double, callback: (name: String, fullAddress: String) -> Unit) {
         Timber.d("逆地理编码: lat=$lat, lng=$lng")
         val geocoderSearch = GeocodeSearch(context)
         val point = LatLonPoint(lat, lng)
@@ -97,19 +97,44 @@ class PoiSearchHelper(private val context: Context) {
         geocoderSearch.setOnGeocodeSearchListener(object : GeocodeSearch.OnGeocodeSearchListener {
             override fun onRegeocodeSearched(result: RegeocodeResult?, rCode: Int) {
                 if (rCode == AMapException.CODE_AMAP_SUCCESS && result != null) {
-                    val address = result.regeocodeAddress.formatAddress
-                    Timber.d("逆地理编码成功: $address")
-                    callback(address)
+                    val fullAddress = result.regeocodeAddress.formatAddress
+                    val name = extractShortName(fullAddress)
+                    Timber.d("逆地理编码成功: name=$name, full=$fullAddress")
+                    callback(name, fullAddress)
                 } else {
                     val errorMsg = getErrorMessage(rCode)
                     Timber.e("逆地理编码失败，错误码: $rCode, 错误信息: $errorMsg")
-                    callback("获取地址失败")
+                    callback("", "")
                 }
             }
 
             override fun onGeocodeSearched(p0: GeocodeResult?, p1: Int) {}
         })
         geocoderSearch.getFromLocationAsyn(query)
+    }
+
+    /**
+     * 从逆地理编码结果中提取最短有意义名称
+     * 优先级：POI名称 > 结构化街道+门牌 > formatAddress最后两段 > 完整地址
+     */
+    private fun extractShortName(fullAddress: String): String {
+        if (fullAddress.isEmpty()) return fullAddress
+
+        // 去掉省+市前缀
+        val trimmed = fullAddress
+            .replaceFirst(Regex("^[^省]+省"), "")
+            .replaceFirst(Regex("^[^市]+市"), "")
+            .trim()
+
+        // 如果去掉省市区后仍较长，尝试只保留区以后的部分
+        val afterDistrict = trimmed.replaceFirst(Regex("^[^区]+区"), "").trim()
+        return if (afterDistrict.length > 2 && afterDistrict.length < trimmed.length) {
+            afterDistrict
+        } else if (trimmed.length > 2) {
+            trimmed
+        } else {
+            fullAddress
+        }
     }
 
     // 地址 -> 坐标

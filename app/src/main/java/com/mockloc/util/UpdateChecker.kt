@@ -63,13 +63,13 @@ class UpdateChecker(private val context: Context) {
      * 
      * @return Pair<versionCode, versionName>
      */
-    fun getCurrentVersionInfo(): Pair<Int, String> {
+    fun getCurrentVersionInfo(): Pair<Long, String> {
         return try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            Pair(packageInfo.versionCode, packageInfo.versionName ?: "1.0.0")
+            Pair(packageInfo.longVersionCode, packageInfo.versionName ?: "1.0.0")
         } catch (e: PackageManager.NameNotFoundException) {
             Timber.e(e, "Failed to get package info")
-            Pair(1, "1.0.0")
+            Pair(1L, "1.0.0")
         }
     }
     

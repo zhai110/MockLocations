@@ -10,7 +10,7 @@ import java.io.Serializable
  */
 data class UpdateInfo(
     @SerializedName("versionCode")
-    val versionCode: Int,
+    val versionCode: Long,
     
     @SerializedName("versionName")
     val versionName: String,
@@ -25,7 +25,7 @@ data class UpdateInfo(
     val forceUpdate: Boolean = false,
     
     @SerializedName("minVersionCode")
-    val minVersionCode: Int = 1,
+    val minVersionCode: Long = 1L,
     
     @SerializedName("fileSize")
     val fileSize: Long = 0L,
@@ -40,14 +40,14 @@ data class UpdateInfo(
     /**
      * 判断是否有新版本
      */
-    fun hasUpdate(currentVersionCode: Int): Boolean {
+    fun hasUpdate(currentVersionCode: Long): Boolean {
         return versionCode > currentVersionCode
     }
     
     /**
      * 判断是否强制更新
      */
-    fun isForceUpdate(currentVersionCode: Int): Boolean {
+    fun isForceUpdate(currentVersionCode: Long): Boolean {
         return forceUpdate && versionCode > currentVersionCode
     }
     
