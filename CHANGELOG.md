@@ -7,6 +7,30 @@
 
 ---
 
+## [v1.4.1] - 2026-04-30
+
+### Fixed - 修复
+- **升级数据丢失问题**：
+  - 移除 DEBUG 模式的 `fallbackToDestructiveMigration()`，防止迁移失败时删除用户数据
+  - 修复 MIGRATION_2_3 逻辑：保留最新的搜索记录（MAX timestamp）而非最早的（MIN id）
+  - 添加迁移异常处理和日志记录，便于排查问题
+- **数据库索引命名规范**：
+  - 统一索引命名为 Room 标准格式：`index_{tableName}_{columns}`
+  - 新增 MIGRATION_3_4：重命名所有自定义索引为 Room 标准命名
+  - 修复 schema 验证不通过导致的潜在问题
+- **升级兼容性**：
+  - 确保从 1.3.0 → 1.4.1 升级时历史记录、收藏、搜索记录完整保留
+  - 解决 DEBUG 模式下测试升级导致数据清空的问题
+
+### Technical Details - 技术细节
+- **数据库版本**：3 → 4
+- **versionCode**：5 → 6
+- **versionName**：1.4.0 → 1.4.1
+- **新增迁移**：MIGRATION_3_4（索引重命名）
+- **优化迁移**：MIGRATION_2_3（保留最新记录）
+
+---
+
 ## [v1.4.0] - 2026-04-29
 
 ### Added - 新增

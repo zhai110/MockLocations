@@ -19,7 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [HistoryLocation::class, FavoriteLocation::class, SearchHistory::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,6 +28,34 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun searchHistoryDao(): SearchHistoryDao
     
     companion object {
+        /**
+         * 从版本3升级到版本4：
+         * 修复索引名称，使其与 Room 自动生成的命名规则一致（index_{tableName}_{columns}）
+         * 旧索引名是自定义的 idx_ 前缀，Room schema 验证不通过
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 重命名 history_location 表的索引
+                database.execSQL("DROP INDEX IF EXISTS idx_history_timestamp")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_history_location_timestamp ON history_location(timestamp)")
+
+                // 重命名 favorite_location 表的索引
+                database.execSQL("DROP INDEX IF EXISTS idx_favorite_timestamp")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_location_timestamp ON favorite_location(timestamp)")
+
+                // 重命名 search_history 表的索引
+                database.execSQL("DROP INDEX IF EXISTS idx_search_keyword")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_keyword ON search_history(keyword)")
+
+                database.execSQL("DROP INDEX IF EXISTS idx_search_timestamp")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_timestamp ON search_history(timestamp)")
+
+                // 重命名 search_history 唯一索引
+                database.execSQL("DROP INDEX IF EXISTS idx_search_lat_lng_unique")
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_search_history_latitude_longitude ON search_history(latitude, longitude)")
+            }
+        }
+
         /**
          * 从版本2升级到版本3：
          * 1. 清理搜索历史表中的重复坐标记录（保留最新的一条）
@@ -48,14 +76,12 @@ abstract class AppDatabase : RoomDatabase() {
                         )
                     """.trimIndent())
                     
-                    // 2. 创建唯一索引：同一经纬度只保留一条记录
+                    // 2. 创建唯一索引：同一经纬度只保留一条记录（使用 Room 标准命名）
                     database.execSQL(
-                        "CREATE UNIQUE INDEX IF NOT EXISTS idx_search_lat_lng_unique ON search_history(latitude, longitude)"
+                        "CREATE UNIQUE INDEX IF NOT EXISTS index_search_history_latitude_longitude ON search_history(latitude, longitude)"
                     )
                 } catch (e: Exception) {
-                    // 如果迁移失败，记录日志但不崩溃
                     android.util.Log.e("AppDatabase", "MIGRATION_2_3 failed: ${e.message}", e)
-                    // 不抛出异常，让 Room 继续尝试其他方案
                     throw e
                 }
             }
@@ -64,7 +90,7 @@ abstract class AppDatabase : RoomDatabase() {
         /**
          * 从版本1升级到版本2：
          * 1. 创建搜索历史表
-         * 2. 为现有表添加索引以优化查询性能
+         * 2. 为现有表添加索引以优化查询性能（使用 Room 标准命名 index_{tableName}_{columns}）
          */
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -81,22 +107,22 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
                 
-                // 2. 为历史记录表添加时间戳索引（优化按时间排序查询）
+                // 2. 为历史记录表添加时间戳索引（Room 标准命名）
                 database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS idx_history_timestamp ON history_location(timestamp)"
+                    "CREATE INDEX IF NOT EXISTS index_history_location_timestamp ON history_location(timestamp)"
                 )
                 
-                // 3. 为收藏位置表添加时间戳索引
+                // 3. 为收藏位置表添加时间戳索引（Room 标准命名）
                 database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS idx_favorite_timestamp ON favorite_location(timestamp)"
+                    "CREATE INDEX IF NOT EXISTS index_favorite_location_timestamp ON favorite_location(timestamp)"
                 )
                 
-                // 4. 为搜索历史表添加复合索引（优化关键词搜索和时间清理）
+                // 4. 为搜索历史表添加复合索引（Room 标准命名）
                 database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS idx_search_keyword ON search_history(keyword)"
+                    "CREATE INDEX IF NOT EXISTS index_search_history_keyword ON search_history(keyword)"
                 )
                 database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS idx_search_timestamp ON search_history(timestamp)"
+                    "CREATE INDEX IF NOT EXISTS index_search_history_timestamp ON search_history(timestamp)"
                 )
             }
         }

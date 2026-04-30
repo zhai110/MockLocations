@@ -1,8 +1,8 @@
 {
-  "versionCode": 5,
-  "versionName": "1.4.0",
-  "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.4.0/app-release.apk",
-  "releaseNotes": "✨ 新增：历史/收藏FAB确认模拟，悬浮窗直接生效\n\n 修复：坐标转换/悬浮窗坐标系/连续选点偏差\n\n⚡ 优化：数据库精度/线程安全/SharedFlow/生命周期\n\n 体验：保留地址信息/相机恢复优化",
+  "versionCode": 6,
+  "versionName": "1.4.1",
+  "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.4.1/app-release.apk",
+  "releaseNotes": "🔧 修复升级数据丢失问题\n• 移除DEBUG模式破坏性迁移\n• 修复MIGRATION_2_3保留最新记录\n• 统一索引命名为Room标准格式\n• 确保1.3.0→1.4.1升级数据完整",
   "forceUpdate": false,
   "minVersionCode": 1,
   "fileSize": 15728640,
