@@ -133,7 +133,7 @@ object AddressCache {
      * @return 缓存的地址，如果不存在则返回 null
      */
     fun getAddress(lat: Double, lng: Double): String? {
-        val key = "${lat},${lng}"
+        val key = formatKey(lat, lng)
         val entry = cache[key]
         
         return if (entry != null && !isExpired(entry)) {
@@ -156,7 +156,7 @@ object AddressCache {
      * @param address 地址字符串
      */
     fun putAddress(lat: Double, lng: Double, address: String) {
-        val key = "${lat},${lng}"
+        val key = formatKey(lat, lng)
         
         if (cache.size >= MAX_CACHE_SIZE) {
             cleanupOldEntries()
@@ -213,6 +213,13 @@ object AddressCache {
             "maxSize" to MAX_CACHE_SIZE,
             "expiryHours" to CACHE_EXPIRY_MS / (60 * 60 * 1000)
         )
+    }
+
+    /**
+     * 格式化缓存 key，保留6位小数（约0.1米精度），避免浮点精度差异导致缓存未命中
+     */
+    private fun formatKey(lat: Double, lng: Double): String {
+        return String.format("%.6f,%.6f", lat, lng)
     }
     
     /**

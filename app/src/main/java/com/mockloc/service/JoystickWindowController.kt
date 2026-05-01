@@ -2,7 +2,6 @@ package com.mockloc.service
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -110,33 +109,12 @@ class JoystickWindowController(
      * 初始化颜色（从主题读取）
      */
     private fun initColors() {
-        val themedContext = createThemedContext()
+        val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(context).first
         primaryColor = ContextCompat.getColor(themedContext, R.color.primary)
         textSecondary = ContextCompat.getColor(themedContext, R.color.text_secondary)
         surface = ContextCompat.getColor(themedContext, R.color.surface)
         surfaceVariant = ContextCompat.getColor(themedContext, R.color.surface_variant)
         divider = ContextCompat.getColor(themedContext, R.color.divider)
-    }
-
-    /**
-     * 创建带主题的 Context
-     * Service 的 context 不会自动跟随系统主题切换，需要手动注入当前 uiMode，
-     * 这样 values-night/themes.xml 中的语义色才能被正确解析。
-     */
-    private fun createThemedContext(): Context {
-        val isNight = (context.resources.configuration.uiMode
-                and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-                ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        val nightModeFlags = if (isNight) {
-            android.content.res.Configuration.UI_MODE_NIGHT_YES
-        } else {
-            android.content.res.Configuration.UI_MODE_NIGHT_NO
-        }
-        val config = android.content.res.Configuration(context.resources.configuration).also {
-            it.uiMode = (it.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or nightModeFlags
-        }
-        val configContext = context.createConfigurationContext(config)
-        return ContextThemeWrapper(configContext, R.style.Theme_VirtualLocation)
     }
 
     /**

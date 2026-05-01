@@ -14,8 +14,9 @@ interface SearchHistoryDao {
     
     /**
      * 根据坐标查询搜索历史（检查是否已存在）
+     * 使用 ROUND 避免浮点精度导致查不到已存在的记录
      */
-    @Query("SELECT * FROM search_history WHERE latitude = :lat AND longitude = :lng LIMIT 1")
+    @Query("SELECT * FROM search_history WHERE ROUND(latitude, 6) = ROUND(:lat, 6) AND ROUND(longitude, 6) = ROUND(:lng, 6) LIMIT 1")
     suspend fun findByCoordinates(lat: Double, lng: Double): SearchHistory?
     
     /**
@@ -55,8 +56,8 @@ interface SearchHistoryDao {
     suspend fun clearAll()
     
     /**
-     * 限制最多保留100条记录，删除旧的
+     * 限制最多保留指定条数记录，删除旧的
      */
-    @Query("DELETE FROM search_history WHERE id NOT IN (SELECT id FROM search_history ORDER BY timestamp DESC LIMIT 100)")
-    suspend fun limitRecords()
+    @Query("DELETE FROM search_history WHERE id NOT IN (SELECT id FROM search_history ORDER BY timestamp DESC LIMIT :limit)")
+    suspend fun limitRecords(limit: Int = 100)
 }
