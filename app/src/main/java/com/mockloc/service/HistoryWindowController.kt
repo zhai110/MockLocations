@@ -279,7 +279,7 @@ class HistoryWindowController(
         searchEditText?.setOnTouchListener { v, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
                 // 先启用焦点
-                enableSearchFocus()
+                enableSearchFocus(windowManager, windowParams)
                 // 延迟请求焦点和显示键盘，确保 WindowManager 已更新
                 v.post {
                     v.requestFocus()
@@ -292,9 +292,9 @@ class HistoryWindowController(
 
         searchEditText?.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                enableSearchFocus()
+                enableSearchFocus(windowManager, windowParams)
             } else {
-                disableSearchFocus()
+                disableSearchFocus(windowManager, windowParams)
             }
         }
 
@@ -355,33 +355,6 @@ class HistoryWindowController(
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load history records")
             }
-        }
-    }
-
-    /**
-     * 启用搜索框焦点（移除 FLAG_NOT_FOCUSABLE）
-     */
-    private fun enableSearchFocus() {
-        try {
-            windowParams.flags = android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
-        } catch (e: Exception) {
-            Timber.w(e, "enableSearchFocus failed")
-        }
-    }
-
-    /**
-     * 禁用搜索框焦点（恢复 FLAG_NOT_FOCUSABLE）
-     */
-    private fun disableSearchFocus() {
-        try {
-            windowParams.flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
-        } catch (e: Exception) {
-            Timber.w(e, "disableSearchFocus failed")
         }
     }
 }

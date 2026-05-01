@@ -1,6 +1,8 @@
 package com.mockloc.service
 
 import android.view.View
+import android.view.WindowManager
+import timber.log.Timber
 
 /**
  * 悬浮窗控制器接口
@@ -43,4 +45,37 @@ interface WindowController {
      * 窗口是否可见
      */
     val isVisible: Boolean
+    
+    /**
+     * 启用搜索框焦点（移除 FLAG_NOT_FOCUSABLE）
+     * 
+     * @param windowManager 窗口管理器
+     * @param windowParams 窗口参数
+     */
+    fun enableSearchFocus(windowManager: WindowManager, windowParams: WindowManager.LayoutParams) {
+        try {
+            windowParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
+        } catch (e: Exception) {
+            Timber.w(e, "enableSearchFocus failed")
+        }
+    }
+    
+    /**
+     * 禁用搜索框焦点（恢复 FLAG_NOT_FOCUSABLE）
+     * 
+     * @param windowManager 窗口管理器
+     * @param windowParams 窗口参数
+     */
+    fun disableSearchFocus(windowManager: WindowManager, windowParams: WindowManager.LayoutParams) {
+        try {
+            windowParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
+        } catch (e: Exception) {
+            Timber.w(e, "disableSearchFocus failed")
+        }
+    }
 }
