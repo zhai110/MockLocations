@@ -434,7 +434,7 @@ class MapWindowController(
         // ===== 搜索框事件 =====
         searchEditText?.setOnTouchListener { v, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
-                enableSearchFocus()
+                enableSearchFocus(windowManager, windowParams)
                 v.post {
                     v.requestFocus()
                     val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
@@ -452,9 +452,9 @@ class MapWindowController(
 
         searchEditText?.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                enableSearchFocus()
+                enableSearchFocus(windowManager, windowParams)
             } else {
-                disableSearchFocus()
+                disableSearchFocus(windowManager, windowParams)
             }
         }
 
@@ -913,33 +913,6 @@ class MapWindowController(
             Timber.d("悬浮窗地图 AMapLocationClient 已启动")
         } catch (e: Exception) {
             Timber.e(e, "悬浮窗地图初始化定位客户端失败")
-        }
-    }
-
-    /**
-     * 启用搜索框焦点
-     */
-    private fun enableSearchFocus() {
-        try {
-            windowParams.flags = android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
-        } catch (e: Exception) {
-            Timber.w(e, "enableSearchFocus failed")
-        }
-    }
-
-    /**
-     * 禁用搜索框焦点
-     */
-    private fun disableSearchFocus() {
-        try {
-            windowParams.flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            rootView?.let { windowManager.updateViewLayout(it, windowParams) }
-        } catch (e: Exception) {
-            Timber.w(e, "disableSearchFocus failed")
         }
     }
 }
