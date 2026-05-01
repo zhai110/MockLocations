@@ -90,6 +90,16 @@ class PoiSearchHelper(private val context: Context) {
     // 坐标 -> 地址
     fun latLngToAddress(lat: Double, lng: Double, callback: (name: String, fullAddress: String) -> Unit) {
         Timber.d("逆地理编码: lat=$lat, lng=$lng")
+
+        // 优先查缓存，命中则跳过网络请求
+        val cached = com.mockloc.util.AddressCache.getAddress(lat, lng)
+        if (cached != null) {
+            val name = extractShortName(cached)
+            Timber.d("逆地理编码缓存命中: name=$name, full=$cached")
+            callback(name, cached)
+            return
+        }
+
         val geocoderSearch = GeocodeSearch(context)
         val point = LatLonPoint(lat, lng)
         val query = RegeocodeQuery(point, 200f, GeocodeSearch.AMAP)
@@ -100,6 +110,8 @@ class PoiSearchHelper(private val context: Context) {
                     val fullAddress = result.regeocodeAddress.formatAddress
                     val name = extractShortName(fullAddress)
                     Timber.d("逆地理编码成功: name=$name, full=$fullAddress")
+                    // 写入缓存
+                    com.mockloc.util.AddressCache.putAddress(lat, lng, fullAddress)
                     callback(name, fullAddress)
                 } else {
                     val errorMsg = getErrorMessage(rCode)

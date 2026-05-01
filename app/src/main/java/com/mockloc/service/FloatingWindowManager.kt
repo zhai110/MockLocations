@@ -2,7 +2,6 @@ package com.mockloc.service
 
 import android.content.Context
 import android.graphics.PixelFormat
-import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -41,24 +40,7 @@ class FloatingWindowManager(private val service: LocationService) {
      * 带主题的 Context — 根据 isNightMode 创建 ContextThemeWrapper，
      * 确保从资源读取的颜色/主题正确匹配当前暗黑模式。
      */
-    private var themedContext: Context = createThemedContext()
-
-    private fun createThemedContext(): Context {
-        val nightMode = (service.resources.configuration.uiMode
-                and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-                ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        isNightMode = nightMode
-        val nightModeFlags = if (nightMode) {
-            android.content.res.Configuration.UI_MODE_NIGHT_YES
-        } else {
-            android.content.res.Configuration.UI_MODE_NIGHT_NO
-        }
-        val config = android.content.res.Configuration(service.resources.configuration).also {
-            it.uiMode = (it.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or nightModeFlags
-        }
-        val configContext = service.createConfigurationContext(config)
-        return ContextThemeWrapper(configContext, R.style.Theme_VirtualLocation)
-    }
+    private var themedContext: Context = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
 
     private val windowManager: WindowManager =
         service.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager
@@ -468,7 +450,7 @@ class FloatingWindowManager(private val service: LocationService) {
             themedContext = service  // 临时指向 service，避免悬空引用
             
             // 5. 创建新的 themedContext
-            themedContext = createThemedContext()
+            themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
             val savedWindowType = currentWindowType
 
             // 重新初始化控制器
