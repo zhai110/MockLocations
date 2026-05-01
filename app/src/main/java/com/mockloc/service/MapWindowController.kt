@@ -477,7 +477,7 @@ class MapWindowController(
             btnGoPulseAnimator?.cancel()
             isPositionConfirmed = false
             
-            disableSearchFocus()
+            disableSearchFocus(windowManager, windowParams)
             searchScroll?.visibility = View.GONE
             searchEditText?.setText("")
             searchEditText?.clearFocus()
