@@ -316,7 +316,7 @@ class HistoryWindowController(
 
         // 关闭按钮
         btnClose.setOnClickListener {
-            disableSearchFocus()
+            disableSearchFocus(windowManager, windowParams)
             searchEditText?.setText("")
             searchEditText?.clearFocus()
             onSwitchToJoystick()
