@@ -791,7 +791,7 @@ class MainFragment : Fragment() {
      * @param marker 被长按的标记
      */
     private fun showDeletePointDialog(index: Int, marker: com.amap.api.maps.model.Marker) {
-        val pointCount = viewModel.getRouteState().value.routePoints.size
+        val pointCount = viewModel.routeState.value.routePoints.size
         val pointLabel = when {
             index == 0 -> "起点"
             index == pointCount - 1 -> "终点"
@@ -872,19 +872,6 @@ class MainFragment : Fragment() {
                 updateLocationInfo(position)
             }
         })
-        
-        // 设置标记长按监听 - 用于删除路线点
-        aMap.setOnMarkerLongClickListener { marker ->
-            val index = marker.getObject() as? Int
-            val isRouteMode = viewModel.getRouteState().value.isRouteMode
-            if (index != null && isRouteMode) {
-                // 显示确认对话框
-                showDeletePointDialog(index, marker)
-                true // 消费事件
-            } else {
-                false // 不消费事件，让其他监听器处理
-            }
-        }
         
         // 设置相机变化监听
         aMap.addOnCameraChangeListener(object : AMap.OnCameraChangeListener {
