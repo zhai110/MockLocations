@@ -100,8 +100,8 @@
 
     <!-- Mode Choice Chip style - 选中态primary底白字，未选态浅灰底深字，无边框 -->
     <style name="Widget.VirtualLocation.Chip.ModeChoice" parent="Widget.Material3.Chip.Input">
-        <item name="chipBackgroundColor">@color/chip_mode_choice_bg</item>
-        <item name="android:textColor">@color/chip_mode_choice_text</item>
+        <item name="chipBackgroundColor">@color/chip_mode_choice_bg_selector</item>
+        <item name="android:textColor">@color/chip_mode_choice_text_selector</item>
         <item name="chipStrokeWidth">0dp</item>
         <item name="chipCornerRadius">18dp</item>
         <item name="chipMinHeight">32dp</item>
