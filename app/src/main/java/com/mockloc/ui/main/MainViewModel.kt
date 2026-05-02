@@ -11,6 +11,9 @@ import com.amap.api.location.AMapLocationClientOption
 import com.amap.api.maps.model.LatLng
 import com.mockloc.repository.PoiSearchHelper
 import com.mockloc.service.LocationService
+import com.mockloc.service.RoutePlaybackEngine
+import com.mockloc.service.RoutePlaybackState
+import com.mockloc.service.RoutePoint
 import com.mockloc.util.MapUtils
 import com.mockloc.util.PrefsConfig
 import kotlinx.coroutines.Dispatchers
@@ -69,6 +72,14 @@ class MainViewModel(
         val hasNewPosition: Boolean = false
     )
 
+    /** 路线模式状态 */
+    data class RouteState(
+        val isRouteMode: Boolean = false,
+        val routePoints: List<RoutePoint> = emptyList(),
+        val playbackState: RoutePlaybackState = RoutePlaybackState(),
+        val currentPlaybackPosition: LatLng? = null
+    )
+
     /** 底部面板状态 */
     data class BottomSheetState(
         val isExpanded: Boolean = false,
@@ -89,12 +100,34 @@ class MainViewModel(
     private val _bottomSheetState = MutableStateFlow(BottomSheetState())
     val bottomSheetState: StateFlow<BottomSheetState> = _bottomSheetState.asStateFlow()
 
+    private val _routeState = MutableStateFlow(RouteState())
+    val routeState: StateFlow<RouteState> = _routeState.asStateFlow()
+
     // ==================== 依赖 ====================
 
     private var locationService: LocationService? = null
     private var locationClient: AMapLocationClient? = null
     private var poiSearchHelper: PoiSearchHelper? = null
     private val prefs: SharedPreferences = getApplication<Application>().getSharedPreferences(PrefsConfig.MAP_STATE, Application.MODE_PRIVATE)
+
+    private val routePlaybackEngine = RoutePlaybackEngine(viewModelScope) { latLng, bearing ->
+        locationService?.setPositionGcj02(latLng.longitude, latLng.latitude, 55.0)
+        _routeState.update { it.copy(currentPlaybackPosition = latLng) }
+    }
+
+    init {
+        viewModelScope.launch {
+            routePlaybackEngine.state.collect { playbackState ->
+                _routeState.update { it.copy(playbackState = playbackState) }
+                if (!playbackState.isPlaying && _simulationState.value.isSimulating && _routeState.value.isRouteMode) {
+                    _simulationState.update { it.copy(isSimulating = false) }
+                    sendSimulationControlEvent(
+                        SimulationControlEvent(eventType = SimulationControlEvent.EventType.STOP_SIMULATION)
+                    )
+                }
+            }
+        }
+    }
     
     // 定位超时任务
     private var locationTimeoutJob: Job? = null
@@ -560,6 +593,118 @@ class MainViewModel(
         }
     }
 
+    // ==================== 路线模拟 ====================
+
+    fun setRouteMode(enabled: Boolean) {
+        _routeState.update { it.copy(isRouteMode = enabled) }
+        if (!enabled) {
+            routePlaybackEngine.stop()
+        }
+        Timber.d("Route mode: $enabled")
+    }
+
+    fun addRoutePoint(latLng: LatLng) {
+        if (!_routeState.value.isRouteMode) return
+        routePlaybackEngine.addPoint(RoutePoint(latLng))
+        _routeState.update { it.copy(routePoints = routePlaybackEngine.getPoints()) }
+    }
+
+    fun removeLastRoutePoint() {
+        routePlaybackEngine.removeLastPoint()
+        _routeState.update { it.copy(routePoints = routePlaybackEngine.getPoints()) }
+    }
+
+    fun clearRoute() {
+        routePlaybackEngine.clearRoute()
+        _routeState.update { it.copy(routePoints = emptyList(), playbackState = RoutePlaybackState()) }
+    }
+
+    fun toggleRoutePlayback() {
+        val state = routePlaybackEngine.state.value
+        if (state.isPlaying) {
+            routePlaybackEngine.pause()
+        } else {
+            if (!_simulationState.value.isSimulating && _routeState.value.routePoints.size >= 2) {
+                val firstPoint = _routeState.value.routePoints.first().latLng
+                startRouteSimulation(firstPoint.latitude, firstPoint.longitude)
+            }
+            routePlaybackEngine.play()
+        }
+    }
+
+    private fun startRouteSimulation(latitude: Double, longitude: Double) {
+        sendSimulationControlEvent(
+            SimulationControlEvent(
+                eventType = SimulationControlEvent.EventType.START_SIMULATION,
+                latitude = latitude,
+                longitude = longitude
+            )
+        )
+        _simulationState.update { it.copy(isSimulating = true) }
+    }
+
+    fun setRouteLooping(loop: Boolean) {
+        routePlaybackEngine.setLooping(loop)
+    }
+
+    fun setRouteSpeedMultiplier(multiplier: Float) {
+        routePlaybackEngine.setSpeedMultiplier(multiplier)
+    }
+
+    fun saveRouteToDb(name: String) {
+        val points = routePlaybackEngine.getPoints()
+        if (points.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val db = com.mockloc.VirtualLocationApp.getDatabase()
+                val group = "route_${System.currentTimeMillis()}"
+                val routes = points.mapIndexed { index, point ->
+                    com.mockloc.data.db.SavedRoute(
+                        name = name,
+                        routeGroup = group,
+                        latitude = point.latLng.latitude,
+                        longitude = point.latLng.longitude,
+                        pointOrder = index
+                    )
+                }
+                db.savedRouteDao().insertAll(routes)
+                Timber.d("Route saved: $name, ${points.size} points, group=$group")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to save route")
+            }
+        }
+    }
+
+    fun loadRouteFromDb(group: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val db = com.mockloc.VirtualLocationApp.getDatabase()
+                val saved = db.savedRouteDao().getByGroup(group)
+                if (saved.isEmpty()) return@launch
+                val points = saved.map { RoutePoint(LatLng(it.latitude, it.longitude), it.timestamp) }
+                routePlaybackEngine.setRoute(points)
+                _routeState.update {
+                    it.copy(routePoints = points, isRouteMode = true)
+                }
+                Timber.d("Route loaded: $group, ${points.size} points")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load route")
+            }
+        }
+    }
+
+    fun getSavedRouteGroups(onResult: (List<String>) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val groups = com.mockloc.VirtualLocationApp.getDatabase().savedRouteDao().getAllGroups()
+                withContext(Dispatchers.Main) { onResult(groups) }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get route groups")
+                withContext(Dispatchers.Main) { onResult(emptyList()) }
+            }
+        }
+    }
+
     // ==================== 生命周期 ====================
 
     override fun onCleared() {
@@ -567,6 +712,7 @@ class MainViewModel(
         locationClient?.stopLocation()
         locationClient?.onDestroy()
         locationClient = null
+        routePlaybackEngine.destroy()
         Timber.d("MainViewModel cleared")
     }
 }

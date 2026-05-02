@@ -47,8 +47,8 @@ android {
         applicationId = "com.mockloc"
         minSdk = 29
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.4.1"  // ✅ 修复数据库迁移索引名称问题
+        versionCode = 7
+        versionName = "1.5.0"  // 路线模拟功能
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

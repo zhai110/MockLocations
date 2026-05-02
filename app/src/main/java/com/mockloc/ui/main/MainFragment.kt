@@ -28,12 +28,15 @@ import com.amap.api.maps.model.BitmapDescriptorFactory
 import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.model.Marker
 import com.amap.api.maps.model.MarkerOptions
+import com.amap.api.maps.model.Polyline
+import com.amap.api.maps.model.PolylineOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.snackbar.Snackbar
 import com.mockloc.R
 import com.mockloc.databinding.FragmentMainBinding
 import com.mockloc.repository.PoiSearchHelper
 import com.mockloc.service.LocationService
+import com.mockloc.service.RoutePlaybackState
 import com.mockloc.ui.favorite.FavoriteActivity
 import com.mockloc.ui.history.HistoryActivity
 import com.mockloc.ui.search.SearchResultAdapter
@@ -78,6 +81,8 @@ class MainFragment : Fragment() {
     private var pendingPositionFromResult = false  // launcher 回调设置了新位置，onResume 不应覆盖
     private var isNightMode = false  // ✅ 初始值会在 onViewCreated 中根据系统主题正确设置
     private var isManualLayerSelected = false  // 标记用户是否手动选择了图层
+    private var routePolyline: Polyline? = null  // 路线折线
+    private var routePointMarkers: MutableList<Marker> = mutableListOf()  // 路线点标记
     
     // ✅ 搜索框文本监听器（用于清除时临时移除）
     private val searchTextWatcher = object : android.text.TextWatcher {
@@ -301,6 +306,13 @@ class MainFragment : Fragment() {
                 launch {
                     viewModel.bottomSheetState.collect { state ->
                         updateBottomSheetUI(state)
+                    }
+                }
+
+                // 观察路线状态
+                launch {
+                    viewModel.routeState.collect { state ->
+                        updateRouteUI(state)
                     }
                 }
                 
@@ -622,6 +634,153 @@ class MainFragment : Fragment() {
         // 可以在这里更新底部面板的展开/收起状态
     }
 
+    private var lastRoutePointsHash: Int = 0
+
+    private fun updateRouteUI(state: MainViewModel.RouteState) {
+        if (!::aMap.isInitialized) return
+
+        val pointsHash = state.routePoints.hashCode()
+        if (pointsHash != lastRoutePointsHash) {
+            lastRoutePointsHash = pointsHash
+            routePolyline?.remove()
+            routePolyline = null
+            routePointMarkers.forEach { it.remove() }
+            routePointMarkers.clear()
+
+            if (state.routePoints.size >= 2) {
+                val points = state.routePoints.map { it.latLng }
+                routePolyline = aMap.addPolyline(PolylineOptions()
+                    .addAll(points)
+                    .width(8f)
+                    .color(ContextCompat.getColor(requireContext(), R.color.primary))
+                    .geodesic(true))
+            }
+
+            state.routePoints.forEachIndexed { index, point ->
+                val label = when {
+                    index == 0 -> "起"
+                    index == state.routePoints.size - 1 && state.routePoints.size > 1 -> "终"
+                    else -> "${index + 1}"
+                }
+                val bgColor = when {
+                    index == 0 -> ContextCompat.getColor(requireContext(), R.color.route_point_start)
+                    index == state.routePoints.size - 1 && state.routePoints.size > 1 -> ContextCompat.getColor(requireContext(), R.color.route_point_end)
+                    else -> ContextCompat.getColor(requireContext(), R.color.route_point_middle)
+                }
+                val marker = aMap.addMarker(MarkerOptions()
+                    .position(point.latLng)
+                    .icon(createRoutePointIcon(label, bgColor))
+                    .anchor(0.5f, 1.0f)
+                    .draggable(false))
+                routePointMarkers.add(marker)
+            }
+        }
+
+        if (state.playbackState.isPlaying && state.currentPlaybackPosition != null) {
+            aMap.animateCamera(CameraUpdateFactory.newLatLng(state.currentPlaybackPosition))
+        }
+
+        val pointCount = state.routePoints.size
+        binding.routePointCount.text = "$pointCount 个点"
+
+        val playback = state.playbackState
+        if (playback.isPlaying) {
+            binding.routePlayBtn.setImageResource(R.drawable.ic_stop)
+            binding.routeProgressSection.visibility = View.VISIBLE
+            binding.routeProgress.progress = (playback.progress * 100).toInt()
+            val current = playback.currentIndex + 1
+            binding.routeProgressInfo.text = "$current/$pointCount"
+        } else {
+            binding.routePlayBtn.setImageResource(R.drawable.ic_play)
+            if (pointCount >= 2) {
+                binding.routeProgressSection.visibility = View.VISIBLE
+            } else {
+                binding.routeProgressSection.visibility = View.GONE
+            }
+            binding.routeProgress.progress = (playback.progress * 100).toInt()
+        }
+
+        val loopColor = if (playback.isLooping) R.color.primary else R.color.text_hint
+        binding.routeLoopBtn.imageTintList = android.content.res.ColorStateList.valueOf(
+            ContextCompat.getColor(requireContext(), loopColor)
+        )
+
+        val selectedChip = when (playback.speedMultiplier) {
+            0.5f -> binding.speed05x
+            2f -> binding.speed2x
+            4f -> binding.speed4x
+            else -> binding.speed1x
+        }
+        updateSpeedChipSelection(selectedChip)
+    }
+
+    private fun updateSpeedChipSelection(selected: com.google.android.material.chip.Chip) {
+        listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach {
+            it.isChecked = (it == selected)
+        }
+    }
+
+    private fun createRoutePointIcon(label: String, bgColor: Int): com.amap.api.maps.model.BitmapDescriptor {
+        val dp = resources.displayMetrics.density
+        val circleR = 10f * dp
+        val tipH = 8f * dp
+        val pad = 2f * dp
+        val w = (circleR * 2 + pad * 2).toInt()
+        val h = (circleR * 2 + tipH + pad * 2).toInt()
+        val cx = w / 2f
+        val cy = circleR + pad
+        val tipY = cy + circleR + tipH
+
+        val dist = tipY - cy
+        val halfAngleRad = Math.asin((circleR / dist).toDouble())
+        val halfAngleDeg = Math.toDegrees(halfAngleRad).toFloat()
+        val rightX = cx + circleR * Math.sin(halfAngleRad).toFloat()
+        val rightY = cy + circleR * Math.cos(halfAngleRad).toFloat()
+        val leftX = cx - circleR * Math.sin(halfAngleRad).toFloat()
+        val leftY = rightY
+
+        val arcStart = 90f - halfAngleDeg
+        val arcSweep = -(360f - halfAngleDeg * 2)
+
+        val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+
+        val shape = android.graphics.Path()
+        shape.moveTo(cx, tipY)
+        val ctrl1x = cx
+        val ctrl1y = tipY - (tipY - rightY) * 0.6f
+        val ctrl2x = rightX - (rightX - cx) * 0.15f
+        val ctrl2y = rightY + (rightY - cy) * 0.15f
+        shape.cubicTo(ctrl1x, ctrl1y, ctrl2x, ctrl2y, rightX, rightY)
+        shape.arcTo(android.graphics.RectF(cx - circleR, cy - circleR, cx + circleR, cy + circleR), arcStart, arcSweep)
+        val ctrl3x = leftX + (leftX - cx) * (-0.15f)
+        val ctrl3y = leftY + (leftY - cy) * 0.15f
+        val ctrl4x = cx
+        val ctrl4y = tipY - (tipY - leftY) * 0.6f
+        shape.cubicTo(ctrl3x, ctrl3y, ctrl4x, ctrl4y, cx, tipY)
+        shape.close()
+
+        paint.color = bgColor
+        canvas.drawPath(shape, paint)
+
+        paint.style = android.graphics.Paint.Style.STROKE
+        paint.strokeWidth = 1.5f * dp
+        paint.color = 0x33FFFFFF
+        canvas.drawPath(shape, paint)
+
+        paint.style = android.graphics.Paint.Style.FILL
+        paint.color = android.graphics.Color.WHITE
+        paint.textSize = 11f * dp
+        paint.textAlign = android.graphics.Paint.Align.CENTER
+        paint.isFakeBoldText = true
+        val fm = paint.fontMetrics
+        val textY = cy - (fm.ascent + fm.descent) / 2f
+        canvas.drawText(label, cx, textY, paint)
+
+        return com.amap.api.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap)
+    }
+
     /**
      * 初始化地图
      */
@@ -877,13 +1036,63 @@ class MainFragment : Fragment() {
             addToFavorite()
         }
 
-        binding.copyBtn.setOnClickListener {
-            copyCoordinates()
+        binding.routeBtn.setOnClickListener {
+            if (!viewModel.routeState.value.isRouteMode) {
+                binding.chipRouteMode.isChecked = true
+                viewModel.setRouteMode(true)
+                binding.routePanel.visibility = View.VISIBLE
+            }
         }
 
         // FAB按钮
         binding.fab.setOnClickListener {
             toggleSimulation()
+        }
+
+        // 模式切换
+        binding.modeChipGroup.setOnCheckedChangeListener { _, checkedId ->
+            val isRouteMode = checkedId == R.id.chip_route_mode
+            viewModel.setRouteMode(isRouteMode)
+            binding.routePanel.visibility = if (isRouteMode) View.VISIBLE else View.GONE
+        }
+
+        // 路线播放/暂停
+        binding.routePlayBtn.setOnClickListener {
+            val routeState = viewModel.routeState.value
+            if (routeState.routePoints.size < 2) {
+                UIFeedbackHelper.showToast(requireContext(), "至少需要2个路线点")
+                return@setOnClickListener
+            }
+            viewModel.toggleRoutePlayback()
+        }
+
+        // 速度选择
+        binding.speed05x.setOnClickListener {
+            viewModel.setRouteSpeedMultiplier(0.5f)
+            updateSpeedChipSelection(binding.speed05x)
+        }
+        binding.speed1x.setOnClickListener {
+            viewModel.setRouteSpeedMultiplier(1f)
+            updateSpeedChipSelection(binding.speed1x)
+        }
+        binding.speed2x.setOnClickListener {
+            viewModel.setRouteSpeedMultiplier(2f)
+            updateSpeedChipSelection(binding.speed2x)
+        }
+        binding.speed4x.setOnClickListener {
+            viewModel.setRouteSpeedMultiplier(4f)
+            updateSpeedChipSelection(binding.speed4x)
+        }
+
+        // 循环
+        binding.routeLoopBtn.setOnClickListener {
+            val isLooping = !viewModel.routeState.value.playbackState.isLooping
+            viewModel.setRouteLooping(isLooping)
+        }
+
+        // 清除路线
+        binding.routeClearBtn.setOnClickListener {
+            viewModel.clearRoute()
         }
     }
 
@@ -891,15 +1100,20 @@ class MainFragment : Fragment() {
      * 地图点击事件
      */
     private fun onMapClick(latLng: LatLng) {
-        // 如果是拖动后松开的点击，忽略
         if (isMapDragging) {
             Timber.d("Map click ignored (after drag), isMapDragging=$isMapDragging")
             return
         }
         
+        val routeState = viewModel.routeState.value
+        if (routeState.isRouteMode && !routeState.playbackState.isPlaying) {
+            viewModel.addRoutePoint(latLng)
+            Timber.d("Route point added: ${latLng.latitude}, ${latLng.longitude}")
+            return
+        }
+        
         Timber.d("Map clicked: ${latLng.latitude}, ${latLng.longitude}, isMapDragging=$isMapDragging")
         viewModel.hideSearchResults()
-        // 点击地图选择位置，但不移动相机（避免拖动地图后被拉回）
         viewModel.selectPosition(latLng, moveCamera = false)
         updateLocationInfo(latLng)
     }
@@ -1133,20 +1347,6 @@ class MainFragment : Fragment() {
             Timber.w(e, "逆地理编码失败")
             val fallback = String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
             Pair(fallback, fallback)
-        }
-    }
-
-    /**
-     * 复制坐标
-     */
-    private fun copyCoordinates() {
-        viewModel.mapState.value.markedPosition?.let { location ->
-            val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val clip = android.content.ClipData.newPlainText("coordinates", "${location.latitude}, ${location.longitude}")
-            clipboard.setPrimaryClip(clip)
-            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_coordinates_copied))
-        } ?: run {
-            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_please_select_location))
         }
     }
 
@@ -1432,6 +1632,12 @@ class MainFragment : Fragment() {
         aMap.setOnMapLongClickListener(null)
         aMap.setOnMarkerDragListener(null)
         
+        routePolyline?.remove()
+        routePolyline = null
+        routePointMarkers.forEach { it.remove() }
+        routePointMarkers.clear()
+        lastRoutePointsHash = 0
+        
         // 清理FAB脉冲动画
         idlePulseAnimator?.cancel()
         idlePulseAnimator = null
@@ -1518,6 +1724,26 @@ class MainFragment : Fragment() {
             
             // 更新底部导航栏背景（使用 backgroundColor 而非 surfaceColor）
             binding.bottomNav.setBackgroundColor(backgroundColor)
+            
+            // 更新模式切换卡片背景
+            binding.modeTabCard.setCardBackgroundColor(surfaceColor)
+            
+            // 更新模式切换Chip颜色
+            val onPrimaryColor = resources.getColor(R.color.on_primary, theme)
+            val textPrimaryResColor = resources.getColor(R.color.text_primary, theme)
+            listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
+                chip.chipBackgroundColor = android.content.res.ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(primaryColor, surfaceColor)
+                )
+                chip.setTextColor(android.content.res.ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(onPrimaryColor, textPrimaryResColor)
+                ))
+            }
+            
+            // 更新路线面板背景
+            binding.routePanel.setCardBackgroundColor(surfaceColor)
             Timber.d("Bottom nav background updated: backgroundColor=#${Integer.toHexString(backgroundColor)}")
             
             // ✅ 通知搜索结果列表刷新，让 Item 重新加载颜色资源
@@ -1562,7 +1788,7 @@ class MainFragment : Fragment() {
             updateButtonIconTint(binding.inputCoordsBtn, primaryColor, textSecondaryColor)
             updateButtonIconTint(binding.historyBtn, primaryColor, textSecondaryColor)
             updateButtonIconTint(binding.favoriteBtn, primaryColor, textSecondaryColor)
-            updateButtonIconTint(binding.copyBtn, primaryColor, textSecondaryColor)
+            updateButtonIconTint(binding.routeBtn, primaryColor, textSecondaryColor)
             
             // 直接设置选中项指示器颜色（绕过 configChanges 导致的资源不刷新问题）
             binding.bottomNav.setItemActiveIndicatorColor(

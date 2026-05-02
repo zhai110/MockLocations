@@ -97,7 +97,7 @@ class VirtualLocationApp : Application() {
             "virtual_location.db"
         )
             // 添加迁移策略：从版本1→2→3→4
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5)
         
         // ✅ 生产环境 & 测试环境：严格使用 Migration，保护用户数据
         // ✅ 如需调试，手动清除应用数据后重新安装

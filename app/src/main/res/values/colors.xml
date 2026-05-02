@@ -3,6 +3,11 @@
     <!-- 主色调 - 蓝绿色系（Teal） -->
     <color name="primary">#26A69A</color>
     <color name="on_primary">#FFFFFF</color>
+
+    <!-- Route point marker colors -->
+    <color name="route_point_start">#4CAF50</color>
+    <color name="route_point_end">#F44336</color>
+    <color name="route_point_middle">#2196F3</color>
     <!-- primary_container: 比 background 稍深的青绿色，用于选中态背景 -->
     <color name="primary_container">#B2DFDB</color>
     <color name="on_primary_container">#00201C</color>

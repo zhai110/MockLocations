@@ -23,6 +23,9 @@ interface FavoriteLocationDao {
     
     @Query("SELECT EXISTS(SELECT 1 FROM favorite_location WHERE ROUND(latitude, 6) = ROUND(:lat, 6) AND ROUND(longitude, 6) = ROUND(:lng, 6))")
     suspend fun exists(lat: Double, lng: Double): Boolean
+
+    @Query("SELECT * FROM favorite_location WHERE ROUND(latitude, 6) = ROUND(:lat, 6) AND ROUND(longitude, 6) = ROUND(:lng, 6) LIMIT 1")
+    suspend fun getByCoordinates(lat: Double, lng: Double): FavoriteLocation?
     
     @Insert
     suspend fun insert(location: FavoriteLocation)
