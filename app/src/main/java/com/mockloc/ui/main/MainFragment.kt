@@ -1914,6 +1914,9 @@ class MainFragment : Fragment() {
             // ✅ 更新速度 Chip 的颜色
             updateSpeedChipsColors()
             
+            // ✅ 更新路线模拟进度条颜色
+            updateRouteProgressColors()
+            
             // ✅ 更新位置信息卡片内的文字颜色
             // 卡片背景是 primary（蓝绿色），所以文字保持白色
             binding.latitudeText.setTextColor(android.graphics.Color.WHITE)
@@ -2025,6 +2028,30 @@ class MainFragment : Fragment() {
             Timber.d("Speed chips colors updated for theme change")
         } catch (e: Exception) {
             Timber.e(e, "Failed to update speed chips colors")
+        }
+    }
+    
+    /**
+     * 更新路线模拟进度条颜色
+     */
+    private fun updateRouteProgressColors() {
+        try {
+            val resources = requireContext().resources
+            val theme = requireContext().theme
+            
+            // 获取最新的颜色
+            val primaryColor = resources.getColor(R.color.primary, theme)
+            val dividerColor = resources.getColor(R.color.divider, theme)
+            
+            // 更新进度条前景色（progressTint）
+            binding.routeProgress.progressTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+            
+            // 更新进度条背景色（progressBackgroundTint）
+            binding.routeProgress.progressBackgroundTintList = android.content.res.ColorStateList.valueOf(dividerColor)
+            
+            Timber.d("Route progress bar colors updated for theme change")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update route progress bar colors")
         }
     }
 }
