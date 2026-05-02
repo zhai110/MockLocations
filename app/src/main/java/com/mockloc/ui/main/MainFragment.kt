@@ -1897,6 +1897,14 @@ class MainFragment : Fragment() {
             // ✅ 更新路线折线颜色（重新绘制）
             updateRoutePolylineColor()
             
+            // ✅ 强制刷新所有 Chip 的 drawable state（确保主题切换后颜色正确更新）
+            listOf(
+                binding.chipPointMode, binding.chipRouteMode,
+                binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x
+            ).forEach { chip ->
+                chip.post { chip.refreshDrawableState() }
+            }
+            
             // ✅ 更新路线模拟进度条颜色
             updateRouteProgressColors()
             
