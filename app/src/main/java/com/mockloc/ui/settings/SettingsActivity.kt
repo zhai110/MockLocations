@@ -441,6 +441,12 @@ class SettingsActivity : AppCompatActivity() {
             // 更新所有图标 tint 颜色
             updateIconTints(binding.root, textHintColor)
             
+            // ✅ 更新 SeekBar（滑动条）颜色
+            updateSeekBarColors(textHintColor, onPrimaryContainerColor)
+            
+            // ✅ 更新 SwitchMaterial（开关）颜色
+            updateSwitchColors(textHintColor, onPrimaryContainerColor)
+            
             Timber.d("SettingsActivity view backgrounds updated for theme change")
         } catch (e: Exception) {
             Timber.e(e, "Failed to update SettingsActivity view backgrounds")
@@ -509,6 +515,65 @@ class SettingsActivity : AppCompatActivity() {
                     updateIconTints(view.getChildAt(i), color)
                 }
             }
+        }
+    }
+    
+    /**
+     * 更新 SeekBar 颜色
+     */
+    private fun updateSeekBarColors(trackColor: Int, progressColor: Int) {
+        try {
+            // 创建 ColorStateList
+            val progressTintList = android.content.res.ColorStateList.valueOf(progressColor)
+            val trackTintList = android.content.res.ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_enabled),
+                    intArrayOf(-android.R.attr.state_enabled)
+                ),
+                intArrayOf(trackColor, trackColor)
+            )
+            
+            // 更新所有 SeekBar
+            listOf(
+                binding.seekbarWalkingSpeed,
+                binding.seekbarRunningSpeed,
+                binding.seekbarCyclingSpeed
+            ).forEach { seekBar ->
+                seekBar.progressTintList = progressTintList
+                seekBar.thumbTintList = progressTintList
+                seekBar.progressBackgroundTintList = trackTintList
+            }
+            
+            Timber.d("SeekBar colors updated")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update SeekBar colors")
+        }
+    }
+    
+    /**
+     * 更新 SwitchMaterial 颜色
+     */
+    private fun updateSwitchColors(trackColor: Int, thumbColor: Int) {
+        try {
+            // 创建 ColorStateList
+            val trackTintList = android.content.res.ColorStateList.valueOf(trackColor)
+            
+            // 更新所有 Switch
+            listOf(
+                binding.switchRandomOffset,
+                binding.switchAutoStart,
+                binding.switchLog,
+                binding.switchJoystickHaptic
+            ).forEach { switch ->
+                switch.trackTintList = trackTintList
+                // 根据开关状态设置滑块颜色
+                val currentThumbColor = if (switch.isChecked) getColor(R.color.primary) else thumbColor
+                switch.thumbTintList = android.content.res.ColorStateList.valueOf(currentThumbColor)
+            }
+            
+            Timber.d("Switch colors updated")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update Switch colors")
         }
     }
     

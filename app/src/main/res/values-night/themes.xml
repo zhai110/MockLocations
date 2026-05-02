@@ -22,13 +22,4 @@
         <item name="rippleColor">@color/primary_light</item>
         <item name="cornerRadius">8dp</item>
     </style>
-    
-    <!-- SwitchMaterial 自定义样式 - 夜间模式 -->
-    <style name="Widget.VirtualLocation.Switch" parent="Widget.Material3.CompoundButton.Switch">
-        <!-- 关闭状态：轨道使用浅灰色，滑块使用深色 -->
-        <item name="trackTint">@color/text_hint</item>
-        <item name="trackDecorationTint">@color/text_secondary</item>
-        <item name="thumbTint">@color/text_secondary</item>
-        <!-- 开启状态会自动使用 primary 颜色（亮蓝绿色） -->
-    </style>
 </resources>
