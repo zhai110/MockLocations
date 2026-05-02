@@ -1894,17 +1894,12 @@ class MainFragment : Fragment() {
             binding.statusText.setTextColor(statusTextColor)
             Timber.d("Status text color updated: isNightMode=$isNightMode")
             
-            // ✅ 更新路线折线颜色（重新绘制）
+            // ✅ 更新路线折线颜色(重新绘制)
             updateRoutePolylineColor()
-            
-            // ✅ 强制刷新所有 Chip 的 drawable state（确保主题切换后颜色正确更新）
-            listOf(
-                binding.chipPointMode, binding.chipRouteMode,
-                binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x
-            ).forEach { chip ->
-                chip.post { chip.refreshDrawableState() }
-            }
-            
+                        
+            // ✅ 强制刷新所有 Chip 的颜色(从最新 theme 动态获取,类似 SearchResultAdapter)
+            updateChipColors()
+                        
             // ✅ 更新路线模拟进度条颜色
             updateRouteProgressColors()
             
@@ -1975,6 +1970,61 @@ class MainFragment : Fragment() {
         }
     }
     
+    /**
+     * 更新所有 Chip 的颜色(从最新 theme 动态获取,类似 SearchResultAdapter)
+     */
+    private fun updateChipColors() {
+        try {
+            val resources = requireContext().resources
+            val theme = requireContext().theme
+            
+            // 从最新 theme 获取颜色
+            val primaryColor = resources.getColor(R.color.primary, theme)
+            val whiteColor = android.graphics.Color.WHITE
+            val textPrimaryColor = resources.getColor(R.color.text_primary, theme)
+            val transparentColor = android.graphics.Color.TRANSPARENT
+            
+            // ✅ 更新模式选择 Chip(单点定位/路线模拟)
+            val modeChipBgSelector = android.content.res.ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf(-android.R.attr.state_checked)
+                ),
+                intArrayOf(primaryColor, transparentColor)
+            )
+            val modeChipTextSelector = android.content.res.ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf(-android.R.attr.state_checked)
+                ),
+                intArrayOf(whiteColor, textPrimaryColor)
+            )
+            
+            listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
+                chip.chipBackgroundColor = modeChipBgSelector
+                chip.setTextColor(modeChipTextSelector)
+            }
+            
+            // ✅ 更新速度 Chip(0.5x/1x/2x/4x)
+            val onPrimaryColor = resources.getColor(R.color.on_primary, theme)
+            val speedChipTextSelector = android.content.res.ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf(-android.R.attr.state_checked)
+                ),
+                intArrayOf(onPrimaryColor, textPrimaryColor)
+            )
+            
+            listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
+                chip.chipBackgroundColor = modeChipBgSelector
+                chip.setTextColor(speedChipTextSelector)
+            }
+            
+            Timber.d("Chip colors updated for theme change")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update chip colors")
+        }
+    }
 
     /**
      * 更新路线模拟进度条颜色
