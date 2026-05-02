@@ -106,7 +106,9 @@
                                 android:layout_marginStart="8dp"
                                 android:layout_marginEnd="8dp"
                                 android:max="10"
-                                android:progress="2" />
+                                android:progress="2"
+                                android:progressDrawable="@drawable/seekbar_progress"
+                                android:thumb="@drawable/seekbar_thumb" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -167,7 +169,9 @@
                                 android:layout_marginStart="8dp"
                                 android:layout_marginEnd="8dp"
                                 android:max="20"
-                                android:progress="7" />
+                                android:progress="7"
+                                android:progressDrawable="@drawable/seekbar_progress"
+                                android:thumb="@drawable/seekbar_thumb" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -228,7 +232,9 @@
                                 android:layout_marginStart="8dp"
                                 android:layout_marginEnd="8dp"
                                 android:max="30"
-                                android:progress="10" />
+                                android:progress="10"
+                                android:progressDrawable="@drawable/seekbar_progress"
+                                android:thumb="@drawable/seekbar_thumb" />
 
                             <TextView
                                 android:layout_width="wrap_content"
