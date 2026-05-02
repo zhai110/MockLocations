@@ -676,21 +676,19 @@ class MainFragment : Fragment() {
                     .anchor(0.5f, 1.0f)
                     .draggable(false))
                 
-                // 使用 snippet 存储索引（高德地图支持）
-                marker?.snippet = index.toString()
-                
-                // 设置标记点击监听器
-                marker?.setOnMarkerClickListener { clickedMarker ->
-                    val clickedIndex = clickedMarker.snippet?.toIntOrNull()
-                    if (clickedIndex != null) {
-                        showRoutePointEditButtons(clickedIndex)
-                        true // 消费事件
-                    } else {
-                        false
-                    }
-                }
-                
                 routePointMarkers.add(marker)
+            }
+            
+            // 设置全局 Marker 点击监听器（高德地图的正确方式）
+            aMap.setOnMarkerClickListener { clickedMarker ->
+                // 查找被点击的 marker 在列表中的索引
+                val clickedIndex = routePointMarkers.indexOf(clickedMarker)
+                if (clickedIndex >= 0) {
+                    showRoutePointEditButtons(clickedIndex)
+                    true // 消费事件
+                } else {
+                    false
+                }
             }
         }
 
