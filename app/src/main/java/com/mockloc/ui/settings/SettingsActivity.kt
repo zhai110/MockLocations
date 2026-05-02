@@ -403,6 +403,7 @@ class SettingsActivity : AppCompatActivity() {
             val backgroundColor = resources.getColor(R.color.background, theme)
             val surfaceColor = resources.getColor(R.color.surface, theme)
             val appBarBackgroundColor = resources.getColor(R.color.app_bar_background, theme)
+            val primaryColor = resources.getColor(R.color.primary, theme)
             val textPrimaryColor = resources.getColor(R.color.text_primary, theme)
             val textSecondaryColor = resources.getColor(R.color.text_secondary, theme)
             val textHintColor = resources.getColor(R.color.text_hint, theme)
@@ -455,6 +456,15 @@ class SettingsActivity : AppCompatActivity() {
 
             // ✅ 更新 SwitchMaterial（开关）颜色 — 使用 proper ColorStateList
             updateSwitchColorsFixed(resources, theme)
+            
+            // ✅ 更新"恢复默认设置"按钮颜色
+            binding.btnResetDefaults?.let { button ->
+                // OutlinedButton: 背景透明，描边使用 primary 颜色，文字使用 primary
+                button.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                button.strokeColor = android.content.res.ColorStateList.valueOf(primaryColor)
+                button.setTextColor(primaryColor)
+                button.iconTint = android.content.res.ColorStateList.valueOf(primaryColor)
+            }
             
             Timber.d("SettingsActivity view backgrounds updated for theme change")
         } catch (e: Exception) {
