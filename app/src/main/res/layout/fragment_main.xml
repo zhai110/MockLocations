@@ -719,6 +719,38 @@
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
+    <!-- 路线点编辑按钮（默认隐藏） -->
+    <LinearLayout
+        android:id="@+id/route_point_edit_buttons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="80dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:visibility="gone"
+        android:background="@android:color/transparent">
+
+        <ImageButton
+            android:id="@+id/btn_delete_point"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_map_btn"
+            android:src="@drawable/ic_close"
+            android:contentDescription="删除路线点"
+            app:tint="@color/error" />
+
+        <ImageButton
+            android:id="@+id/btn_cancel_select"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_map_btn"
+            android:src="@drawable/ic_back"
+            android:contentDescription="取消选中"
+            app:tint="@color/text_primary" />
+    </LinearLayout>
+
     <!-- 底部导航栏 -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_nav"

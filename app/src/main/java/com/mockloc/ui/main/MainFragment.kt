@@ -84,6 +84,9 @@ class MainFragment : Fragment() {
     private var routePolyline: Polyline? = null  // 路线折线
     private var routePointMarkers: MutableList<Marker> = mutableListOf()  // 路线点标记
     
+    // 路线点编辑
+    private var selectedPointIndex: Int = -1  // 当前选中的路线点索引
+    
     // ✅ 搜索框文本监听器（用于清除时临时移除）
     private val searchTextWatcher = object : android.text.TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -673,8 +676,19 @@ class MainFragment : Fragment() {
                     .anchor(0.5f, 1.0f)
                     .draggable(false))
                 
-                // 存储索引到 marker 中，用于长按删除
-                marker?.setObject(index)
+                // 使用 snippet 存储索引（高德地图支持）
+                marker?.snippet = index.toString()
+                
+                // 设置标记点击监听器
+                marker?.setOnMarkerClickListener { clickedMarker ->
+                    val clickedIndex = clickedMarker.snippet?.toIntOrNull()
+                    if (clickedIndex != null) {
+                        showRoutePointEditButtons(clickedIndex)
+                        true // 消费事件
+                    } else {
+                        false
+                    }
+                }
                 
                 routePointMarkers.add(marker)
             }
@@ -722,6 +736,25 @@ class MainFragment : Fragment() {
         listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach {
             it.isChecked = (it == selected)
         }
+    }
+    
+    /**
+     * 显示路线点编辑按钮
+     */
+    private fun showRoutePointEditButtons(index: Int) {
+        selectedPointIndex = index
+        binding.routePointEditButtons.visibility = View.VISIBLE
+        
+        // 添加弹出动画
+        AnimationHelper.slideUp(binding.routePointEditButtons, 200)
+    }
+    
+    /**
+     * 隐藏路线点编辑按钮
+     */
+    private fun hideRoutePointEditButtons() {
+        selectedPointIndex = -1
+        binding.routePointEditButtons.visibility = View.GONE
     }
 
     private fun createRoutePointIcon(label: String, bgColor: Int): com.amap.api.maps.model.BitmapDescriptor {
@@ -783,43 +816,6 @@ class MainFragment : Fragment() {
         canvas.drawText(label, cx, textY, paint)
 
         return com.amap.api.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap)
-    }
-
-    /**
-     * 显示删除路线点确认对话框
-     * @param index 点的索引
-     * @param marker 被长按的标记
-     */
-    private fun showDeletePointDialog(index: Int, marker: com.amap.api.maps.model.Marker) {
-        val pointCount = viewModel.routeState.value.routePoints.size
-        val pointLabel = when {
-            index == 0 -> "起点"
-            index == pointCount - 1 -> "终点"
-            else -> "第 ${index + 1} 个点"
-        }
-        
-        androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.RoundedDialogTheme)
-            .setTitle("删除路线点")
-            .setMessage("确定要删除 $pointLabel 吗？")
-            .setPositiveButton("删除") { _, _ ->
-                // 删除点
-                viewModel.removeRoutePointAt(index)
-                // 移除对应的 marker
-                marker.remove()
-                routePointMarkers.remove(marker)
-                
-                // 重新绘制路线（因为索引会变化）
-                updateRouteUI(viewModel.routeState.value)
-                
-                // 显示提示
-                com.google.android.material.snackbar.Snackbar.make(
-                    binding.root,
-                    "已删除 $pointLabel",
-                    com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
-                ).show()
-            }
-            .setNegativeButton("取消", null)
-            .show()
     }
 
     /**
@@ -1135,6 +1131,40 @@ class MainFragment : Fragment() {
         binding.routeClearBtn.setOnClickListener {
             viewModel.clearRoute()
         }
+        
+        // 路线点编辑按钮
+        binding.btnDeletePoint.setOnClickListener {
+            if (selectedPointIndex >= 0) {
+                val routeState = viewModel.routeState.value
+                val pointCount = routeState.routePoints.size
+                val pointLabel = when {
+                    selectedPointIndex == 0 -> "起点"
+                    selectedPointIndex == pointCount - 1 -> "终点"
+                    else -> "第 ${selectedPointIndex + 1} 个点"
+                }
+                
+                // 显示确认对话框
+                androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.RoundedDialogTheme)
+                    .setTitle("删除路线点")
+                    .setMessage("确定要删除 $pointLabel 吗？")
+                    .setPositiveButton("删除") { _, _ ->
+                        viewModel.removeRoutePointAt(selectedPointIndex)
+                        hideRoutePointEditButtons()
+                        
+                        com.google.android.material.snackbar.Snackbar.make(
+                            binding.root,
+                            "已删除 $pointLabel",
+                            com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
+                        ).show()
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
+            }
+        }
+        
+        binding.btnCancelSelect.setOnClickListener {
+            hideRoutePointEditButtons()
+        }
     }
 
     /**
@@ -1145,6 +1175,9 @@ class MainFragment : Fragment() {
             Timber.d("Map click ignored (after drag), isMapDragging=$isMapDragging")
             return
         }
+        
+        // 点击地图空白区域，隐藏编辑按钮
+        hideRoutePointEditButtons()
         
         val routeState = viewModel.routeState.value
         if (routeState.isRouteMode && !routeState.playbackState.isPlaying) {
