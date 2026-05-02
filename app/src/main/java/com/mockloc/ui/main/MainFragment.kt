@@ -809,7 +809,7 @@ class MainFragment : Fragment() {
                 routePointMarkers.remove(marker)
                 
                 // 重新绘制路线（因为索引会变化）
-                updateRouteUI(viewModel.getRouteState().value)
+                updateRouteUI(viewModel.routeState.value)
                 
                 // 显示提示
                 com.google.android.material.snackbar.Snackbar.make(
