@@ -377,9 +377,145 @@ class SettingsActivity : AppCompatActivity() {
             android.content.res.Configuration.UI_MODE_NIGHT_YES
         Timber.d("SettingsActivity configuration changed: isNight=$isNight")
         
-        // ✅ 重新加载设置以应用新主题的颜色
-        // 由于使用了 ViewBinding，大部分颜色会自动更新
-        // 这里主要是为了确保 Toolbar 等组件正确刷新
-        loadSettings()
+        // ✅ 手动更新视图背景颜色（因为 configChanges 阻止了自动重建）
+        updateViewBackgrounds()
+    }
+    
+    /**
+     * 手动更新视图背景颜色以响应主题变化
+     */
+    private fun updateViewBackgrounds() {
+        try {
+            val resources = this.resources
+            val theme = this.theme
+            
+            // 获取最新的颜色
+            val backgroundColor = resources.getColor(R.color.background, theme)
+            val surfaceColor = resources.getColor(R.color.surface, theme)
+            val appBarBackgroundColor = resources.getColor(R.color.app_bar_background, theme)
+            val textPrimaryColor = resources.getColor(R.color.text_primary, theme)
+            val textSecondaryColor = resources.getColor(R.color.text_secondary, theme)
+            val textHintColor = resources.getColor(R.color.text_hint, theme)
+            val dividerLightColor = resources.getColor(R.color.divider_light, theme)
+            val onPrimaryContainerColor = resources.getColor(R.color.on_primary_container, theme)
+            
+            // 更新 CoordinatorLayout 背景
+            binding.root.setBackgroundColor(backgroundColor)
+            
+            // 更新 AppBarLayout 背景
+            binding.appBar.setBackgroundColor(appBarBackgroundColor)
+            
+            // 更新 Toolbar 标题和导航图标颜色
+            binding.toolbar.setTitleTextColor(textPrimaryColor)
+            binding.toolbar.navigationIcon?.setTint(textPrimaryColor)
+            
+            // 更新所有卡片背景
+            // 注意：布局中有多个 MaterialCardView，需要通过 ID 或遍历更新
+            // 这里我们使用 getChildAt 遍历 NestedScrollView 的内容
+            val nestedScrollView = binding.root.getChildAt(1) as? androidx.core.widget.NestedScrollView
+            val contentLayout = nestedScrollView?.getChildAt(0) as? android.widget.LinearLayout
+            
+            contentLayout?.let { layout ->
+                for (i in 0 until layout.childCount) {
+                    val child = layout.getChildAt(i)
+                    when (child) {
+                        is com.google.android.material.card.MaterialCardView -> {
+                            child.setCardBackgroundColor(surfaceColor)
+                        }
+                        is android.widget.TextView -> {
+                            // 更新分类标题文字颜色（如"移动设置"、"定位设置"等）
+                            if (child.textSize > 13.spToPx()) { // 标题字体较大
+                                child.setTextColor(onPrimaryContainerColor)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 更新所有文本颜色（通过遍历整个视图树）
+            updateTextColors(binding.root, textPrimaryColor, textSecondaryColor, textHintColor)
+            
+            // 更新所有分隔线颜色
+            updateDividerColors(binding.root, dividerLightColor)
+            
+            // 更新所有图标 tint 颜色
+            updateIconTints(binding.root, textHintColor)
+            
+            Timber.d("SettingsActivity view backgrounds updated for theme change")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update SettingsActivity view backgrounds")
+        }
+    }
+    
+    /**
+     * 递归更新所有 TextView 的颜色
+     */
+    private fun updateTextColors(
+        view: android.view.View,
+        primaryColor: Int,
+        secondaryColor: Int,
+        hintColor: Int
+    ) {
+        when (view) {
+            is android.widget.TextView -> {
+                // 根据当前颜色判断应该更新为什么颜色
+                val currentColor = view.currentTextColor
+                if (currentColor == getColor(R.color.text_primary) || 
+                    currentColor == getColor(android.R.color.white)) {
+                    view.setTextColor(primaryColor)
+                } else if (currentColor == getColor(R.color.text_secondary)) {
+                    view.setTextColor(secondaryColor)
+                } else if (currentColor == getColor(R.color.text_hint)) {
+                    view.setTextColor(hintColor)
+                }
+            }
+            is android.view.ViewGroup -> {
+                for (i in 0 until view.childCount) {
+                    updateTextColors(view.getChildAt(i), primaryColor, secondaryColor, hintColor)
+                }
+            }
+        }
+    }
+    
+    /**
+     * 递归更新所有分隔线颜色
+     */
+    private fun updateDividerColors(view: android.view.View, color: Int) {
+        when (view) {
+            is android.view.View -> {
+                // 检查是否是分隔线（高度为 1dp 的 View）
+                if (view.height <= 2 && view.background != null) {
+                    view.setBackgroundColor(color)
+                }
+            }
+            is android.view.ViewGroup -> {
+                for (i in 0 until view.childCount) {
+                    updateDividerColors(view.getChildAt(i), color)
+                }
+            }
+        }
+    }
+    
+    /**
+     * 递归更新所有 ImageView 的 tint 颜色
+     */
+    private fun updateIconTints(view: android.view.View, color: Int) {
+        when (view) {
+            is android.widget.ImageView -> {
+                view.setColorFilter(color)
+            }
+            is android.view.ViewGroup -> {
+                for (i in 0 until view.childCount) {
+                    updateIconTints(view.getChildAt(i), color)
+                }
+            }
+        }
+    }
+    
+    /**
+     * 扩展函数：sp 转 px
+     */
+    private fun Int.spToPx(): Int {
+        return (this * resources.displayMetrics.scaledDensity).toInt()
     }
 }
