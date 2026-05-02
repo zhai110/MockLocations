@@ -1745,21 +1745,27 @@ class MainFragment : Fragment() {
         // 更新夜间模式状态并切换地图类型
         updateNightModeStatus()
         
-        // 手动更新视图背景颜色（因为 configChanges 阻止了自动重建）
-        updateViewBackgrounds()
+        // ✅ 关键修复：使用 newConfig 创建新的 Context，确保 Resources 从正确的目录加载
+        // 原因：configChanges 阻止了 Activity 重建，requireContext() 返回的是旧 Context
+        // 必须用 newConfig 创建新 Context，Resources 才会使用新的 Configuration
+        val newConfigContext = requireContext().createConfigurationContext(newConfig)
+        val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(newConfigContext).first
+        
+        // 手动更新视图背景颜色（从新的 Context 获取 Resources）
+        updateViewBackgrounds(themedContext)
     }
 
     /**
      * 手动更新视图背景颜色以响应主题变化
+     * @param themedContext 使用 newConfig 创建的新 Context，确保 Resources 从正确的目录加载
      */
-    private fun updateViewBackgrounds() {
+    private fun updateViewBackgrounds(themedContext: Context) {
         if (_binding == null) return
         
         try {
-            // ✅ 关键修复：使用 Resources.getColor(resId, theme) 强制从最新主题获取颜色
-            // ContextCompat.getColor() 在 configChanges 下可能返回缓存的旧颜色
-            val resources = requireContext().resources
-            val theme = requireContext().theme
+            // ✅ 关键修复：使用新的 themedContext 获取 Resources，确保从 color-night 加载资源
+            val resources = themedContext.resources
+            val theme = themedContext.theme
             
             val surfaceColor = resources.getColor(R.color.surface, theme)
             val backgroundColor = resources.getColor(R.color.background, theme)
@@ -1897,8 +1903,8 @@ class MainFragment : Fragment() {
             // ✅ 更新路线折线颜色(重新绘制)
             updateRoutePolylineColor()
             
-            // ✅ 更新 Chip 颜色(从 Resources 重新加载 ColorStateList)
-            updateChipColors()
+            // ✅ 更新 Chip 颜色(从新的 themedContext 获取 Resources)
+            updateChipColors(themedContext)
                         
             // ✅ 更新路线模拟进度条颜色
             updateRouteProgressColors()
@@ -1971,11 +1977,12 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 更新 Chip 颜色(从 Resources 重新加载 ColorStateList)
+     * 更新 Chip 颜色(从新的 themedContext 获取 Resources)
+     * @param themedContext 使用 newConfig 创建的新 Context，确保 Resources 从正确的目录加载
      */
-    private fun updateChipColors() {
-        val resources = requireContext().resources
-        val theme = requireContext().theme
+    private fun updateChipColors(themedContext: Context) {
+        val resources = themedContext.resources
+        val theme = themedContext.theme
         
         // 从 Resources 重新加载 ColorStateList(会自动使用 color-night 目录的资源)
         val bgSelector = resources.getColorStateList(R.color.chip_mode_choice_bg_selector, theme)
