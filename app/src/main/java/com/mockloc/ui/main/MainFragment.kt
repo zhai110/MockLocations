@@ -1870,6 +1870,16 @@ class MainFragment : Fragment() {
             updateButtonBackground(binding.layerBtn, surfaceVariantColor)
             // 定位按钮使用主色调
             updateButtonBackground(binding.locationBtn, primaryColor)
+
+            // ✅ 更新路线点编辑按钮的图标 tint 和背景
+            binding.btnCancelSelect?.let { btn ->
+                updateButtonBackground(btn, surfaceVariantColor)
+                btn.setColorFilter(textPrimaryColor)
+            }
+            binding.btnDeleteRoutePoint?.let { btn ->
+                updateButtonBackground(btn, surfaceVariantColor)
+                btn.setColorFilter(textPrimaryColor)
+            }
             
             // ✅ 更新右侧按钮的图标 tint 颜色
             binding.zoomInBtn.setColorFilter(textPrimaryColor)
@@ -1906,8 +1916,8 @@ class MainFragment : Fragment() {
             // ✅ 更新 Chip 颜色(从新的 themedContext 获取 Resources)
             updateChipColors(themedContext)
                         
-            // ✅ 更新路线模拟进度条颜色
-            updateRouteProgressColors()
+            // ✅ 更新路线模拟进度条颜色（传入 themedContext 确保颜色从正确版本加载）
+            updateRouteProgressColors(themedContext)
             
             // ✅ 更新位置信息卡片内的文字颜色
             // 卡片背景是 primary（蓝绿色），所以文字保持白色
@@ -1977,65 +1987,84 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 更新 Chip 颜色(只刷新文字颜色,背景色由 XML 样式自动处理)
-     * @param themedContext 使用 newConfig 创建的新 Context
+     * 更新 Chip 颜色（手动重建 ColorStateList，强制从 themedContext 加载正确的夜间/白天颜色）
+     * @param themedContext 使用 newConfig 创建的新 Context，确保 Resources 从正确的目录加载
+     *
+     * 背景：configChanges="uiMode" 阻止了 Activity 重建，XML 样式中静态引用的颜色不会重新解析，
+     *       必须通过代码显式创建 ColorStateList 并赋值给 Chip。
      */
     private fun updateChipColors(themedContext: Context) {
         val resources = themedContext.resources
         val theme = themedContext.theme
-        
-        // 模式选择 Chip 文字颜色:选中=白色,未选中=text_primary
+
+        // ── 公共颜色 ────────────────────────────────────────────────
+        val primaryColor       = resources.getColor(R.color.primary, theme)
+        // chip_mode_choice_text = 未选中文字（白天 #666666，夜间 #CCCCCC）
+        val chipTextUnselected = resources.getColor(R.color.chip_mode_choice_text, theme)
+        // 未选中背景 = chip_mode_choice_bg（白天 #F0F0F0，夜间 #2A2A2A）── 不用透明，避免透出地图底色
+        val chipBgUnselected = resources.getColor(R.color.chip_mode_choice_bg, theme)
+        // 选中态文字固定白色（与 chip_mode_choice_text_selector.xml 保持一致）
+        val chipTextSelected = android.graphics.Color.WHITE
+
+        // ── 背景 ColorStateList（选中=primary，未选中=chip_mode_choice_bg）──
+        val chipBgSelector = android.content.res.ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf(-android.R.attr.state_checked)
+            ),
+            intArrayOf(primaryColor, chipBgUnselected)
+        )
+
+        // ── 模式 Chip 文字（选中=白色，未选中=chip_mode_choice_text）──
         val modeTextSelector = android.content.res.ColorStateList(
             arrayOf(
                 intArrayOf(android.R.attr.state_checked),
                 intArrayOf(-android.R.attr.state_checked)
             ),
-            intArrayOf(
-                android.graphics.Color.WHITE,
-                resources.getColor(R.color.text_primary, theme)
-            )
+            intArrayOf(chipTextSelected, chipTextUnselected)
         )
-        
+
         listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
+            chip.chipBackgroundColor = chipBgSelector
             chip.setTextColor(modeTextSelector)
         }
-        
-        // 速度 Chip 文字颜色:选中=on_primary,未选中=text_primary
+
+        // ── 速度 Chip 文字（选中=白色，未选中=chip_mode_choice_text）──
         val speedTextSelector = android.content.res.ColorStateList(
             arrayOf(
                 intArrayOf(android.R.attr.state_checked),
                 intArrayOf(-android.R.attr.state_checked)
             ),
-            intArrayOf(
-                resources.getColor(R.color.on_primary, theme),
-                resources.getColor(R.color.text_primary, theme)
-            )
+            intArrayOf(chipTextSelected, chipTextUnselected)
         )
-        
+
         listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
+            chip.chipBackgroundColor = chipBgSelector
             chip.setTextColor(speedTextSelector)
         }
-        
-        // ✅ 强制刷新所有 Chip 的 Drawable 状态
-        // 这会让 Chip 重新从 XML 样式加载背景色(包括 color-night 目录的资源)
+
+        // ── 强制触发绘制刷新，确保选中态/未选中态即时呈现 ──────────
         listOf(
             binding.chipPointMode, binding.chipRouteMode,
             binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x
         ).forEach { chip ->
-            chip.post { chip.refreshDrawableState() }
+            chip.invalidate()
         }
+
+        Timber.d("Chip colors updated: primary=#${Integer.toHexString(primaryColor)}, bgUnselected=#${Integer.toHexString(chipBgUnselected)}, textUnselected=#${Integer.toHexString(chipTextUnselected)}")
     }
 
 
     /**
      * 更新路线模拟进度条颜色
+     * @param themedContext 使用 newConfig 创建的新 Context，确保颜色从正确目录加载
      */
-    private fun updateRouteProgressColors() {
+    private fun updateRouteProgressColors(themedContext: Context = requireContext()) {
         try {
-            val resources = requireContext().resources
-            val theme = requireContext().theme
+            val resources = themedContext.resources
+            val theme = themedContext.theme
             
-            // 获取最新的颜色
+            // 获取最新的颜色（从正确的 themedContext 加载，避免旧 Context 返回白天模式颜色）
             val primaryColor = resources.getColor(R.color.primary, theme)
             val dividerColor = resources.getColor(R.color.divider, theme)
             

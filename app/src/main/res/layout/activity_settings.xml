@@ -41,6 +41,7 @@
 
             <!-- 移动设置 -->
             <TextView
+                android:id="@+id/text_section_movement"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/settings_movement"
@@ -102,9 +103,9 @@
                                 android:id="@+id/seekbar_walking_speed"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
                                 android:layout_marginStart="8dp"
                                 android:layout_marginEnd="8dp"
+                                android:layout_weight="1"
                                 android:max="10"
                                 android:progress="2" />
 
@@ -163,9 +164,9 @@
                                 android:id="@+id/seekbar_running_speed"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
                                 android:layout_marginStart="8dp"
                                 android:layout_marginEnd="8dp"
+                                android:layout_weight="1"
                                 android:max="20"
                                 android:progress="7" />
 
@@ -224,9 +225,9 @@
                                 android:id="@+id/seekbar_cycling_speed"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
                                 android:layout_marginStart="8dp"
                                 android:layout_marginEnd="8dp"
+                                android:layout_weight="1"
                                 android:max="30"
                                 android:progress="10" />
 
@@ -244,6 +245,7 @@
 
             <!-- 定位设置 -->
             <TextView
+                android:id="@+id/text_section_location"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
@@ -487,6 +489,7 @@
 
             <!-- 其他设置 -->
             <TextView
+                android:id="@+id/text_section_other"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
