@@ -125,6 +125,45 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <!-- 模式切换标签（单点/路线） -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/mode_tab_card"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="108dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:cardCornerRadius="20dp"
+        app:strokeWidth="0dp"
+        app:cardElevation="4dp">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/mode_chip_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="3dp"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_point_mode"
+                style="@style/Widget.VirtualLocation.Chip.ModeChoice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="单点定位"
+                android:checked="true"
+                app:checkedIconVisible="false" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_route_mode"
+                style="@style/Widget.VirtualLocation.Chip.ModeChoice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="路线模拟"
+                app:checkedIconVisible="false" />
+        </com.google.android.material.chip.ChipGroup>
+    </com.google.android.material.card.MaterialCardView>
+
     <!-- 地图控制按钮 -->
     <LinearLayout
         android:id="@+id/map_controls"
@@ -466,7 +505,7 @@
                 android:layout_height="wrap_content" />
 
             <LinearLayout
-                android:id="@+id/copy_btn"
+                android:id="@+id/route_btn"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -480,18 +519,204 @@
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@drawable/ic_copy"
+                    android:src="@drawable/ic_route"
                     app:tint="@color/primary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="@string/copy_coords"
+                    android:text="路线"
                     android:textColor="@color/text_secondary"
                     android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
+
+        <!-- 路线控制栏（默认隐藏，路线模式时显示） -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/route_panel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="6dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_route"
+                    app:tint="@color/primary" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:text="路线模拟"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/route_point_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 个点"
+                    android:textColor="@color/text_hint"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- 进度条 -->
+            <LinearLayout
+                android:id="@+id/route_progress_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="4dp"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:id="@+id/route_progress"
+                    style="@android:style/Widget.ProgressBar.Horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="@color/primary"
+                    android:progressBackgroundTint="@color/divider" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="起点"
+                        android:textColor="@color/text_hint"
+                        android:textSize="9sp" />
+
+                    <TextView
+                        android:id="@+id/route_progress_info"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textColor="@color/text_hint"
+                        android:textSize="9sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:text="终点"
+                        android:textColor="@color/text_hint"
+                        android:textSize="9sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 控制按钮行 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="10dp">
+
+                <ImageButton
+                    android:id="@+id/route_play_btn"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="@drawable/bg_fab_small"
+                    android:src="@drawable/ic_play"
+                    android:contentDescription="播放"
+                    app:tint="@android:color/white" />
+
+                <LinearLayout
+                    android:id="@+id/speed_chips"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/speed_0_5x"
+                        style="@style/Widget.VirtualLocation.Chip.Speed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="26dp"
+                        android:text="0.5x" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/speed_1x"
+                        style="@style/Widget.VirtualLocation.Chip.Speed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="26dp"
+                        android:text="1x"
+                        android:checked="true" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/speed_2x"
+                        style="@style/Widget.VirtualLocation.Chip.Speed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="26dp"
+                        android:text="2x" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/speed_4x"
+                        style="@style/Widget.VirtualLocation.Chip.Speed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="26dp"
+                        android:text="4x" />
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/route_loop_btn"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_loop"
+                    android:contentDescription="循环"
+                    app:tint="@color/text_hint" />
+
+                <ImageButton
+                    android:id="@+id/route_clear_btn"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_delete"
+                    android:contentDescription="清除"
+                    app:tint="@color/error" />
+            </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
     <!-- 底部导航栏 -->

@@ -3,6 +3,11 @@
     <!-- 主色调 - 蓝绿色系，深色背景下更醒目 -->
     <color name="primary">#4DB6AC</color>
     <color name="on_primary">#003832</color>
+
+    <!-- Route point marker colors - 夜间模式略亮 -->
+    <color name="route_point_start">#66BB6A</color>
+    <color name="route_point_end">#EF5350</color>
+    <color name="route_point_middle">#42A5F5</color>
     <color name="primary_container">#153530</color>
     <color name="on_primary_container">#80CBC4</color>
 

@@ -18,16 +18,35 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * - 后续版本升级时，应在此添加新的 Migration 策略
  */
 @Database(
-    entities = [HistoryLocation::class, FavoriteLocation::class, SearchHistory::class],
-    version = 4,
+    entities = [HistoryLocation::class, FavoriteLocation::class, SearchHistory::class, SavedRoute::class],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun historyLocationDao(): HistoryLocationDao
     abstract fun favoriteLocationDao(): FavoriteLocationDao
     abstract fun searchHistoryDao(): SearchHistoryDao
+    abstract fun savedRouteDao(): SavedRouteDao
     
     companion object {
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS saved_route (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        route_group TEXT NOT NULL,
+                        latitude REAL NOT NULL,
+                        longitude REAL NOT NULL,
+                        pointOrder INTEGER NOT NULL,
+                        timestamp INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_route_timestamp ON saved_route(timestamp)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_route_route_group ON saved_route(route_group)")
+            }
+        }
+
         /**
          * 从版本3升级到版本4：
          * 修复索引名称，使其与 Room 自动生成的命名规则一致（index_{tableName}_{columns}）

@@ -74,4 +74,7 @@
     <dimen name="elevation_md">4dp</dimen>
     <dimen name="elevation_lg">8dp</dimen>
     <dimen name="elevation_xl">16dp</dimen>
+
+    <!-- Route Point Marker -->
+    <dimen name="route_point_marker_size">30dp</dimen>
 </resources>

@@ -98,6 +98,55 @@
         <item name="elevation">8dp</item>
     </style>
 
+    <!-- Mode Choice Chip style - 选中态primary底白字，未选态浅灰底深字，无边框 -->
+    <style name="Widget.VirtualLocation.Chip.ModeChoice" parent="Widget.Material3.Chip.Input">
+        <item name="chipBackgroundColor">@color/chip_mode_choice_bg</item>
+        <item name="android:textColor">@color/chip_mode_choice_text</item>
+        <item name="chipStrokeWidth">0dp</item>
+        <item name="chipCornerRadius">18dp</item>
+        <item name="chipMinHeight">32dp</item>
+        <item name="chipMinTouchTargetSize">0dp</item>
+        <item name="android:minHeight">32dp</item>
+        <item name="chipIconVisible">false</item>
+        <item name="chipIconSize">0dp</item>
+        <item name="iconStartPadding">0dp</item>
+        <item name="iconEndPadding">0dp</item>
+        <item name="closeIconVisible">false</item>
+        <item name="closeIconSize">0dp</item>
+        <item name="closeIconStartPadding">0dp</item>
+        <item name="closeIconEndPadding">0dp</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="checkedIconSize">0dp</item>
+        <item name="chipStartPadding">12dp</item>
+        <item name="chipEndPadding">12dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.VirtualLocation.Chip</item>
+    </style>
+
+    <style name="ShapeAppearance.VirtualLocation.Chip" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">18dp</item>
+    </style>
+
+    <!-- Speed Chip style - 紧凑无图标小圆角 -->
+    <style name="Widget.VirtualLocation.Chip.Speed" parent="Widget.Material3.Chip.Suggestion">
+        <item name="chipBackgroundColor">@color/chip_mode_choice_bg</item>
+        <item name="android:textColor">@color/chip_mode_choice_text</item>
+        <item name="chipStrokeWidth">0dp</item>
+        <item name="chipMinTouchTargetSize">0dp</item>
+        <item name="chipIconVisible">false</item>
+        <item name="chipIconSize">0dp</item>
+        <item name="iconStartPadding">0dp</item>
+        <item name="iconEndPadding">0dp</item>
+        <item name="closeIconVisible">false</item>
+        <item name="closeIconSize">0dp</item>
+        <item name="closeIconStartPadding">0dp</item>
+        <item name="closeIconEndPadding">0dp</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="chipStartPadding">6dp</item>
+        <item name="chipEndPadding">6dp</item>
+        <item name="chipCornerRadius">13dp</item>
+    </style>
+
     <!-- Circular FAB shape -->
     <style name="CircularFAB" parent="">
         <item name="cornerFamily">rounded</item>
