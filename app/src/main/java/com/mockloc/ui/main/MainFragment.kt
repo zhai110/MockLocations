@@ -1977,15 +1977,12 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 更新 Chip 颜色(从新的 themedContext 获取 Resources)
-     * @param themedContext 使用 newConfig 创建的新 Context，确保 Resources 从正确的目录加载
+     * 更新 Chip 颜色(只刷新文字颜色,背景色由 XML 样式自动处理)
+     * @param themedContext 使用 newConfig 创建的新 Context
      */
     private fun updateChipColors(themedContext: Context) {
         val resources = themedContext.resources
         val theme = themedContext.theme
-        
-        // 从 Resources 重新加载 ColorStateList(会自动使用 color-night 目录的资源)
-        val bgSelector = resources.getColorStateList(R.color.chip_mode_choice_bg_selector, theme)
         
         // 模式选择 Chip 文字颜色:选中=白色,未选中=text_primary
         val modeTextSelector = android.content.res.ColorStateList(
@@ -2000,7 +1997,6 @@ class MainFragment : Fragment() {
         )
         
         listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
-            chip.chipBackgroundColor = bgSelector
             chip.setTextColor(modeTextSelector)
         }
         
@@ -2017,8 +2013,16 @@ class MainFragment : Fragment() {
         )
         
         listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
-            chip.chipBackgroundColor = bgSelector
             chip.setTextColor(speedTextSelector)
+        }
+        
+        // ✅ 强制刷新所有 Chip 的 Drawable 状态
+        // 这会让 Chip 重新从 XML 样式加载背景色(包括 color-night 目录的资源)
+        listOf(
+            binding.chipPointMode, binding.chipRouteMode,
+            binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x
+        ).forEach { chip ->
+            chip.post { chip.refreshDrawableState() }
         }
     }
 
