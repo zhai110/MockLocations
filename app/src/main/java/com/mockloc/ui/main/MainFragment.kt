@@ -1804,27 +1804,6 @@ class MainFragment : Fragment() {
             // 更新模式切换卡片背景
             binding.modeTabCard.setCardBackgroundColor(surfaceColor)
             
-            // 更新模式切换Chip颜色
-            val textPrimaryResColor = resources.getColor(R.color.text_primary, theme)
-            val whiteColor = android.graphics.Color.WHITE
-            
-            // ✅ 直接从资源加载 ColorStateList,确保主题切换后正确更新
-            val bgSelector = androidx.core.content.ContextCompat.getColorStateList(
-                requireContext(),
-                R.color.chip_mode_choice_bg_selector
-            )
-            
-            listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
-                chip.chipBackgroundColor = bgSelector
-                chip.setTextColor(android.content.res.ColorStateList(
-                    arrayOf(
-                        intArrayOf(android.R.attr.state_checked),
-                        intArrayOf(-android.R.attr.state_checked)
-                    ),
-                    intArrayOf(whiteColor, textPrimaryResColor)
-                ))
-            }
-            
             // 更新路线面板背景
             binding.routePanel.setCardBackgroundColor(surfaceColor)
             Timber.d("Bottom nav background updated: backgroundColor=#${Integer.toHexString(backgroundColor)}")
@@ -1918,9 +1897,6 @@ class MainFragment : Fragment() {
             // ✅ 更新路线折线颜色（重新绘制）
             updateRoutePolylineColor()
             
-            // ✅ 更新速度 Chip 的颜色
-            updateSpeedChipsColors()
-            
             // ✅ 更新路线模拟进度条颜色
             updateRouteProgressColors()
             
@@ -1991,49 +1967,7 @@ class MainFragment : Fragment() {
         }
     }
     
-    /**
-     * 更新速度 Chip 的颜色
-     */
-    private fun updateSpeedChipsColors() {
-        try {
-            val resources = requireContext().resources
-            val theme = requireContext().theme
-            
-            // 获取最新的颜色
-            val chipTextColor = resources.getColor(R.color.chip_mode_choice_text, theme)
-            val primaryColor = resources.getColor(R.color.primary, theme)
-            val onPrimaryColor = resources.getColor(R.color.on_primary, theme)
-            
-            // ✅ 直接从资源加载 ColorStateList,确保主题切换后正确更新
-            val bgSelector = androidx.core.content.ContextCompat.getColorStateList(
-                requireContext(),
-                R.color.chip_mode_choice_bg_selector
-            )
-            
-            // 更新所有速度 Chip
-            listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
-                // 更新背景颜色
-                chip.chipBackgroundColor = bgSelector
-                
-                // 更新文字颜色
-                chip.setTextColor(android.content.res.ColorStateList(
-                    arrayOf(
-                        intArrayOf(android.R.attr.state_checked),
-                        intArrayOf(-android.R.attr.state_checked)
-                    ),
-                    intArrayOf(
-                        onPrimaryColor,
-                        chipTextColor
-                    )
-                ))
-            }
-            
-            Timber.d("Speed chips colors updated for theme change")
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to update speed chips colors")
-        }
-    }
-    
+
     /**
      * 更新路线模拟进度条颜色
      */
