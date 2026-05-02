@@ -784,15 +784,30 @@ class MainFragment : Fragment() {
         val bubble = routePointBubbleView ?: return
         val markerPosition = marker.position
         
-        // 将经纬度转换为屏幕坐标
+        // 将经纬度转换为屏幕坐标（相对于地图视图）
         val screenPoint = aMap.projection.toScreenLocation(markerPosition)
         
-        // 计算气泡位置（标记上方居中）
-        val bubbleWidth = bubble.width
-        val bubbleHeight = bubble.height
+        // 获取地图视图在屏幕上的位置
+        val mapLocation = IntArray(2)
+        binding.mapView.getLocationOnScreen(mapLocation)
         
-        val x = (screenPoint.x - bubbleWidth / 2).toFloat()
-        val y = (screenPoint.y - bubbleHeight - 20).toFloat()  // 20dp 间距
+        // 获取气泡的尺寸
+        bubble.measure(
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val bubbleWidth = bubble.measuredWidth
+        val bubbleHeight = bubble.measuredHeight
+        
+        // 计算气泡位置（相对于 Fragment 根布局）
+        // screenPoint 是相对于地图视图的坐标
+        // mapLocation 是地图视图相对于屏幕的坐标
+        // 需要转换为相对于 Fragment 根布局的坐标
+        val rootViewLocation = IntArray(2)
+        binding.root.getLocationOnScreen(rootViewLocation)
+        
+        val x = (screenPoint.x + mapLocation[0] - rootViewLocation[0] - bubbleWidth / 2).toFloat()
+        val y = (screenPoint.y + mapLocation[1] - rootViewLocation[1] - bubbleHeight - 20).toFloat()  // 20dp 间距
         
         bubble.x = x
         bubble.y = y
