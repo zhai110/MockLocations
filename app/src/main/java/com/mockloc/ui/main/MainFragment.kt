@@ -1908,6 +1908,12 @@ class MainFragment : Fragment() {
             binding.statusText.setTextColor(statusTextColor)
             Timber.d("Status text color updated: isNightMode=$isNightMode")
             
+            // ✅ 更新路线折线颜色（重新绘制）
+            updateRoutePolylineColor()
+            
+            // ✅ 更新速度 Chip 的颜色
+            updateSpeedChipsColors()
+            
             // ✅ 更新位置信息卡片内的文字颜色
             // 卡片背景是 primary（蓝绿色），所以文字保持白色
             binding.latitudeText.setTextColor(android.graphics.Color.WHITE)
@@ -1950,6 +1956,75 @@ class MainFragment : Fragment() {
             text?.setTextColor(textColor)
         } catch (e: Exception) {
             Timber.e(e, "Failed to update button icon tint")
+        }
+    }
+    
+    /**
+     * 更新路线折线颜色
+     */
+    private fun updateRoutePolylineColor() {
+        val routeState = viewModel.routeState.value
+        if (routePolyline != null && routeState.routePoints.size >= 2) {
+            // 移除旧的折线
+            routePolyline?.remove()
+            
+            // 重新绘制折线（使用最新的颜色）
+            val points = routeState.routePoints.map { it.latLng }
+            routePolyline = aMap.addPolyline(
+                com.amap.api.maps.model.PolylineOptions()
+                    .addAll(points)
+                    .width(8f)
+                    .color(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary))
+                    .geodesic(true)
+            )
+            Timber.d("Route polyline color updated for theme change")
+        }
+    }
+    
+    /**
+     * 更新速度 Chip 的颜色
+     */
+    private fun updateSpeedChipsColors() {
+        try {
+            val resources = requireContext().resources
+            val theme = requireContext().theme
+            
+            // 获取最新的颜色
+            val chipBgColor = resources.getColor(R.color.chip_mode_choice_bg, theme)
+            val chipTextColor = resources.getColor(R.color.chip_mode_choice_text, theme)
+            val primaryColor = resources.getColor(R.color.primary, theme)
+            val onPrimaryColor = resources.getColor(R.color.on_primary, theme)
+            
+            // 更新所有速度 Chip
+            listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
+                // 更新背景颜色
+                chip.chipBackgroundColor = android.content.res.ColorStateList(
+                    arrayOf(
+                        intArrayOf(android.R.attr.state_checked),
+                        intArrayOf()
+                    ),
+                    intArrayOf(
+                        primaryColor,
+                        chipBgColor
+                    )
+                )
+                
+                // 更新文字颜色
+                chip.setTextColor(android.content.res.ColorStateList(
+                    arrayOf(
+                        intArrayOf(android.R.attr.state_checked),
+                        intArrayOf()
+                    ),
+                    intArrayOf(
+                        onPrimaryColor,
+                        chipTextColor
+                    )
+                ))
+            }
+            
+            Timber.d("Speed chips colors updated for theme change")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update speed chips colors")
         }
     }
 }

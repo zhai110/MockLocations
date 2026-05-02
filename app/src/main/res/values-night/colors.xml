@@ -90,6 +90,10 @@
     <!-- 底部导航栏选中项背景 - 夜间模式（深蓝绿色，低调不刺眼） -->
     <color name="nav_item_selected_background">#1A3D3A</color>
     
+    <!-- Chip 模式选择背景色 - 夜间模式 -->
+    <color name="chip_mode_choice_bg">#2A2A2A</color>
+    <color name="chip_mode_choice_text">#CCCCCC</color>
+    
     <!-- 旧颜色（向后兼容） -->
     <color name="primary_dark_legacy">#26A69A</color>
     <color name="primary_light_legacy">#80CBC4</color>
