@@ -178,36 +178,40 @@
         android:layout_marginEnd="16dp"
         android:orientation="vertical">
 
-        <!-- 路线点编辑按钮（默认隐藏） -->
-        <ImageButton
-            android:id="@+id/btn_cancel_select"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/bg_map_btn"
-            android:src="@drawable/ic_back"
-            android:contentDescription="取消选择"
-            app:tint="@color/text_primary"
-            android:visibility="gone" />
-
-        <Space
+        <!-- 路线点编辑按钮容器（默认隐藏） -->
+        <LinearLayout
+            android:id="@+id/route_point_edit_container"
             android:layout_width="wrap_content"
-            android:layout_height="8dp"
-            android:visibility="gone" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <ImageButton
-            android:id="@+id/btn_delete_route_point"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/bg_map_btn"
-            android:src="@drawable/ic_close"
-            android:contentDescription="删除路线点"
-            app:tint="@color/text_primary"
-            android:visibility="gone" />
+            <ImageButton
+                android:id="@+id/btn_cancel_select"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_map_btn"
+                android:src="@drawable/ic_back"
+                android:contentDescription="取消选择"
+                app:tint="@color/text_primary" />
 
-        <Space
-            android:layout_width="wrap_content"
-            android:layout_height="8dp"
-            android:visibility="gone" />
+            <Space
+                android:layout_width="wrap_content"
+                android:layout_height="8dp" />
+
+            <ImageButton
+                android:id="@+id/btn_delete_route_point"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_map_btn"
+                android:src="@drawable/ic_close"
+                android:contentDescription="删除路线点"
+                app:tint="@color/text_primary" />
+
+            <Space
+                android:layout_width="wrap_content"
+                android:layout_height="8dp" />
+        </LinearLayout>
 
         <ImageButton
             android:id="@+id/zoom_in_btn"

@@ -746,13 +746,11 @@ class MainFragment : Fragment() {
         
         selectedPointIndex = index
         
-        // 直接显示按钮（在 LinearLayout 中自动排列）
-        binding.btnDeleteRoutePoint.visibility = View.VISIBLE
-        binding.btnCancelSelect.visibility = View.VISIBLE
+        // 显示容器（包含两个按钮和间距）
+        binding.routePointEditContainer.visibility = View.VISIBLE
         
         // 添加弹出动画
-        AnimationHelper.slideUp(binding.btnDeleteRoutePoint, 200)
-        AnimationHelper.slideUp(binding.btnCancelSelect, 200)
+        AnimationHelper.slideUp(binding.routePointEditContainer, 200)
     }
     
     /**
@@ -760,8 +758,7 @@ class MainFragment : Fragment() {
      */
     private fun hideRoutePointEditButtons() {
         selectedPointIndex = -1
-        binding.btnDeleteRoutePoint.visibility = View.GONE
-        binding.btnCancelSelect.visibility = View.GONE
+        binding.routePointEditContainer.visibility = View.GONE
     }
     
     /**
