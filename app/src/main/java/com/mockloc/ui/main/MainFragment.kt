@@ -784,12 +784,8 @@ class MainFragment : Fragment() {
         val bubble = routePointBubbleView ?: return
         val markerPosition = marker.position
         
-        // 将经纬度转换为屏幕坐标（相对于地图视图）
+        // 将经纬度转换为屏幕坐标（相对于 MapView 左上角）
         val screenPoint = aMap.projection.toScreenLocation(markerPosition)
-        
-        // 获取地图视图在屏幕上的位置
-        val mapLocation = IntArray(2)
-        binding.mapView.getLocationOnScreen(mapLocation)
         
         // 获取气泡的尺寸
         bubble.measure(
@@ -799,15 +795,20 @@ class MainFragment : Fragment() {
         val bubbleWidth = bubble.measuredWidth
         val bubbleHeight = bubble.measuredHeight
         
-        // 计算气泡位置（相对于 Fragment 根布局）
-        // screenPoint 是相对于地图视图的坐标
-        // mapLocation 是地图视图相对于屏幕的坐标
-        // 需要转换为相对于 Fragment 根布局的坐标
-        val rootViewLocation = IntArray(2)
-        binding.root.getLocationOnScreen(rootViewLocation)
+        // 计算 MapView 在 Fragment 根布局中的偏移
+        // 方法：获取 MapView 和根布局在屏幕上的位置，计算差值
+        val mapViewScreenPos = IntArray(2)
+        binding.mapView.getLocationOnScreen(mapViewScreenPos)
         
-        val x = (screenPoint.x + mapLocation[0] - rootViewLocation[0] - bubbleWidth / 2).toFloat()
-        val y = (screenPoint.y + mapLocation[1] - rootViewLocation[1] - bubbleHeight - 20).toFloat()  // 20dp 间距
+        val rootScreenPos = IntArray(2)
+        binding.root.getLocationOnScreen(rootScreenPos)
+        
+        val offsetX = mapViewScreenPos[0] - rootScreenPos[0]
+        val offsetY = mapViewScreenPos[1] - rootScreenPos[1]
+        
+        // 最终位置 = screenPoint（相对于MapView）+ MapView相对于根布局的偏移
+        val x = (screenPoint.x + offsetX - bubbleWidth / 2).toFloat()
+        val y = (screenPoint.y + offsetY - bubbleHeight - 20).toFloat()  // 20dp 间距
         
         bubble.x = x
         bubble.y = y
