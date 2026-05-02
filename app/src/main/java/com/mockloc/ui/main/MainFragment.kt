@@ -746,35 +746,13 @@ class MainFragment : Fragment() {
         
         selectedPointIndex = index
         
-        // 先显示按钮
+        // 直接显示按钮（在 LinearLayout 中自动排列）
         binding.btnDeleteRoutePoint.visibility = View.VISIBLE
         binding.btnCancelSelect.visibility = View.VISIBLE
         
-        // 在布局完成后计算位置
-        binding.root.post {
-            // 获取放大按钮的位置
-            val zoomInBtnPos = IntArray(2)
-            binding.zoomInBtn.getLocationOnScreen(zoomInBtnPos)
-            
-            val rootScreenPos = IntArray(2)
-            binding.root.getLocationOnScreen(rootScreenPos)
-            
-            // 计算相对于根布局的偏移
-            val offsetX = zoomInBtnPos[0] - rootScreenPos[0]
-            val offsetY = zoomInBtnPos[1] - rootScreenPos[1]
-            
-            // 设置删除按钮位置（放大按钮上方 8dp）
-            binding.btnDeleteRoutePoint.x = (offsetX + binding.zoomInBtn.width / 2 - binding.btnDeleteRoutePoint.width / 2).toFloat()
-            binding.btnDeleteRoutePoint.y = (offsetY - binding.btnDeleteRoutePoint.height - 8).toFloat()
-            
-            // 设置取消按钮位置（删除按钮上方 8dp）
-            binding.btnCancelSelect.x = binding.btnDeleteRoutePoint.x
-            binding.btnCancelSelect.y = (offsetY - binding.btnDeleteRoutePoint.height * 2 - 16).toFloat()
-            
-            // 添加弹出动画
-            AnimationHelper.slideUp(binding.btnDeleteRoutePoint, 200)
-            AnimationHelper.slideUp(binding.btnCancelSelect, 200)
-        }
+        // 添加弹出动画
+        AnimationHelper.slideUp(binding.btnDeleteRoutePoint, 200)
+        AnimationHelper.slideUp(binding.btnCancelSelect, 200)
     }
     
     /**
