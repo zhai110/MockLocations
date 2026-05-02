@@ -67,6 +67,42 @@ class RoutePlaybackEngine(
         return removed
     }
 
+    /**
+     * 删除指定位置的点
+     * @param index 点的索引（从 0 开始）
+     * @return 被删除的点，如果索引无效则返回 null
+     */
+    fun removePointAt(index: Int): RoutePoint? {
+        return pointsLock.withLock {
+            if (index < 0 || index >= routePoints.size) {
+                Timber.w("Invalid index: $index, size: ${routePoints.size}")
+                return@withLock null
+            }
+            val removed = routePoints[index]
+            routePoints = routePoints.toMutableList().apply { removeAt(index) }
+            _state.update { it.copy(totalPoints = routePoints.size) }
+            Timber.d("Route point removed at index: $index")
+            removed
+        }
+    }
+
+    /**
+     * 在指定位置插入点
+     * @param index 插入位置（从 0 开始，size 表示追加到末尾）
+     * @param point 要插入的点
+     */
+    fun insertPointAt(index: Int, point: RoutePoint) {
+        pointsLock.withLock {
+            if (index < 0 || index > routePoints.size) {
+                Timber.w("Invalid index: $index, size: ${routePoints.size}")
+                return
+            }
+            routePoints = routePoints.toMutableList().apply { add(index, point) }
+            _state.update { it.copy(totalPoints = routePoints.size) }
+            Timber.d("Route point inserted at index: $index")
+        }
+    }
+
     fun clearRoute() {
         stop()
         pointsLock.withLock { routePoints = emptyList() }

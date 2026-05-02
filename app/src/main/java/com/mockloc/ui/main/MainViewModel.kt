@@ -610,6 +610,25 @@ class MainViewModel(
         _routeState.update { it.copy(routePoints = routePlaybackEngine.getPoints()) }
     }
 
+    /**
+     * 删除指定位置的路线点
+     * @param index 点的索引（从 0 开始）
+     */
+    fun removeRoutePointAt(index: Int) {
+        routePlaybackEngine.removePointAt(index)
+        _routeState.update { it.copy(routePoints = routePlaybackEngine.getPoints()) }
+    }
+
+    /**
+     * 在指定位置插入路线点
+     * @param index 插入位置
+     * @param latLng 经纬度
+     */
+    fun insertRoutePointAt(index: Int, latLng: LatLng) {
+        routePlaybackEngine.insertPointAt(index, RoutePoint(latLng))
+        _routeState.update { it.copy(routePoints = routePlaybackEngine.getPoints()) }
+    }
+
     fun clearRoute() {
         routePlaybackEngine.clearRoute()
         _routeState.update { it.copy(routePoints = emptyList(), playbackState = RoutePlaybackState()) }
