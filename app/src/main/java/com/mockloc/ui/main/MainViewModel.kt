@@ -119,12 +119,8 @@ class MainViewModel(
         viewModelScope.launch {
             routePlaybackEngine.state.collect { playbackState ->
                 _routeState.update { it.copy(playbackState = playbackState) }
-                if (!playbackState.isPlaying && _simulationState.value.isSimulating && _routeState.value.isRouteMode) {
-                    _simulationState.update { it.copy(isSimulating = false) }
-                    sendSimulationControlEvent(
-                        SimulationControlEvent(eventType = SimulationControlEvent.EventType.STOP_SIMULATION)
-                    )
-                }
+                // 路线播放停止后，保留在最后位置，不自动关闭模拟服务
+                // 用户可手动通过 FAB 按钮停止模拟
             }
         }
     }
