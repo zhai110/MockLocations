@@ -1897,7 +1897,8 @@ class MainFragment : Fragment() {
             // ✅ 更新路线折线颜色(重新绘制)
             updateRoutePolylineColor()
             
-            // ✅ Chip 颜色由资源系统自动适配（通过 color-night 目录）
+            // ✅ 更新 Chip 颜色(从 Resources 重新加载 ColorStateList)
+            updateChipColors()
                         
             // ✅ 更新路线模拟进度条颜色
             updateRouteProgressColors()
@@ -1969,6 +1970,50 @@ class MainFragment : Fragment() {
         }
     }
     
+    /**
+     * 更新 Chip 颜色(从 Resources 重新加载 ColorStateList)
+     */
+    private fun updateChipColors() {
+        val resources = requireContext().resources
+        val theme = requireContext().theme
+        
+        // 从 Resources 重新加载 ColorStateList(会自动使用 color-night 目录的资源)
+        val bgSelector = resources.getColorStateList(R.color.chip_mode_choice_bg_selector, theme)
+        
+        // 模式选择 Chip 文字颜色:选中=白色,未选中=text_primary
+        val modeTextSelector = android.content.res.ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf(-android.R.attr.state_checked)
+            ),
+            intArrayOf(
+                android.graphics.Color.WHITE,
+                resources.getColor(R.color.text_primary, theme)
+            )
+        )
+        
+        listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
+            chip.chipBackgroundColor = bgSelector
+            chip.setTextColor(modeTextSelector)
+        }
+        
+        // 速度 Chip 文字颜色:选中=on_primary,未选中=text_primary
+        val speedTextSelector = android.content.res.ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf(-android.R.attr.state_checked)
+            ),
+            intArrayOf(
+                resources.getColor(R.color.on_primary, theme),
+                resources.getColor(R.color.text_primary, theme)
+            )
+        )
+        
+        listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
+            chip.chipBackgroundColor = bgSelector
+            chip.setTextColor(speedTextSelector)
+        }
+    }
 
 
     /**
