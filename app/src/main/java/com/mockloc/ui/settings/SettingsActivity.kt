@@ -1,6 +1,7 @@
 package com.mockloc.ui.settings
 
 import android.content.SharedPreferences
+import android.content.res.Resources
 import android.os.Bundle
 import android.widget.SeekBar
 import android.widget.TextView
@@ -39,6 +40,17 @@ class SettingsActivity : AppCompatActivity() {
         setupOtherSettings()
         setupResetButton()
         loadSettings()
+
+        // ✅ 初始化主题相关颜色（确保与 onConfigurationChanged 行为一致）
+        initializeThemedColors()
+    }
+
+    /**
+     * 初始化主题相关颜色
+     * 在 onCreate 时调用，确保无论从哪种路径进入设置页面，颜色都正确初始化
+     */
+    private fun initializeThemedColors() {
+        updateViewBackgrounds(resources.configuration)
     }
 
     private fun setupToolbar() {
@@ -372,22 +384,20 @@ class SettingsActivity : AppCompatActivity() {
      */
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-        
-        val isNight = (newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
-            android.content.res.Configuration.UI_MODE_NIGHT_YES
-        Timber.d("SettingsActivity configuration changed: isNight=$isNight")
-        
-        // ✅ 手动更新视图背景颜色（因为 configChanges 阻止了自动重建）
-        updateViewBackgrounds()
+        updateViewBackgrounds(newConfig)
     }
     
     /**
      * 手动更新视图背景颜色以响应主题变化
+     * @param newConfig 系统传入的新 Configuration，用于创建正确的主题上下文
      */
-    private fun updateViewBackgrounds() {
+    private fun updateViewBackgrounds(newConfig: android.content.res.Configuration) {
         try {
-            val resources = this.resources
-            val theme = this.theme
+            // ✅ 关键修复：使用 newConfig 创建新的 Context，确保 Resources 从正确的目录加载
+            val newConfigContext = createConfigurationContext(newConfig)
+            val (themedContext, _) = com.mockloc.util.ThemeUtils.createThemedContext(newConfigContext)
+            val resources = themedContext.resources
+            val theme = themedContext.theme
             
             // 获取最新的颜色
             val backgroundColor = resources.getColor(R.color.background, theme)
@@ -405,47 +415,46 @@ class SettingsActivity : AppCompatActivity() {
             // 更新 AppBarLayout 背景
             binding.appBar.setBackgroundColor(appBarBackgroundColor)
             
+            // ✅ 更新 NestedScrollView 内部根 LinearLayout 的背景（确保与 CoordinatorLayout 一致）
+            val nestedScrollView = binding.root.getChildAt(1) as? androidx.core.widget.NestedScrollView
+            val contentLayout = nestedScrollView?.getChildAt(0) as? android.widget.LinearLayout
+            contentLayout?.setBackgroundColor(backgroundColor)
+            
             // 更新 Toolbar 标题和导航图标颜色
             binding.toolbar.setTitleTextColor(textPrimaryColor)
             binding.toolbar.navigationIcon?.setTint(textPrimaryColor)
             
             // 更新所有卡片背景
             // 注意：布局中有多个 MaterialCardView，需要通过 ID 或遍历更新
-            // 这里我们使用 getChildAt 遍历 NestedScrollView 的内容
-            val nestedScrollView = binding.root.getChildAt(1) as? androidx.core.widget.NestedScrollView
-            val contentLayout = nestedScrollView?.getChildAt(0) as? android.widget.LinearLayout
-            
             contentLayout?.let { layout ->
                 for (i in 0 until layout.childCount) {
                     val child = layout.getChildAt(i)
                     when (child) {
                         is com.google.android.material.card.MaterialCardView -> {
                             child.setCardBackgroundColor(surfaceColor)
-                        }
-                        is android.widget.TextView -> {
-                            // 更新分类标题文字颜色（如"移动设置"、"定位设置"等）
-                            if (child.textSize > 13.spToPx()) { // 标题字体较大
-                                child.setTextColor(onPrimaryContainerColor)
-                            }
+                            // ✅ 移除默认的白色边框（Material3 默认有 1dp stroke）
+                            child.strokeWidth = 0
+                            // ✅ 强制刷新 Drawable 状态，确保背景色立即生效
+                            child.post { child.invalidate() }
                         }
                     }
                 }
             }
             
-            // 更新所有文本颜色（通过遍历整个视图树）
-            updateTextColors(binding.root, textPrimaryColor, textSecondaryColor, textHintColor)
-            
+            // ✅ 直接更新所有标题和值 TextView（不再使用有 bug 的 updateTextColors）
+            updateSettingsTexts(resources, theme)
+
             // 更新所有分隔线颜色
             updateDividerColors(binding.root, dividerLightColor)
-            
+
             // 更新所有图标 tint 颜色
             updateIconTints(binding.root, textHintColor)
-            
-            // ✅ 更新 SeekBar（滑动条）颜色
-            updateSeekBarColors(textHintColor, onPrimaryContainerColor)
-            
-            // ✅ 更新 SwitchMaterial（开关）颜色
-            updateSwitchColors(textHintColor, onPrimaryContainerColor)
+
+            // ✅ 更新 SeekBar（滑动条）颜色 — 使用 proper ColorStateList
+            updateSeekBarColorsFixed(resources, theme)
+
+            // ✅ 更新 SwitchMaterial（开关）颜色 — 使用 proper ColorStateList
+            updateSwitchColorsFixed(resources, theme)
             
             Timber.d("SettingsActivity view backgrounds updated for theme change")
         } catch (e: Exception) {
@@ -454,50 +463,115 @@ class SettingsActivity : AppCompatActivity() {
     }
     
     /**
-     * 递归更新所有 TextView 的颜色
+     * 直接更新设置页面所有 TextView 颜色（不依赖 currentTextColor 比较）
+     * 根据 View 的 ID 或遍历时父布局特征来确定颜色角色
      */
-    private fun updateTextColors(
-        view: android.view.View,
-        primaryColor: Int,
-        secondaryColor: Int,
-        hintColor: Int
-    ) {
+    private fun updateSettingsTexts(resources: Resources, theme: Resources.Theme) {
+        val textPrimaryColor = resources.getColor(R.color.text_primary, theme)
+        val textSecondaryColor = resources.getColor(R.color.text_secondary, theme)
+        val textHintColor = resources.getColor(R.color.text_hint, theme)
+        val onPrimaryContainerColor = resources.getColor(R.color.on_primary_container, theme)
+
+        // ✅ 分组标题（有 ID，直接更新）
+        binding.textSectionMovement?.setTextColor(onPrimaryContainerColor)
+        binding.textSectionLocation?.setTextColor(onPrimaryContainerColor)
+        binding.textSectionOther?.setTextColor(onPrimaryContainerColor)
+
+        // ✅ 值 TextView（有 ID，直接更新）
+        binding.textWalkingSpeed?.setTextColor(textSecondaryColor)
+        binding.textRunningSpeed?.setTextColor(textSecondaryColor)
+        binding.textCyclingSpeed?.setTextColor(textSecondaryColor)
+        binding.textJoystickType?.setTextColor(textSecondaryColor)
+        binding.textHistoryExpiry?.setTextColor(textSecondaryColor)
+        binding.textLocationUpdateInterval?.setTextColor(textSecondaryColor)
+
+        // ✅ 标签和描述 TextView（无 ID，按父布局特征遍历更新）
+        // 注意：需要传入 textSecondaryColor 用于 SeekBar 范围标签
+        updateLabelAndDescriptionTexts(binding.root, textPrimaryColor, textHintColor, textSecondaryColor)
+    }
+
+    /**
+     * 遍历视图树，更新标签（text_primary）、描述（text_hint）和值（text_secondary）TextView
+     * 标签特征：父布局是垂直 LinearLayout，且是第一个 TextView
+     * 描述特征：父布局是垂直 LinearLayout，且是第二个 TextView（通常在上方有标签）
+     * 值特征：SeekBar 旁边的范围标签（如 "3 km/h"）
+     */
+    private fun updateLabelAndDescriptionTexts(view: android.view.View, labelColor: Int, descColor: Int, valueColor: Int) {
         when (view) {
             is android.widget.TextView -> {
-                // 根据当前颜色判断应该更新为什么颜色
-                val currentColor = view.currentTextColor
-                if (currentColor == getColor(R.color.text_primary) || 
-                    currentColor == getColor(android.R.color.white)) {
-                    view.setTextColor(primaryColor)
-                } else if (currentColor == getColor(R.color.text_secondary)) {
-                    view.setTextColor(secondaryColor)
-                } else if (currentColor == getColor(R.color.text_hint)) {
-                    view.setTextColor(hintColor)
+                if (view.id == R.id.text_section_movement ||
+                    view.id == R.id.text_section_location ||
+                    view.id == R.id.text_section_other) {
+                    return
+                }
+                val parent = view.parent
+                if (parent is android.view.ViewGroup) {
+                    val role = determineTextRole(view, parent)
+                    val color = when (role) {
+                        "label" -> labelColor
+                        "desc" -> descColor
+                        "value" -> valueColor  // ✅ SeekBar 范围标签用 text_secondary
+                        else -> labelColor
+                    }
+                    view.setTextColor(color)
                 }
             }
             is android.view.ViewGroup -> {
                 for (i in 0 until view.childCount) {
-                    updateTextColors(view.getChildAt(i), primaryColor, secondaryColor, hintColor)
+                    updateLabelAndDescriptionTexts(view.getChildAt(i), labelColor, descColor, valueColor)
                 }
             }
         }
     }
+
+    /**
+     * 根据父布局结构判断 TextView 的颜色角色
+     */
+    private fun determineTextRole(textView: android.widget.TextView, parent: android.view.ViewGroup): String {
+        // 情况1：父布局是水平 LinearLayout（设置项行或 SeekBar 范围标签）
+        if (parent is android.widget.LinearLayout && parent.orientation == android.widget.LinearLayout.HORIZONTAL) {
+            // 如果父布局包含 SeekBar，这些 TextView 是范围标签（如 "3 km/h"），使用 text_secondary
+            for (i in 0 until parent.childCount) {
+                if (parent.getChildAt(i) is android.widget.SeekBar) {
+                    return "value"  // SeekBar 范围标签用 text_secondary
+                }
+            }
+            // 否则第一个子 View 是标签
+            if (parent.indexOfChild(textView) == 0) return "label"
+        }
+        // 情况2：父布局是垂直 LinearLayout，且第一个子 View 是 TextView → 那是标签，第二个是描述
+        if (parent is android.widget.LinearLayout && parent.orientation == android.widget.LinearLayout.VERTICAL) {
+            val firstChild = parent.getChildAt(0)
+            val secondChild = if (parent.childCount > 1) parent.getChildAt(1) else null
+            if (firstChild == textView) return "label"
+            if (secondChild == textView && secondChild is android.widget.TextView) return "desc"
+        }
+        // 情况3：祖父布局是垂直 LinearLayout（设置项内部），本 TextView 是第一个 → 标签
+        val grandParent = parent.parent
+        if (grandParent is android.widget.LinearLayout && grandParent.orientation == android.widget.LinearLayout.VERTICAL) {
+            val firstChild = grandParent.getChildAt(0)
+            if (firstChild == parent || firstChild == textView) return "label"
+        }
+        return "label" // 默认当标签处理
+    }
     
     /**
      * 递归更新所有分隔线颜色
+     * 分隔线判断条件：背景不为空，且父布局是 LinearLayout（设置项之间）
+     * 注意：在 onCreate 时调用时，View 可能还未完成布局测量，因此不依赖高度判断
      */
     private fun updateDividerColors(view: android.view.View, color: Int) {
-        when (view) {
-            is android.view.View -> {
-                // 检查是否是分隔线（高度为 1dp 的 View）
-                if (view.height <= 2 && view.background != null) {
-                    view.setBackgroundColor(color)
-                }
+        if (view is android.view.ViewGroup) {
+            for (i in 0 until view.childCount) {
+                updateDividerColors(view.getChildAt(i), color)
             }
-            is android.view.ViewGroup -> {
-                for (i in 0 until view.childCount) {
-                    updateDividerColors(view.getChildAt(i), color)
-                }
+        }
+        val parent = view.parent
+        if (view.background != null && parent is android.widget.LinearLayout) {
+            val lp = view.layoutParams
+            val isThinDivider = lp != null && lp.height >= 0 && lp.height <= (2 * resources.displayMetrics.density).toInt()
+            if (isThinDivider) {
+                view.setBackgroundColor(color)
             }
         }
     }
@@ -519,58 +593,67 @@ class SettingsActivity : AppCompatActivity() {
     }
     
     /**
-     * 更新 SeekBar 颜色
+     * 更新 SeekBar 颜色（正确方式：使用带 checked/unchecked 状态的 ColorStateList）
      */
-    private fun updateSeekBarColors(trackColor: Int, progressColor: Int) {
+    private fun updateSeekBarColorsFixed(resources: Resources, theme: Resources.Theme) {
         try {
-            // 创建 ColorStateList
-            val progressTintList = android.content.res.ColorStateList.valueOf(progressColor)
-            val trackTintList = android.content.res.ColorStateList(
+            val primaryColor = resources.getColor(R.color.primary, theme)
+            val textHintColor = resources.getColor(R.color.text_hint, theme)
+
+            // progressTintList：进度条颜色（checked = primary，unchecked = textHint）
+            // 注意：SeekBar 没有 checked 状态，这里用 enabled/disabled 区分
+            val progressTint = android.content.res.ColorStateList(
                 arrayOf(
                     intArrayOf(android.R.attr.state_enabled),
                     intArrayOf(-android.R.attr.state_enabled)
                 ),
-                intArrayOf(trackColor, trackColor)
+                intArrayOf(primaryColor, textHintColor)
             )
-            
-            // 更新所有 SeekBar
-            listOf(
-                binding.seekbarWalkingSpeed,
-                binding.seekbarRunningSpeed,
-                binding.seekbarCyclingSpeed
-            ).forEach { seekBar ->
-                seekBar.progressTintList = progressTintList
-                seekBar.thumbTintList = progressTintList
-                seekBar.progressBackgroundTintList = trackTintList
+
+            listOf(binding.seekbarWalkingSpeed, binding.seekbarRunningSpeed, binding.seekbarCyclingSpeed).forEach { seekBar ->
+                seekBar.progressTintList = progressTint
+                seekBar.thumbTintList = progressTint
             }
-            
+
             Timber.d("SeekBar colors updated")
         } catch (e: Exception) {
             Timber.e(e, "Failed to update SeekBar colors")
         }
     }
-    
+
     /**
-     * 更新 SwitchMaterial 颜色
+     * 更新 SwitchMaterial 颜色（正确方式：区分 checked/unchecked 状态）
      */
-    private fun updateSwitchColors(trackColor: Int, thumbColor: Int) {
+    private fun updateSwitchColorsFixed(resources: Resources, theme: Resources.Theme) {
         try {
-            // 创建 ColorStateList
-            val trackTintList = android.content.res.ColorStateList.valueOf(trackColor)
-            
-            // 更新所有 Switch
-            listOf(
-                binding.switchRandomOffset,
-                binding.switchAutoStart,
-                binding.switchLog,
-                binding.switchJoystickHaptic
-            ).forEach { switch ->
-                switch.trackTintList = trackTintList
-                // 根据开关状态设置滑块颜色
-                val currentThumbColor = if (switch.isChecked) getColor(R.color.primary) else thumbColor
-                switch.thumbTintList = android.content.res.ColorStateList.valueOf(currentThumbColor)
+            val primaryColor = resources.getColor(R.color.primary, theme)
+            val textHintColor = resources.getColor(R.color.text_hint, theme)
+            val surfaceVariantColor = resources.getColor(R.color.surface_variant, theme)
+
+            // trackTintList：checked=primary，unchecked=textHint
+            val trackTint = android.content.res.ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf()  // 默认状态（未选中）
+                ),
+                intArrayOf(primaryColor, textHintColor)
+            )
+
+            // thumbTintList：checked=on_primary（白色），unchecked=surface_variant（深灰/浅灰）
+            val onPrimaryColor = resources.getColor(R.color.on_primary, theme)
+            val thumbTint = android.content.res.ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf()  // 默认状态（未选中）
+                ),
+                intArrayOf(onPrimaryColor, surfaceVariantColor)
+            )
+
+            listOf(binding.switchRandomOffset, binding.switchAutoStart, binding.switchLog, binding.switchJoystickHaptic).forEach { switch ->
+                switch.trackTintList = trackTint
+                switch.thumbTintList = thumbTint
             }
-            
+
             Timber.d("Switch colors updated")
         } catch (e: Exception) {
             Timber.e(e, "Failed to update Switch colors")
