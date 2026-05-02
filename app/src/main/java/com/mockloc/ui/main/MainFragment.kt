@@ -1807,13 +1807,20 @@ class MainFragment : Fragment() {
             // 更新模式切换Chip颜色
             val textPrimaryResColor = resources.getColor(R.color.text_primary, theme)
             val whiteColor = android.graphics.Color.WHITE
+            
+            // ✅ 直接从资源加载 ColorStateList,确保主题切换后正确更新
+            val bgSelector = androidx.core.content.ContextCompat.getColorStateList(
+                requireContext(),
+                R.color.chip_mode_choice_bg_selector
+            )
+            
             listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
-                chip.chipBackgroundColor = android.content.res.ColorStateList(
-                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                    intArrayOf(primaryColor, android.graphics.Color.TRANSPARENT)
-                )
+                chip.chipBackgroundColor = bgSelector
                 chip.setTextColor(android.content.res.ColorStateList(
-                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    arrayOf(
+                        intArrayOf(android.R.attr.state_checked),
+                        intArrayOf(-android.R.attr.state_checked)
+                    ),
                     intArrayOf(whiteColor, textPrimaryResColor)
                 ))
             }
@@ -1997,25 +2004,22 @@ class MainFragment : Fragment() {
             val primaryColor = resources.getColor(R.color.primary, theme)
             val onPrimaryColor = resources.getColor(R.color.on_primary, theme)
             
+            // ✅ 直接从资源加载 ColorStateList,确保主题切换后正确更新
+            val bgSelector = androidx.core.content.ContextCompat.getColorStateList(
+                requireContext(),
+                R.color.chip_mode_choice_bg_selector
+            )
+            
             // 更新所有速度 Chip
             listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
                 // 更新背景颜色
-                chip.chipBackgroundColor = android.content.res.ColorStateList(
-                    arrayOf(
-                        intArrayOf(android.R.attr.state_checked),
-                        intArrayOf()
-                    ),
-                    intArrayOf(
-                        primaryColor,
-                        android.graphics.Color.TRANSPARENT
-                    )
-                )
+                chip.chipBackgroundColor = bgSelector
                 
                 // 更新文字颜色
                 chip.setTextColor(android.content.res.ColorStateList(
                     arrayOf(
                         intArrayOf(android.R.attr.state_checked),
-                        intArrayOf()
+                        intArrayOf(-android.R.attr.state_checked)
                     ),
                     intArrayOf(
                         onPrimaryColor,
