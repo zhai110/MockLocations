@@ -128,7 +128,7 @@
     </style>
 
     <!-- Speed Chip style - 紧凑无图标小圆角 -->
-    <style name="Widget.VirtualLocation.Chip.Speed" parent="Widget.Material3.Chip.Suggestion">
+    <style name="Widget.VirtualLocation.Chip.Speed" parent="Widget.Material3.Chip.Filter">
         <item name="chipBackgroundColor">@color/chip_mode_choice_bg_selector</item>
         <item name="android:textColor">@color/chip_mode_choice_text</item>
         <item name="chipStrokeWidth">0dp</item>
