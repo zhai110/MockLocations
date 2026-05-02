@@ -1810,7 +1810,7 @@ class MainFragment : Fragment() {
             listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
                 chip.chipBackgroundColor = android.content.res.ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                    intArrayOf(primaryColor, surfaceColor)
+                    intArrayOf(primaryColor, android.graphics.Color.TRANSPARENT)
                 )
                 chip.setTextColor(android.content.res.ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
@@ -1993,7 +1993,6 @@ class MainFragment : Fragment() {
             val theme = requireContext().theme
             
             // 获取最新的颜色
-            val chipBgColor = resources.getColor(R.color.chip_mode_choice_bg, theme)
             val chipTextColor = resources.getColor(R.color.chip_mode_choice_text, theme)
             val primaryColor = resources.getColor(R.color.primary, theme)
             val onPrimaryColor = resources.getColor(R.color.on_primary, theme)
@@ -2008,7 +2007,7 @@ class MainFragment : Fragment() {
                     ),
                     intArrayOf(
                         primaryColor,
-                        chipBgColor
+                        android.graphics.Color.TRANSPARENT
                     )
                 )
                 
