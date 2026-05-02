@@ -672,6 +672,10 @@ class MainFragment : Fragment() {
                     .icon(createRoutePointIcon(label, bgColor))
                     .anchor(0.5f, 1.0f)
                     .draggable(false))
+                
+                // 存储索引到 marker 中，用于长按删除
+                marker?.setObject(index)
+                
                 routePointMarkers.add(marker)
             }
         }
@@ -782,6 +786,43 @@ class MainFragment : Fragment() {
     }
 
     /**
+     * 显示删除路线点确认对话框
+     * @param index 点的索引
+     * @param marker 被长按的标记
+     */
+    private fun showDeletePointDialog(index: Int, marker: com.amap.api.maps.model.Marker) {
+        val pointCount = viewModel.getRouteState().value.routePoints.size
+        val pointLabel = when {
+            index == 0 -> "起点"
+            index == pointCount - 1 -> "终点"
+            else -> "第 ${index + 1} 个点"
+        }
+        
+        androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.RoundedDialogTheme)
+            .setTitle("删除路线点")
+            .setMessage("确定要删除 $pointLabel 吗？")
+            .setPositiveButton("删除") { _, _ ->
+                // 删除点
+                viewModel.removeRoutePointAt(index)
+                // 移除对应的 marker
+                marker.remove()
+                routePointMarkers.remove(marker)
+                
+                // 重新绘制路线（因为索引会变化）
+                updateRouteUI(viewModel.getRouteState().value)
+                
+                // 显示提示
+                com.google.android.material.snackbar.Snackbar.make(
+                    binding.root,
+                    "已删除 $pointLabel",
+                    com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
+                ).show()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /**
      * 初始化地图
      */
     private fun initMap() {
@@ -831,6 +872,19 @@ class MainFragment : Fragment() {
                 updateLocationInfo(position)
             }
         })
+        
+        // 设置标记长按监听 - 用于删除路线点
+        aMap.setOnMarkerLongClickListener { marker ->
+            val index = marker.getObject() as? Int
+            val isRouteMode = viewModel.getRouteState().value.isRouteMode
+            if (index != null && isRouteMode) {
+                // 显示确认对话框
+                showDeletePointDialog(index, marker)
+                true // 消费事件
+            } else {
+                false // 不消费事件，让其他监听器处理
+            }
+        }
         
         // 设置相机变化监听
         aMap.addOnCameraChangeListener(object : AMap.OnCameraChangeListener {
