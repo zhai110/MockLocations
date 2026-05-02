@@ -6,19 +6,9 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center"
-    android:padding="8dp"
+    android:padding="6dp"
     android:background="@drawable/bg_bubble_white"
     android:elevation="4dp">
-
-    <TextView
-        android:id="@+id/tv_bubble_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="12dp"
-        android:text="删除此点？"
-        android:textColor="@color/text_primary"
-        android:textSize="14sp"
-        android:textStyle="bold" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_bubble_delete"
