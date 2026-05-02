@@ -84,10 +84,8 @@ class MainFragment : Fragment() {
     private var routePolyline: Polyline? = null  // 路线折线
     private var routePointMarkers: MutableList<Marker> = mutableListOf()  // 路线点标记
     
-    // 路线点气泡
-    private var selectedPointMarker: Marker? = null  // 当前选中的路线点标记
+    // 路线点编辑
     private var selectedPointIndex: Int = -1  // 当前选中的路线点索引
-    private var routePointBubbleView: View? = null  // 气泡视图
     
     // ✅ 搜索框文本监听器（用于清除时临时移除）
     private val searchTextWatcher = object : android.text.TextWatcher {
@@ -686,8 +684,8 @@ class MainFragment : Fragment() {
                 // 查找被点击的 marker 在列表中的索引
                 val clickedIndex = routePointMarkers.indexOf(clickedMarker)
                 if (clickedIndex >= 0) {
-                    // 显示气泡菜单
-                    showRoutePointBubble(clickedMarker, clickedIndex)
+                    // 显示编辑按钮
+                    showRoutePointEditButtons(clickedIndex)
                     true // 消费事件
                 } else {
                     false
@@ -740,74 +738,47 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 显示路线点气泡菜单
+     * 显示路线点编辑按钮
      */
-    private fun showRoutePointBubble(marker: Marker, index: Int) {
-        // 隐藏之前的气泡
-        hideRoutePointBubble()
+    private fun showRoutePointEditButtons(index: Int) {
+        // 隐藏之前的按钮
+        hideRoutePointEditButtons()
         
-        selectedPointMarker = marker
         selectedPointIndex = index
         
-        // 初始化气泡视图（懒加载）
-        if (routePointBubbleView == null) {
-            routePointBubbleView = layoutInflater.inflate(R.layout.bubble_route_point, binding.root, false)
-            (binding.root as? android.view.ViewGroup)?.addView(routePointBubbleView)
-            
-            // 设置按钮点击事件
-            routePointBubbleView?.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_bubble_delete)?.setOnClickListener {
-                deleteSelectedRoutePoint()
-            }
-            
-            routePointBubbleView?.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_bubble_cancel)?.setOnClickListener {
-                hideRoutePointBubble()
-            }
-        }
-        
-        // 将气泡定位到标记上方
-        val bubble = routePointBubbleView!!
-        bubble.visibility = View.VISIBLE
-        
-        // 添加弹出动画
-        AnimationHelper.slideUp(bubble, 200)
-        
-        // 更新气泡位置（需要在布局完成后）
-        bubble.post {
-            updateBubblePosition(marker)
-        }
-    }
-    
-    /**
-     * 更新气泡位置（在放大按钮上方）
-     */
-    private fun updateBubblePosition(marker: Marker) {
-        val bubble = routePointBubbleView ?: return
-        
-        // 获取气泡的尺寸
-        bubble.measure(
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        )
-        val bubbleWidth = bubble.measuredWidth
-        val bubbleHeight = bubble.measuredHeight
-        
-        // 获取放大按钮在 Fragment 根布局中的位置
+        // 获取放大按钮的位置
         val zoomInBtnPos = IntArray(2)
         binding.zoomInBtn.getLocationOnScreen(zoomInBtnPos)
         
         val rootScreenPos = IntArray(2)
         binding.root.getLocationOnScreen(rootScreenPos)
         
-        // 计算放大按钮相对于根布局的偏移
+        // 计算相对于根布局的偏移
         val offsetX = zoomInBtnPos[0] - rootScreenPos[0]
         val offsetY = zoomInBtnPos[1] - rootScreenPos[1]
         
-        // 气泡位置：放大按钮上方 8dp 间距，水平居中
-        val x = (offsetX + binding.zoomInBtn.width / 2 - bubbleWidth / 2).toFloat()
-        val y = (offsetY - bubbleHeight - 8).toFloat()  // 8dp 间距
+        // 设置删除按钮位置（放大按钮上方 8dp）
+        binding.btnDeleteRoutePoint.x = (offsetX + binding.zoomInBtn.width / 2 - binding.btnDeleteRoutePoint.width / 2).toFloat()
+        binding.btnDeleteRoutePoint.y = (offsetY - binding.btnDeleteRoutePoint.height - 8).toFloat()
+        binding.btnDeleteRoutePoint.visibility = View.VISIBLE
         
-        bubble.x = x
-        bubble.y = y
+        // 设置取消按钮位置（删除按钮上方 8dp）
+        binding.btnCancelSelect.x = binding.btnDeleteRoutePoint.x
+        binding.btnCancelSelect.y = (offsetY - binding.btnDeleteRoutePoint.height * 2 - 16).toFloat()
+        binding.btnCancelSelect.visibility = View.VISIBLE
+        
+        // 添加弹出动画
+        AnimationHelper.slideUp(binding.btnDeleteRoutePoint, 200)
+        AnimationHelper.slideUp(binding.btnCancelSelect, 200)
+    }
+    
+    /**
+     * 隐藏路线点编辑按钮
+     */
+    private fun hideRoutePointEditButtons() {
+        selectedPointIndex = -1
+        binding.btnDeleteRoutePoint.visibility = View.GONE
+        binding.btnCancelSelect.visibility = View.GONE
     }
     
     /**
@@ -826,22 +797,10 @@ class MainFragment : Fragment() {
         
         // 直接删除，无需确认
         viewModel.removeRoutePointAt(selectedPointIndex)
-        hideRoutePointBubble()
+        hideRoutePointEditButtons()
         
-        com.google.android.material.snackbar.Snackbar.make(
-            binding.root,
-            "已删除 $pointLabel",
-            com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
-        ).show()
-    }
-    
-    /**
-     * 隐藏路线点气泡
-     */
-    private fun hideRoutePointBubble() {
-        selectedPointMarker = null
-        selectedPointIndex = -1
-        routePointBubbleView?.visibility = View.GONE
+        // 使用 Toast 提示
+        com.mockloc.util.UIFeedbackHelper.showToast(requireContext(), "已删除 $pointLabel")
     }
 
     private fun createRoutePointIcon(label: String, bgColor: Int): com.amap.api.maps.model.BitmapDescriptor {
@@ -970,11 +929,6 @@ class MainFragment : Fragment() {
                     center = cameraPosition.target,
                     zoom = cameraPosition.zoom
                 )
-                
-                // 更新气泡位置（如果气泡正在显示）
-                selectedPointMarker?.let { marker ->
-                    updateBubblePosition(marker)
-                }
                 
                 Timber.d("onCameraChangeFinish: target=${cameraPosition.target}, zoom=${cameraPosition.zoom}, will reset isMapDragging after 300ms")
                 // 延迟重置拖动标记，避免立即触发的点击事件（增加到 300ms）
@@ -1139,6 +1093,15 @@ class MainFragment : Fragment() {
         binding.zoomOutBtn.setOnClickListener {
             aMap.animateCamera(CameraUpdateFactory.zoomOut())
         }
+        
+        // 路线点编辑按钮
+        binding.btnDeleteRoutePoint.setOnClickListener {
+            deleteSelectedRoutePoint()
+        }
+        
+        binding.btnCancelSelect.setOnClickListener {
+            hideRoutePointEditButtons()
+        }
 
         binding.locationBtn.setOnClickListener {
             viewModel.mapState.value.currentLocation?.let { loc ->
@@ -1235,8 +1198,8 @@ class MainFragment : Fragment() {
             return
         }
         
-        // 点击地图空白区域，隐藏气泡
-        hideRoutePointBubble()
+        // 点击地图空白区域，隐藏编辑按钮
+        hideRoutePointEditButtons()
         
         val routeState = viewModel.routeState.value
         if (routeState.isRouteMode && !routeState.playbackState.isPlaying) {
