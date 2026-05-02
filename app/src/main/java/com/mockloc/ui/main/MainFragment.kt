@@ -1805,8 +1805,8 @@ class MainFragment : Fragment() {
             binding.modeTabCard.setCardBackgroundColor(surfaceColor)
             
             // 更新模式切换Chip颜色
-            val onPrimaryColor = resources.getColor(R.color.on_primary, theme)
             val textPrimaryResColor = resources.getColor(R.color.text_primary, theme)
+            val whiteColor = android.graphics.Color.WHITE
             listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
                 chip.chipBackgroundColor = android.content.res.ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
@@ -1814,7 +1814,7 @@ class MainFragment : Fragment() {
                 )
                 chip.setTextColor(android.content.res.ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                    intArrayOf(onPrimaryColor, textPrimaryResColor)
+                    intArrayOf(whiteColor, textPrimaryResColor)
                 ))
             }
             
