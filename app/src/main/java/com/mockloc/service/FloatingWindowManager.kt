@@ -426,49 +426,32 @@ class FloatingWindowManager(private val service: LocationService) {
         val themeChanged = isNightMode != isNight
         isNightMode = isNight
 
-        // 主题真的变了 → 重建 themedContext 和视图
+        // 主题真的变了 → 更新主题
         if (themeChanged) {
             isSyncingTheme = true
-            Timber.d("Theme changed (night=$isNight), recreating floating views...")
+            Timber.d("Theme changed (night=$isNight), updating floating views...")
             
             try {
                 // 使用显示标志判断悬浮窗是否真正在屏幕上显示
                 val wasShowing = isJoystickViewShown || isMapViewShown || isHistoryViewShown
-                val savedWindowType = currentWindowType
                 
-                // ✅ 关键修复：先清理旧的控制器和视图，避免内存泄漏
-                // 1. 移除所有窗口视图
-                joystickController?.rootView?.let { removeViewSafeImmediate(it) }
-                mapController?.rootView?.let { removeViewSafeImmediate(it) }
-                historyController?.rootView?.let { removeViewSafeImmediate(it) }
-
-                // 2. 销毁所有控制器（释放内部资源）
-                joystickController?.destroy()
-                mapController?.destroy()
-                historyController?.destroy()
-                
-                // 3. 清空控制器引用（帮助 GC 回收）
-                joystickController = null
-                mapController = null
-                historyController = null
-                
-                // 4. 创建新的 themedContext（使用新主题）
-                themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
-
-                // 5. 重新初始化控制器
-                initializeControllers()
-                
-                currentWindowType = savedWindowType
-                
-                // 6. 只有之前真正在显示时才重新显示
                 if (wasShowing) {
-                    show()
-                    Timber.d("Floating window restored after theme change")
+                    // ✅ 悬浮窗显示时：完全重建（销毁旧控制器 + 创建新控制器）
+                    Timber.d("Floating window is showing, full rebuild required")
+                    rebuildControllers()
                 } else {
-                    Timber.d("Floating window was not showing, skip auto-show")
+                    // ✅ 悬浮窗未显示时：只更新 themedContext，不销毁控制器
+                    Timber.d("Floating window not showing, only update themedContext")
+                    themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
+                    
+                    // 如果控制器已初始化，更新它们的 themedContext（通过重新初始化）
+                    if (joystickController != null || mapController != null || historyController != null) {
+                        Timber.d("Controllers exist but not showing, will recreate on next show()")
+                        // 不清除控制器引用，下次 show() 时会检测到主题变化并重建
+                    }
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Failed to sync theme, controllers may be in inconsistent state")
+                Timber.e(e, "Failed to sync theme")
                 // ✅ 即使失败也要重置标志，允许下次重试
                 isSyncingTheme = false
                 throw e
@@ -477,6 +460,40 @@ class FloatingWindowManager(private val service: LocationService) {
             // ✅ 成功完成后重置标志
             isSyncingTheme = false
         }
+    }
+    
+    /**
+     * 完全重建所有控制器（仅在悬浮窗显示时调用）
+     */
+    private fun rebuildControllers() {
+        val savedWindowType = currentWindowType
+        
+        // 1. 移除所有窗口视图
+        joystickController?.rootView?.let { removeViewSafeImmediate(it) }
+        mapController?.rootView?.let { removeViewSafeImmediate(it) }
+        historyController?.rootView?.let { removeViewSafeImmediate(it) }
+
+        // 2. 销毁所有控制器（释放内部资源）
+        joystickController?.destroy()
+        mapController?.destroy()
+        historyController?.destroy()
+        
+        // 3. 清空控制器引用（帮助 GC 回收）
+        joystickController = null
+        mapController = null
+        historyController = null
+        
+        // 4. 创建新的 themedContext（使用新主题）
+        themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
+
+        // 5. 重新初始化控制器
+        initializeControllers()
+        
+        currentWindowType = savedWindowType
+        
+        // 6. 重新显示
+        show()
+        Timber.d("Floating window restored after theme change")
     }
 
     // ==================== 公共查询方法 ====================

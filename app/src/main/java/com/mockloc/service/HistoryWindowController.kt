@@ -95,7 +95,34 @@ class HistoryWindowController(
     override fun show() {
         if (!isInitialized) {
             initialize()
+        } else {
+            // ✅ 检查主题是否变化
+            val currentNightMode = (context.resources.configuration.uiMode
+                and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            
+            // HistoryWindowController 没有 isNightMode 字段，通过比较 themedContext 判断
+            // 简单方案：直接重新初始化（轻量级操作）
+            Timber.d("History window show, checking theme...")
+            
+            // 重新创建 themedContext 并更新颜色
+            val newThemedContext = com.mockloc.util.ThemeUtils.createThemedContext(context).first
+            if (newThemedContext != themedContext) {
+                Timber.d("Theme changed, rebuilding history layout")
+                themedContext = newThemedContext
+                
+                // 销毁旧视图
+                recyclerView = null
+                searchEditText = null
+                noRecordText = null
+                rootView = null
+                
+                // 重新创建布局
+                createHistoryLayout()
+                initColors()
+            }
         }
+        
         isVisible = true
         refreshHistory()
         Timber.d("History window shown")
