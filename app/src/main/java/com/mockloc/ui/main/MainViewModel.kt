@@ -110,6 +110,9 @@ class MainViewModel(
     private var locationClient: AMapLocationClient? = null
     private var poiSearchHelper: PoiSearchHelper? = null
     private val prefs: SharedPreferences = getApplication<Application>().getSharedPreferences(PrefsConfig.MAP_STATE, Application.MODE_PRIVATE)
+    private val settingsPrefs: SharedPreferences = getApplication<Application>().getSharedPreferences(PrefsConfig.SETTINGS, Application.MODE_PRIVATE)
+    private val prefsAltitude: Float
+        get() = settingsPrefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 0f)
     
     // 定位超时任务
     private var locationTimeoutJob: Job? = null
@@ -119,6 +122,14 @@ class MainViewModel(
     
     companion object {
         private const val LOCATION_TIMEOUT_MS = 10000L  // 定位超时时间：10秒
+        
+        /**
+         * 统一坐标精度为 6 位小数（约 0.1 米精度）
+         * 用于确保数据库 UNIQUE INDEX 和查询逻辑一致
+         */
+        private fun roundCoordinate(value: Double): Double {
+            return Math.round(value * 1_000_000) / 1_000_000.0
+        }
     }
 
     // ==================== 初始化方法 ====================
@@ -388,7 +399,7 @@ class MainViewModel(
         val eventType: EventType,
         val latitude: Double? = null,
         val longitude: Double? = null,
-        val altitude: Float = 55.0f,
+        val altitude: Float = 0f,
         val isTeleport: Boolean = false // ✅ 新增：标记是否为主动传送
     ) {
         enum class EventType {
@@ -420,7 +431,7 @@ class MainViewModel(
     /**
      * 确认传送/启动模拟
      */
-    fun confirmSimulation(altitude: Float = 55.0f): Boolean {
+    fun confirmSimulation(altitude: Float = prefsAltitude): Boolean {
         val currentState = _mapState.value
         val simulationState = _simulationState.value
         
@@ -574,21 +585,25 @@ class MainViewModel(
             try {
                 val db = com.mockloc.VirtualLocationApp.getDatabase()
                 
+                // ✅ 统一坐标精度为 6 位小数，确保与 UNIQUE INDEX 一致
+                val roundedLat = roundCoordinate(place.lat)
+                val roundedLng = roundCoordinate(place.lng)
+                
                 // 检查是否已存在相同坐标的记录
-                val existing = db.searchHistoryDao().findByCoordinates(place.lat, place.lng)
+                val existing = db.searchHistoryDao().findByCoordinates(roundedLat, roundedLng)
                 
                 if (existing != null) {
-                    // 已存在，更新时间戳
+                    // 已存在，更新时间戳和名称/地址（可能用户搜索了不同的关键词）
                     db.searchHistoryDao().updateTimestamp(existing.id, System.currentTimeMillis())
                     Timber.d("Updated search history timestamp: ${place.name}")
                 } else {
-                    // 不存在，插入新记录
+                    // 不存在，插入新记录（使用统一精度后的坐标）
                     val searchHistory = com.mockloc.data.db.SearchHistory(
                         keyword = place.name,  // 使用地点名称作为关键词
                         name = place.name,
                         address = place.address,
-                        latitude = place.lat,
-                        longitude = place.lng
+                        latitude = roundedLat,
+                        longitude = roundedLng
                     )
                     
                     db.searchHistoryDao().insert(searchHistory)

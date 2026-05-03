@@ -14,9 +14,9 @@ interface SearchHistoryDao {
     
     /**
      * 根据坐标查询搜索历史（检查是否已存在）
-     * 使用 ROUND 避免浮点精度导致查不到已存在的记录
+     * 注意：调用方需确保传入的坐标已统一精度（6位小数）
      */
-    @Query("SELECT * FROM search_history WHERE ROUND(latitude, 6) = ROUND(:lat, 6) AND ROUND(longitude, 6) = ROUND(:lng, 6) LIMIT 1")
+    @Query("SELECT * FROM search_history WHERE latitude = :lat AND longitude = :lng LIMIT 1")
     suspend fun findByCoordinates(lat: Double, lng: Double): SearchHistory?
     
     /**

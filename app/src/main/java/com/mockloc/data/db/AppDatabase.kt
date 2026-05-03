@@ -19,7 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [HistoryLocation::class, FavoriteLocation::class, SearchHistory::class, SavedRoute::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,6 +29,69 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun savedRouteDao(): SavedRouteDao
     
     companion object {
+        /**
+         * 从版本5升级到版本6：
+         * 修复搜索历史表的浮点精度问题
+         * 1. 清理因浮点精度不一致导致的重复记录（保留最新的）
+         * 2. 统一所有记录的坐标精度为 6 位小数
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                try {
+                    // 1. 创建临时表，存储去重后的数据（使用 ROUND 统一精度）
+                    database.execSQL("""
+                        CREATE TEMPORARY TABLE search_history_backup AS
+                        SELECT 
+                            MIN(id) as id,
+                            keyword,
+                            name,
+                            address,
+                            ROUND(latitude, 6) as latitude,
+                            ROUND(longitude, 6) as longitude,
+                            MAX(timestamp) as timestamp
+                        FROM search_history
+                        GROUP BY ROUND(latitude, 6), ROUND(longitude, 6)
+                    """.trimIndent())
+                    
+                    // 2. 删除原表
+                    database.execSQL("DROP TABLE search_history")
+                    
+                    // 3. 重新创建原表
+                    database.execSQL("""
+                        CREATE TABLE search_history (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            keyword TEXT NOT NULL,
+                            name TEXT NOT NULL,
+                            address TEXT NOT NULL,
+                            latitude REAL NOT NULL,
+                            longitude REAL NOT NULL,
+                            timestamp INTEGER NOT NULL DEFAULT 0
+                        )
+                    """.trimIndent())
+                    
+                    // 4. 重新创建索引
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_keyword ON search_history(keyword)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_timestamp ON search_history(timestamp)")
+                    database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_search_history_latitude_longitude ON search_history(latitude, longitude)")
+                    
+                    // 5. 从临时表恢复数据
+                    database.execSQL("""
+                        INSERT INTO search_history (id, keyword, name, address, latitude, longitude, timestamp)
+                        SELECT id, keyword, name, address, latitude, longitude, timestamp
+                        FROM search_history_backup
+                    """.trimIndent())
+                    
+                    // 6. 删除临时表
+                    database.execSQL("DROP TABLE search_history_backup")
+                    
+                    android.util.Log.d("AppDatabase", "MIGRATION_5_6 completed successfully")
+                } catch (e: Exception) {
+                    android.util.Log.e("AppDatabase", "MIGRATION_5_6 failed: ${e.message}", e)
+                    throw e
+                }
+            }
+        }
+
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""

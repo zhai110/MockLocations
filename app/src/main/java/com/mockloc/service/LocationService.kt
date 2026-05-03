@@ -314,7 +314,7 @@ class LocationService : Service() {
             ACTION_START -> {
                 val latitude = intent.getDoubleExtra(EXTRA_LATITUDE, 0.0)
                 val longitude = intent.getDoubleExtra(EXTRA_LONGITUDE, 0.0)
-                altitude = intent.getDoubleExtra(EXTRA_ALTITUDE, 55.0)
+                altitude = intent.getDoubleExtra(EXTRA_ALTITUDE, getAltitudeFromPrefs())
                 val isGcj02 = intent.getBooleanExtra(EXTRA_COORD_GCJ02, true)
 
                 if (isGcj02 && latitude != 0.0 && longitude != 0.0) {
@@ -701,7 +701,9 @@ class LocationService : Service() {
         Timber.d("Speed set to: ${currentSpeed} m/s (${String.format("%.1f", currentSpeed * 3.6)} km/h)")
     }
     
-    fun setAltitude(alt: Double) { locationLock.withLock { altitude = alt } }
+    private fun getAltitudeFromPrefs(): Double {
+        return prefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 0f).toDouble()
+    }
 
     /** 根据速度模式从 SP 读取速度并应用 */
     private fun applySpeedMode(mode: String) {
