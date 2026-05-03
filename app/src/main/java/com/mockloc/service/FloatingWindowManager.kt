@@ -442,11 +442,7 @@ class FloatingWindowManager(private val service: LocationService) {
             mapController = null
             historyController = null
             
-            // 4. ✅ 显式清理旧的 themedContext（断开引用链）
-            // 注意：ContextThemeWrapper 本身很轻量，但为了最佳实践，显式置空
-            themedContext = service  // 临时指向 service，避免悬空引用
-            
-            // 5. 创建新的 themedContext
+            // 创建新的 themedContext（使用新主题）
             themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
             val savedWindowType = currentWindowType
 
