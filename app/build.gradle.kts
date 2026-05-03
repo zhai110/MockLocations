@@ -54,6 +54,15 @@ android {
 
         // 高德地图 Key
         manifestPlaceholders["AMAP_KEY"] = localProps.getProperty("AMAP_API_KEY", "")
+        
+        // ✅ Room schema 导出目录配置
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += mapOf(
+                    "room.schemaLocation" to "$projectDir/schemas"
+                )
+            }
+        }
     }
 
     buildTypes {
