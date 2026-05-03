@@ -41,7 +41,7 @@ class RoutePlaybackEngine(
     private var routePoints: List<RoutePoint> = emptyList()
     private var playbackJob: Job? = null
 
-    private val baseIntervalMs = 1000L
+    private val baseIntervalMs = 100L  // 高频插值：100ms，确保每段路径平滑移动
 
     fun setRoute(points: List<RoutePoint>) {
         if (_state.value.isPlaying) stop()
@@ -123,6 +123,7 @@ class RoutePlaybackEngine(
         val resumeIndex = _state.value.currentIndex
         val resumeProgress = _state.value.progress
         _state.update { it.copy(isPlaying = true) }
+        Timber.d("🎬 RoutePlaybackEngine.play() started: resumeIndex=$resumeIndex, totalPoints=${points.size}")
         playbackJob = scope.launch(Dispatchers.Default) {
             try {
                 do {
@@ -138,6 +139,7 @@ class RoutePlaybackEngine(
                             val fraction = if (segmentSteps == 0) 1f else step.toFloat() / segmentSteps
                             val interpolated = interpolate(from, to, fraction)
                             val bearing = calculateBearing(from, to)
+                            Timber.d("🎬 Calling onPositionUpdate: $interpolated, bearing=$bearing")
                             onPositionUpdate(interpolated, bearing)
                             _state.update { s ->
                                 s.copy(
@@ -186,18 +188,18 @@ class RoutePlaybackEngine(
             from.latitude, from.longitude,
             to.latitude, to.longitude, distance
         )
-        
-        // 根据速度动态调整步长
-        // 假设基础速度为 5 km/h（步行），每秒更新 1 次
-        val baseSpeedKmh = 5.0f
+
+        // 基础速度 20 km/h（合理导航速度），速度 * 倍率 = 每秒移动米数
+        // baseIntervalMs = 100ms，步长 = 速度 * 0.1 秒
+        val baseSpeedKmh = 20.0f
         val currentSpeedKmh = baseSpeedKmh * speedMultiplier
         val metersPerSecond = currentSpeedKmh * 1000 / 3600
-        
-        // 每步距离 = 速度 * 更新间隔（1秒）
+
+        // 每步距离（基于高频插值间隔）
         val metersPerStep = metersPerSecond * (baseIntervalMs / 1000.0)
-        
+
         val steps = (distance[0] / metersPerStep.coerceAtLeast(1.0)).toInt()
-        return steps.coerceIn(1, 1000)  // 提高上限到 1000
+        return steps.coerceIn(1, 1000)
     }
 
     private fun interpolate(from: LatLng, to: LatLng, fraction: Float): LatLng {

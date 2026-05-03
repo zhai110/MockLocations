@@ -39,6 +39,9 @@ import com.mockloc.util.UIFeedbackHelper
 import com.mockloc.widget.JoystickView
 import timber.log.Timber
 import com.mockloc.VirtualLocationApp
+import com.amap.api.maps.model.LatLng
+import com.mockloc.service.RoutePoint
+import com.mockloc.service.RoutePlaybackState
 
 /**
  * 虚拟定位服务（前台服务）
@@ -166,8 +169,65 @@ class LocationService : Service() {
     @Volatile private var joystickAngle = 0.0
     @Volatile private var joystickR = 0.0
 
+    // ==================== 路线播放引擎 ====================
+    private var routePlaybackEngine: RoutePlaybackEngine? = null
+
     inner class LocalBinder : Binder() {
         fun getService(): LocationService = this@LocationService
+    }
+
+    // ==================== 路线播放控制方法（供 MainViewModel 调用）====================
+    
+    fun setRoute(points: List<RoutePoint>) {
+        routePlaybackEngine?.setRoute(points)
+    }
+    
+    fun addRoutePoint(point: RoutePoint) {
+        routePlaybackEngine?.addPoint(point)
+    }
+    
+    fun removeLastRoutePoint(): RoutePoint? {
+        return routePlaybackEngine?.removeLastPoint()
+    }
+    
+    fun removeRoutePointAt(index: Int): RoutePoint? {
+        return routePlaybackEngine?.removePointAt(index)
+    }
+    
+    fun insertRoutePointAt(index: Int, point: RoutePoint) {
+        routePlaybackEngine?.insertPointAt(index, point)
+    }
+    
+    fun clearRoute() {
+        routePlaybackEngine?.clearRoute()
+    }
+    
+    fun playRoute() {
+        routePlaybackEngine?.play()
+    }
+    
+    fun pauseRoute() {
+        routePlaybackEngine?.pause()
+    }
+    
+    fun stopRoute() {
+        routePlaybackEngine?.stop()
+    }
+    
+    fun setRouteLooping(loop: Boolean) {
+        routePlaybackEngine?.setLooping(loop)
+    }
+    
+    fun setRouteSpeedMultiplier(multiplier: Float) {
+        routePlaybackEngine?.setSpeedMultiplier(multiplier)
+    }
+    
+    fun getRoutePoints(): List<RoutePoint> {
+        return routePlaybackEngine?.getPoints() ?: emptyList()
+    }
+    
+    fun getRoutePlaybackState(): RoutePlaybackState {
+        return routePlaybackEngine?.state?.value ?: RoutePlaybackState()
     }
 
     // ==================== 生命周期 ====================
@@ -239,6 +299,12 @@ class LocationService : Service() {
         } catch (e: Exception) {
             Timber.e(e, "FloatingWindowManager init failed")
         }
+
+        // ✅ 初始化路线播放引擎（运行在前台服务中，支持后台位置更新）
+        routePlaybackEngine = RoutePlaybackEngine(serviceScope) { latLng, bearing ->
+            updatePlaybackPosition(latLng.longitude, latLng.latitude, altitude, bearing)
+        }
+        Timber.d("RoutePlaybackEngine initialized in LocationService")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -371,6 +437,10 @@ class LocationService : Service() {
         floatingWindowManager.destroy()
         isJoystickVisible = false
         
+        // 5. 停止并清理路线播放引擎
+        routePlaybackEngine?.destroy()
+        routePlaybackEngine = null
+        
         // 6. 关闭 ExecutorService
         moveExecutor.shutdown()
         try {
@@ -459,8 +529,9 @@ class LocationService : Service() {
 
     // ==================== 位置更新循环 ====================
 
-    // ✅ 优化：使用协程替代 HandlerThread + Thread.sleep，实现配置实时生效
     private fun initLocationUpdateLoop() {
+        // ✅ 修复：取消旧的协程，防止多个同时运行
+        moveJob?.cancel()
         moveJob = serviceScope.launch {
             while (isActive) {
                 // 动态读取最新的更新间隔
@@ -566,6 +637,8 @@ class LocationService : Service() {
                 loc.extras = bundle
             }
             locationManager.setTestProviderLocation(provider, loc)
+            // ✅ 增加调试日志，确认注入是否发生
+            Timber.d("📍 setLocation($provider): lat=$currentLatitude, lng=$currentLongitude, bearing=$currentBearing")
         } catch (e: Exception) {
             Timber.w(e, "setLocation failed: $provider")
         }
@@ -673,6 +746,31 @@ class LocationService : Service() {
             }
             setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
             setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+        }
+    }
+
+    /**
+     * 更新路线播放位置
+     * 
+     * ✅ 和摇杆模式完全一致：只更新坐标，不在这里注入位置
+     * 摇杆模式：performAutoMoveStep() 只更新坐标，initLocationUpdateLoop 协程统一按间隔注入
+     * 路线模拟：updatePlaybackPosition() 只更新坐标，initLocationUpdateLoop 协程统一按间隔注入
+     * 
+     * 之前在更新坐标后立即调用 setLocation() 会导致：
+     * 1. 和 initLocationUpdateLoop 协程重复注入，系统可能丢弃
+     * 2. 两个线程同时读写 currentLatitude/currentLongitude 有竞态（虽然加了锁，但时序不确定）
+     */
+    fun updatePlaybackPosition(gcjLng: Double, gcjLat: Double, alt: Double, bearing: Float) {
+        moveExecutor.execute {
+            val wgs = MapUtils.gcj02ToWgs84(gcjLng, gcjLat)
+            locationLock.withLock {
+                currentLongitude = wgs[0]
+                currentLatitude = wgs[1]
+                altitude = alt
+                currentBearing = bearing
+            }
+            // ✅ 只更新坐标，不在这里注入！注入统一由 initLocationUpdateLoop 协程按间隔执行
+            Timber.d("🎬 updatePlaybackPosition: lat=$gcjLat, lng=$gcjLng, bearing=$bearing (coordinate updated, injection delegated to loop)")
         }
     }
 
