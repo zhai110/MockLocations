@@ -97,7 +97,16 @@ class JoystickWindowController(
     fun onJoystickTypeChanged() {
         val spJoystickType = service.getSharedPreferences(PrefsConfig.SETTINGS, 0)
             .getInt("joystick_type", 0)
-        if (spJoystickType == 1) {
+        updateJoystickVisibility(spJoystickType)
+        Timber.d("Joystick type changed to: $spJoystickType")
+    }
+    
+    /**
+     * 根据摇杆类型更新视图显示
+     * @param joystickType 0=摇杆模式，1=按钮模式
+     */
+    private fun updateJoystickVisibility(joystickType: Int) {
+        if (joystickType == 1) {
             // 按钮模式
             joystickView?.visibility = android.view.View.GONE
             buttonView?.visibility = android.view.View.VISIBLE
@@ -106,7 +115,6 @@ class JoystickWindowController(
             joystickView?.visibility = android.view.View.VISIBLE
             buttonView?.visibility = android.view.View.GONE
         }
-        Timber.d("Joystick type changed to: $spJoystickType")
     }
 
     /**
@@ -250,15 +258,8 @@ class JoystickWindowController(
         val spJoystickType = context.getSharedPreferences(PrefsConfig.SETTINGS, 0)
             .getInt("joystick_type", 0)
         
-        if (spJoystickType == 1) {
-            // 按钮模式
-            joystickView?.visibility = View.GONE
-            buttonView?.visibility = View.VISIBLE
-        } else {
-            // 摇杆模式（默认）
-            joystickView?.visibility = View.VISIBLE
-            buttonView?.visibility = View.GONE
-        }
+        // ✅ 复用统一的显示逻辑
+        updateJoystickVisibility(spJoystickType)
 
         joystickArea.addView(joystickView)
         joystickArea.addView(buttonView)
