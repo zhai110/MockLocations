@@ -188,11 +188,6 @@ class MapWindowController(
         poiSearchHelper = null
         rootView = null
         
-        // 4. 清理 themedContext 引用
-        if (::themedContext.isInitialized) {
-            themedContext = null as Context
-        }
-        
         isInitialized = false
         isVisible = false
         
