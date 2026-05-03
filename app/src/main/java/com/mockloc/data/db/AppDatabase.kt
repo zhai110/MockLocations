@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [HistoryLocation::class, FavoriteLocation::class, SearchHistory::class, SavedRoute::class],
     version = 6,
-    exportSchema = false
+    exportSchema = true  // ✅ 启用 schema 导出，便于版本追踪和迁移验证
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun historyLocationDao(): HistoryLocationDao
