@@ -138,46 +138,8 @@ class MapWindowController(
             Timber.d("Initializing MapWindowController for the first time")
             initialize()
         } else {
-            // ✅ 每次显示时都检查主题状态（确保地图类型和颜色正确）
-            val currentNightMode = (context.resources.configuration.uiMode
-                and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-                ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-            
-            Timber.d("Theme check: isNightMode=$isNightMode, currentNightMode=$currentNightMode")
-            
-            if (isNightMode != currentNightMode) {
-                Timber.d("Theme changed while hidden: isNightMode=$currentNightMode")
-                isNightMode = currentNightMode
-                
-                // ✅ 关键修复：主题变化时，重新创建 themedContext 并完全重建视图
-                // 原因：旧的 themedContext 持有旧主题的资源，直接更新颜色会导致资源不一致
-                Timber.d("Rebuilding map layout due to theme change")
-                
-                // 1. 销毁旧视图
-                mapView?.onDestroy()
-                mapView = null
-                aMap = null
-                searchEditText = null
-                btnClose = null
-                btnGo = null
-                searchScroll = null
-                searchList = null
-                poiSearchHelper = null
-                rootView = null
-                
-                // 2. 重新创建 themedContext
-                themedContext = com.mockloc.util.ThemeUtils.createThemedContext(context).first
-                
-                // 3. 重新初始化颜色和布局
-                initColors()
-                createMapLayout()
-                
-                // 4. 校准地图类型
-                updateMapTypeForNightMode()
-            } else {
-                // ✅ 即使主题未变，也再次确认地图类型（防止 SDK 内部状态异常）
-                updateMapTypeForNightMode()
-            }
+            // ✅ 即使主题未变，也再次确认地图类型（防止 SDK 内部状态异常）
+            updateMapTypeForNightMode()
         }
         
         isVisible = true

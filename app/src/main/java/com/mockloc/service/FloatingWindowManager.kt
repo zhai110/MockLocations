@@ -468,6 +468,11 @@ class FloatingWindowManager(private val service: LocationService) {
     private fun rebuildControllers() {
         val savedWindowType = currentWindowType
         
+        // ✅ 关键修复：先重置显示标志，防止 show() 重复添加视图
+        isJoystickViewShown = false
+        isMapViewShown = false
+        isHistoryViewShown = false
+        
         // 1. 移除所有窗口视图
         joystickController?.rootView?.let { removeViewSafeImmediate(it) }
         mapController?.rootView?.let { removeViewSafeImmediate(it) }
