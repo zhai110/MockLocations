@@ -103,14 +103,21 @@ class HistoryWindowController(
     }
 
     override fun destroy() {
+        // 1. 取消协程
         scope.cancel()
+        
+        // 2. 清理适配器
         adapter = null
+        
+        // 3. 清理所有视图引用
         recyclerView = null
         searchEditText = null
         noRecordText = null
         rootView = null
+        
         isInitialized = false
         isVisible = false
+        
         Timber.d("HistoryWindowController destroyed")
     }
 
