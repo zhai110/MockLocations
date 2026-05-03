@@ -192,143 +192,130 @@ class FloatingWindowManager(private val service: LocationService) {
      * 显示当前窗口
      */
     fun show() {
+        val controller = getCurrentController()
+        
+        if (controller == null) {
+            initializeControllers()
+            // 重新获取 controller
+            return show()
+        }
+        
+        showController(controller)
+    }
+    
+    /**
+     * 获取当前窗口类型的控制器
+     */
+    private fun getCurrentController(): WindowController? {
+        return when (currentWindowType) {
+            WINDOW_TYPE_JOYSTICK -> joystickController
+            WINDOW_TYPE_MAP -> mapController
+            WINDOW_TYPE_HISTORY -> historyController
+            else -> null
+        }
+    }
+    
+    /**
+     * 设置当前窗口的显示标志
+     */
+    private fun setShownFlag(value: Boolean) {
+        when (currentWindowType) {
+            WINDOW_TYPE_JOYSTICK -> isJoystickViewShown = value
+            WINDOW_TYPE_MAP -> isMapViewShown = value
+            WINDOW_TYPE_HISTORY -> isHistoryViewShown = value
+        }
+    }
+    
+    /**
+     * 显示指定的控制器窗口（通用逻辑）
+     */
+    private fun showController(controller: WindowController) {
+        controller.show()
+        val view = controller.rootView
+        if (view != null) {
+            if (view.parent != null) {
+                Timber.d("${getWindowTypeName()} view already shown")
+                setShownFlag(true)
+                return
+            }
+            
+            // 先隐藏其他窗口（带淡出动画）
+            val otherViews = getOtherVisibleViews()
+            
+            if (otherViews.isEmpty()) {
+                // 没有其他窗口显示，直接淡入
+                view.alpha = 0f
+                addViewSafe(view)
+                setupDragHelper(view)
+                com.mockloc.util.AnimationHelper.fadeIn(view)
+            } else {
+                // 有其他窗口显示，先淡出再显示新窗口
+                fadeOutMultipleViews(otherViews) {
+                    showViewWithDrag(view)
+                }
+            }
+            setShownFlag(true)
+        }
+    }
+    
+    /**
+     * 获取窗口类型名称（用于日志）
+     */
+    private fun getWindowTypeName(): String {
+        return when (currentWindowType) {
+            WINDOW_TYPE_JOYSTICK -> "Joystick"
+            WINDOW_TYPE_MAP -> "Map"
+            WINDOW_TYPE_HISTORY -> "History"
+            else -> "Unknown"
+        }
+    }
+    
+    /**
+     * 获取其他正在显示的窗口视图列表
+     */
+    private fun getOtherVisibleViews(): List<View> {
+        val views = mutableListOf<View>()
+        
         when (currentWindowType) {
             WINDOW_TYPE_JOYSTICK -> {
-                if (joystickController == null) {
-                    initializeControllers()
-                }
-                
-                joystickController?.let { controller ->
-                    controller.show()
-                    val view = controller.rootView
-                    if (view != null) {
-                        if (view.parent != null) {
-                            Timber.d("Joystick view already shown")
-                            isJoystickViewShown = true
-                            return@let
-                        }
-                        
-                        // 先隐藏其他窗口（带淡出动画）
-                        val needFadeMap = mapController?.rootView?.parent != null
-                        val needFadeHistory = historyController?.rootView?.parent != null
-                        
-                        if (!needFadeMap && !needFadeHistory) {
-                            view.alpha = 0f
-                            addViewSafe(view)
-                            setupDragHelper(view)
-                            com.mockloc.util.AnimationHelper.fadeIn(view)
-                        } else {
-                            if (needFadeMap) {
-                                fadeOutAndRemove(mapController?.rootView) {
-                                    if (needFadeHistory) {
-                                        fadeOutAndRemove(historyController?.rootView) {
-                                            showViewWithDrag(view)
-                                        }
-                                    } else {
-                                        showViewWithDrag(view)
-                                    }
-                                }
-                            } else {
-                                fadeOutAndRemove(historyController?.rootView) {
-                                    showViewWithDrag(view)
-                                }
-                            }
-                        }
-                        isJoystickViewShown = true
-                    }
-                }
+                mapController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
+                historyController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
             }
             WINDOW_TYPE_MAP -> {
-                if (mapController == null) {
-                    initializeControllers()
-                }
-                
-                mapController?.let { controller ->
-                    controller.show()
-                    val view = controller.rootView
-                    if (view != null) {
-                        if (view.parent != null) {
-                            Timber.d("Map view already shown")
-                            isMapViewShown = true
-                            return@let
-                        }
-                        
-                        // 先隐藏其他窗口（带淡出动画）
-                        val needFadeJoystick = joystickController?.rootView?.parent != null
-                        val needFadeHistory = historyController?.rootView?.parent != null
-                        
-                        if (!needFadeJoystick && !needFadeHistory) {
-                            view.alpha = 0f
-                            addViewSafe(view)
-                            setupDragHelper(view)
-                            com.mockloc.util.AnimationHelper.fadeIn(view)
-                        } else {
-                            if (needFadeJoystick) {
-                                fadeOutAndRemove(joystickController?.rootView) {
-                                    if (needFadeHistory) {
-                                        fadeOutAndRemove(historyController?.rootView) {
-                                            showViewWithDrag(view)
-                                        }
-                                    } else {
-                                        showViewWithDrag(view)
-                                    }
-                                }
-                            } else {
-                                fadeOutAndRemove(historyController?.rootView) {
-                                    showViewWithDrag(view)
-                                }
-                            }
-                        }
-                        isMapViewShown = true
-                    }
-                }
+                joystickController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
+                historyController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
             }
             WINDOW_TYPE_HISTORY -> {
-                if (historyController == null) {
-                    initializeControllers()
-                }
-                
-                historyController?.let { controller ->
-                    controller.show()
-                    val view = controller.rootView
-                    if (view != null) {
-                        if (view.parent != null) {
-                            Timber.d("History view already shown")
-                            isHistoryViewShown = true
-                            return@let
-                        }
-                        
-                        // 先隐藏其他窗口（带淡出动画）
-                        val needFadeJoystick = joystickController?.rootView?.parent != null
-                        val needFadeMap = mapController?.rootView?.parent != null
-                        
-                        if (!needFadeJoystick && !needFadeMap) {
-                            view.alpha = 0f
-                            addViewSafe(view)
-                            setupDragHelper(view)
-                            com.mockloc.util.AnimationHelper.fadeIn(view)
-                        } else {
-                            if (needFadeJoystick) {
-                                fadeOutAndRemove(joystickController?.rootView) {
-                                    if (needFadeMap) {
-                                        fadeOutAndRemove(mapController?.rootView) {
-                                            showViewWithDrag(view)
-                                        }
-                                    } else {
-                                        showViewWithDrag(view)
-                                    }
-                                }
-                            } else {
-                                fadeOutAndRemove(mapController?.rootView) {
-                                    showViewWithDrag(view)
-                                }
-                            }
-                        }
-                        isHistoryViewShown = true
-                    }
-                }
+                joystickController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
+                mapController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
             }
         }
+        
+        return views
+    }
+    
+    /**
+     * 依次淡出多个视图
+     */
+    private fun fadeOutMultipleViews(views: List<View>, onComplete: () -> Unit) {
+        if (views.isEmpty()) {
+            onComplete()
+            return
+        }
+        
+        // 递归淡出所有视图
+        fun fadeOutNext(index: Int) {
+            if (index >= views.size) {
+                onComplete()
+                return
+            }
+            
+            fadeOutAndRemove(views[index]) {
+                fadeOutNext(index + 1)
+            }
+        }
+        
+        fadeOutNext(0)
     }
 
     /**
