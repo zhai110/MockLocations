@@ -9,26 +9,38 @@ import androidx.room.Query
 @Dao
 interface SavedRouteDao {
     @Query("SELECT * FROM saved_route WHERE route_group = :group ORDER BY pointOrder ASC")
-    fun getByGroup(group: String): List<SavedRoute>
+    suspend fun getByGroup(group: String): List<SavedRoute>
 
-    @Query("SELECT DISTINCT route_group FROM saved_route ORDER BY route_group")
-    fun getAllGroups(): List<String>
+    /**
+     * 获取所有路线组名称，按最新时间戳降序排列
+     * 子查询获取每个组的最大时间戳，确保最近修改的路线排在前面
+     */
+    @Query("""
+        SELECT DISTINCT route_group 
+        FROM saved_route 
+        ORDER BY (
+            SELECT MAX(timestamp) 
+            FROM saved_route sr2 
+            WHERE sr2.route_group = saved_route.route_group
+        ) DESC
+    """)
+    suspend fun getAllGroups(): List<String>
 
     @Query("SELECT COUNT(DISTINCT route_group) FROM saved_route")
-    fun getGroupCount(): Int
+    suspend fun getGroupCount(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertAll(routes: List<SavedRoute>)
+    suspend fun insertAll(routes: List<SavedRoute>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insert(route: SavedRoute)
+    suspend fun insert(route: SavedRoute)
 
     @Delete
-    fun delete(route: SavedRoute)
+    suspend fun delete(route: SavedRoute)
 
     @Query("DELETE FROM saved_route WHERE route_group = :group")
-    fun deleteByGroup(group: String)
+    suspend fun deleteByGroup(group: String)
 
     @Query("DELETE FROM saved_route")
-    fun deleteAll()
+    suspend fun deleteAll()
 }
