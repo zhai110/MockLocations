@@ -184,14 +184,17 @@ class MapWindowController(
         scope.cancel()
         btnGoPulseAnimator?.cancel()
         
-        // 销毁定位客户端
+        // 1. 销毁定位客户端
         locationClient?.stopLocation()
         locationClient?.onDestroy()
         locationClient = null
         
+        // 2. 销毁地图视图（重要：必须调用 onDestroy 释放原生资源）
         mapView?.onDestroy()
         mapView = null
         aMap = null
+        
+        // 3. 清理所有视图引用
         searchEditText = null
         btnClose = null
         btnGo = null
@@ -199,8 +202,10 @@ class MapWindowController(
         searchList = null
         poiSearchHelper = null
         rootView = null
+        
         isInitialized = false
         isVisible = false
+        
         Timber.d("MapWindowController destroyed")
     }
 

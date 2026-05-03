@@ -141,7 +141,7 @@ class LocationService : Service() {
             }
             PrefsConfig.Settings.KEY_JOYSTICK_TYPE -> {
                 // 摇杆类型变化，通知悬浮窗切换
-                floatingWindowManager.onJoystickTypeChanged()
+                floatingWindowManager?.onJoystickTypeChanged()
             }
             PrefsConfig.Settings.KEY_LOGGING -> {
                 val enabled = prefs.getBoolean(PrefsConfig.Settings.KEY_LOGGING, true)
@@ -160,7 +160,7 @@ class LocationService : Service() {
     }
 
     // ==================== 悬浮窗管理 ====================
-    private lateinit var floatingWindowManager: FloatingWindowManager
+    private var floatingWindowManager: FloatingWindowManager? = null
     private var isJoystickVisible = false
 
     // ==================== 摇杆自动移动 ====================
@@ -274,7 +274,7 @@ class LocationService : Service() {
 
         // 初始化悬浮窗管理器
         floatingWindowManager = FloatingWindowManager(this)
-        floatingWindowManager.setListener(object : FloatingWindowManager.FloatingWindowListener {
+        floatingWindowManager?.setListener(object : FloatingWindowManager.FloatingWindowListener {
             override fun onDirection(auto: Boolean, angle: Double, r: Double) {
                 processDirection(auto, angle, r)
             }
@@ -291,7 +291,7 @@ class LocationService : Service() {
         // 注意：不应在 onCreate 中自动显示悬浮窗，只初始化，在 ACTION_START 时显示
         try {
             if (Settings.canDrawOverlays(this)) {
-                floatingWindowManager.init()
+                floatingWindowManager?.init()
                 Timber.d("FloatingWindow initialized (not shown yet)")
             } else {
                 Timber.w("No overlay permission, floating window not shown")
@@ -326,7 +326,7 @@ class LocationService : Service() {
 
                 if (!isJoystickVisible && Settings.canDrawOverlays(this)) {
                     try {
-                        floatingWindowManager.show()
+                        floatingWindowManager?.show()
                         isJoystickVisible = true
                     } catch (e: Exception) {
                         Timber.w(e, "show joystick failed")
@@ -393,7 +393,7 @@ class LocationService : Service() {
             // 2. 隐藏并销毁悬浮窗
             if (isJoystickVisible) {
                 Timber.d("Hiding floating window due to task removal")
-                floatingWindowManager.hide()
+                floatingWindowManager?.hide()
                 isJoystickVisible = false
             }
             
@@ -416,7 +416,7 @@ class LocationService : Service() {
         // ✅ 关键修复：无论悬浮窗是否可见，都要同步主题状态
         // 否则当悬浮窗未打开时切换主题，下次打开悬浮窗会使用旧的 Context
         Timber.d("Configuration changed, syncing floating window theme")
-        floatingWindowManager.syncMapWithSystemTheme()
+        floatingWindowManager?.syncMapWithSystemTheme()
     }
 
     override fun onDestroy() {
@@ -434,7 +434,7 @@ class LocationService : Service() {
         cancelAutoMove()
         
         // 4. 销毁悬浮窗管理器（会清理所有视图和协程）
-        floatingWindowManager.destroy()
+        floatingWindowManager?.destroy()
         isJoystickVisible = false
         
         // 5. 停止并清理路线播放引擎
@@ -474,6 +474,9 @@ class LocationService : Service() {
         
         // 10. 停止前台服务
         stopForeground(STOP_FOREGROUND_REMOVE)
+        
+        // 11. 清理 floatingWindowManager 引用（防止内存泄漏）
+        floatingWindowManager = null
 
         Timber.d("LocationService destroyed completely")
         super.onDestroy()
@@ -579,7 +582,7 @@ class LocationService : Service() {
         staticIsRunning = false
         moveJob?.cancel() // ✅ 取消协程任务
         cancelAutoMove()
-        floatingWindowManager.hide()
+        floatingWindowManager?.hide()
         isJoystickVisible = false
         stopSelf()
     }
@@ -893,11 +896,11 @@ class LocationService : Service() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 NOTE_ACTION_SHOW -> {
-                    floatingWindowManager.show()
+                    floatingWindowManager?.show()
                     isJoystickVisible = true
                 }
                 NOTE_ACTION_HIDE -> {
-                    floatingWindowManager.hide()
+                    floatingWindowManager?.hide()
                     isJoystickVisible = false
                 }
             }

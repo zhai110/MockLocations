@@ -365,24 +365,34 @@ class FloatingWindowManager(private val service: LocationService) {
      * 销毁所有窗口
      */
     fun destroy() {
-        // 取消所有协程，防止内存泄漏
+        Timber.d("FloatingWindowManager.destroy() called")
+        
+        // 1. 取消所有协程，防止内存泄漏
         scope.cancel()
         
-        // 销毁所有控制器
+        // 2. 销毁所有控制器
         joystickController?.destroy()
         mapController?.destroy()
         historyController?.destroy()
         
-        // 使用 immediate 版本立即移除所有窗口，防止泄漏
+        // 3. 使用 immediate 版本立即移除所有窗口，防止泄漏
         joystickController?.rootView?.let { removeViewSafeImmediate(it) }
         mapController?.rootView?.let { removeViewSafeImmediate(it) }
         historyController?.rootView?.let { removeViewSafeImmediate(it) }
         
-        // 彻底清理所有引用，防止内存泄漏
+        // 4. 重置所有显示标志（防止状态不一致）
+        isJoystickViewShown = false
+        isMapViewShown = false
+        isHistoryViewShown = false
+        currentWindowType = WINDOW_TYPE_JOYSTICK
+        
+        // 5. 彻底清理所有引用，防止内存泄漏
         joystickController = null
         mapController = null
         historyController = null
-        listener = null  // 清理监听器引用
+        listener = null
+        
+        Timber.d("FloatingWindowManager destroyed successfully")
     }
 
     // ==================== 初始化 ====================

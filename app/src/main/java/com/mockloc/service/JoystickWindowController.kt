@@ -84,6 +84,10 @@ class JoystickWindowController(
         rootView = null
         isInitialized = false
         isVisible = false
+        
+        // 清理 service 引用，防止内存泄漏
+        // service 引用由外部管理，这里只清理内部回调
+        
         Timber.d("JoystickWindowController destroyed")
     }
 
