@@ -36,6 +36,9 @@ class FloatingWindowManager(private val service: LocationService) {
     /** 缓存当前是否为深色模式，主题切换时用于刷新视图 */
     private var isNightMode: Boolean = false
 
+    /** ✅ 防止快速连续切换主题导致的状态混乱 */
+    private var isSyncingTheme = false
+
     /**
      * 带主题的 Context — 根据 isNightMode 创建 ContextThemeWrapper，
      * 确保从资源读取的颜色/主题正确匹配当前暗黑模式。
@@ -407,9 +410,15 @@ class FloatingWindowManager(private val service: LocationService) {
     /**
      * 同步悬浮窗与系统主题
      * - 深色模式：切换高德地图到夜景，销毁并重建悬浮窗 UI（深色配色）
-     * 由 LocationService.themeReceiver 调用
+     * 由 LocationService.onConfigurationChanged 调用
      */
     fun syncMapWithSystemTheme() {
+        // ✅ 防抖：如果正在同步主题，直接忽略后续请求
+        if (isSyncingTheme) {
+            Timber.w("Theme sync already in progress, skipping...")
+            return
+        }
+        
         val isNight = (service.resources.configuration.uiMode
                 and android.content.res.Configuration.UI_MODE_NIGHT_MASK
                 ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
@@ -419,45 +428,54 @@ class FloatingWindowManager(private val service: LocationService) {
 
         // 主题真的变了 → 重建 themedContext 和视图
         if (themeChanged) {
+            isSyncingTheme = true
             Timber.d("Theme changed (night=$isNight), recreating floating views...")
             
-            // 使用显示标志判断悬浮窗是否真正在屏幕上显示
-            // 修复：原代码用 currentWindowType != null，但 currentWindowType 是 Int 类型，
-            // 永远不为 null，导致 wasShowing 永远为 true，夜间模式切换时错误地弹出悬浮窗
-            val wasShowing = isJoystickViewShown || isMapViewShown || isHistoryViewShown
-            
-            // ✅ 关键修复：先清理旧的控制器和视图，避免内存泄漏
-            // 1. 移除所有窗口视图
-            joystickController?.rootView?.let { removeViewSafeImmediate(it) }
-            mapController?.rootView?.let { removeViewSafeImmediate(it) }
-            historyController?.rootView?.let { removeViewSafeImmediate(it) }
+            try {
+                // 使用显示标志判断悬浮窗是否真正在屏幕上显示
+                val wasShowing = isJoystickViewShown || isMapViewShown || isHistoryViewShown
+                val savedWindowType = currentWindowType
+                
+                // ✅ 关键修复：先清理旧的控制器和视图，避免内存泄漏
+                // 1. 移除所有窗口视图
+                joystickController?.rootView?.let { removeViewSafeImmediate(it) }
+                mapController?.rootView?.let { removeViewSafeImmediate(it) }
+                historyController?.rootView?.let { removeViewSafeImmediate(it) }
 
-            // 2. 销毁所有控制器（释放内部资源）
-            joystickController?.destroy()
-            mapController?.destroy()
-            historyController?.destroy()
-            
-            // 3. 清空控制器引用（帮助 GC 回收）
-            joystickController = null
-            mapController = null
-            historyController = null
-            
-            // 创建新的 themedContext（使用新主题）
-            themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
-            val savedWindowType = currentWindowType
+                // 2. 销毁所有控制器（释放内部资源）
+                joystickController?.destroy()
+                mapController?.destroy()
+                historyController?.destroy()
+                
+                // 3. 清空控制器引用（帮助 GC 回收）
+                joystickController = null
+                mapController = null
+                historyController = null
+                
+                // 4. 创建新的 themedContext（使用新主题）
+                themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
 
-            // 重新初始化控制器
-            initializeControllers()
-            
-            currentWindowType = savedWindowType
-            
-            // 只有之前真正在显示时才重新显示
-            if (wasShowing) {
-                show()
-                Timber.d("Floating window restored after theme change")
-            } else {
-                Timber.d("Floating window was not showing, skip auto-show")
+                // 5. 重新初始化控制器
+                initializeControllers()
+                
+                currentWindowType = savedWindowType
+                
+                // 6. 只有之前真正在显示时才重新显示
+                if (wasShowing) {
+                    show()
+                    Timber.d("Floating window restored after theme change")
+                } else {
+                    Timber.d("Floating window was not showing, skip auto-show")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to sync theme, controllers may be in inconsistent state")
+                // ✅ 即使失败也要重置标志，允许下次重试
+                isSyncingTheme = false
+                throw e
             }
+            
+            // ✅ 成功完成后重置标志
+            isSyncingTheme = false
         }
     }
 
