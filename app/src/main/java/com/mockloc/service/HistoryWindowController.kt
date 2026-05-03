@@ -63,6 +63,9 @@ class HistoryWindowController(
     
     // 协程作用域
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
+    // ✅ 缓存 themedContext，避免重复创建
+    private lateinit var themedContext: Context
 
     // 主题色
     private var primaryColor: Int = 0
@@ -77,6 +80,9 @@ class HistoryWindowController(
         if (isInitialized) return
         
         try {
+            // ✅ 初始化 themedContext（只创建一次）
+            themedContext = com.mockloc.util.ThemeUtils.createThemedContext(context).first
+            
             initColors()
             createHistoryLayout()
             isInitialized = true
@@ -115,6 +121,11 @@ class HistoryWindowController(
         noRecordText = null
         rootView = null
         
+        // 4. 清理 themedContext 引用
+        if (::themedContext.isInitialized) {
+            themedContext = null as Context
+        }
+        
         isInitialized = false
         isVisible = false
         
@@ -125,7 +136,7 @@ class HistoryWindowController(
      * 初始化颜色（从主题读取）
      */
     private fun initColors() {
-        val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(context).first
+        // ✅ 复用类级别的 themedContext
         primaryColor = ContextCompat.getColor(themedContext, R.color.primary)
         textPrimary = ContextCompat.getColor(themedContext, R.color.text_primary)
         textSecondary = ContextCompat.getColor(themedContext, R.color.text_secondary)
@@ -175,7 +186,7 @@ class HistoryWindowController(
         }
 
         // 搜索输入框
-        searchEditText = EditText(com.mockloc.util.ThemeUtils.createThemedContext(context).first).apply {
+        searchEditText = EditText(themedContext).apply {
             hint = "搜索历史"
             textSize = 14f
             setTextColor(textPrimary)
@@ -224,7 +235,7 @@ class HistoryWindowController(
         noRecordText = TextView(context).apply {
             text = "暂无历史记录"
             textSize = 15f
-            setTextColor(ContextCompat.getColor(com.mockloc.util.ThemeUtils.createThemedContext(context).first, R.color.text_hint))
+            setTextColor(ContextCompat.getColor(themedContext, R.color.text_hint))
             gravity = Gravity.CENTER
             setPadding(dp(16), dp(60), dp(16), dp(60))
             layoutParams = FrameLayout.LayoutParams(
@@ -252,7 +263,7 @@ class HistoryWindowController(
                 // 切换回摇杆窗口
                 onSwitchToJoystick()
             },
-            context = com.mockloc.util.ThemeUtils.createThemedContext(context).first
+            context = themedContext
         )
 
         recyclerView = RecyclerView(context).apply {

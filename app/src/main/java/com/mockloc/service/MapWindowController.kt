@@ -84,6 +84,9 @@ class MapWindowController(
     
     // 协程作用域
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
+    // ✅ 缓存 themedContext，避免重复创建
+    private lateinit var themedContext: Context
 
     // 主题色
     private var primaryColor: Int = 0
@@ -106,6 +109,9 @@ class MapWindowController(
             isNightMode = (context.resources.configuration.uiMode
                     and android.content.res.Configuration.UI_MODE_NIGHT_MASK
                     ) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            
+            // ✅ 初始化 themedContext（只创建一次）
+            themedContext = com.mockloc.util.ThemeUtils.createThemedContext(context).first
             
             Timber.d("初始化颜色")
             initColors()
@@ -203,6 +209,11 @@ class MapWindowController(
         poiSearchHelper = null
         rootView = null
         
+        // 4. 清理 themedContext 引用
+        if (::themedContext.isInitialized) {
+            themedContext = null as Context
+        }
+        
         isInitialized = false
         isVisible = false
         
@@ -213,7 +224,7 @@ class MapWindowController(
      * 初始化颜色（从主题读取）
      */
     private fun initColors() {
-        val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(context).first
+        // ✅ 复用类级别的 themedContext
         primaryColor = ContextCompat.getColor(themedContext, R.color.primary)
         textPrimary = ContextCompat.getColor(themedContext, R.color.text_primary)
         textSecondary = ContextCompat.getColor(themedContext, R.color.text_secondary)
@@ -303,7 +314,7 @@ class MapWindowController(
         }
 
         // 搜索输入框
-        searchEditText = EditText(com.mockloc.util.ThemeUtils.createThemedContext(context).first).apply {
+        searchEditText = EditText(themedContext).apply {
             hint = "搜索地点"
             textSize = 14f
             setTextColor(textPrimary)
@@ -348,7 +359,7 @@ class MapWindowController(
         }
 
         // 高德 MapView
-        mapView = MapView(com.mockloc.util.ThemeUtils.createThemedContext(context).first).apply {
+        mapView = MapView(themedContext).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
