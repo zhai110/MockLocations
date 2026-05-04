@@ -91,8 +91,8 @@
     <string name="settings_auto_start">开机自启</string>
     <string name="settings_auto_start_desc">开机后自动恢复上次模拟位置</string>
     <string name="settings_about">关于应用</string>
-    <string name="settings_about_desc">版本 1.5.0</string>
-    <string name="about_message">虚拟定位应用 v1.5.0
+    <string name="settings_about_desc">版本 1.5.1</string>
+    <string name="about_message">虚拟定位应用 v1.5.1
 
 基于 Kotlin + 高德地图 SDK 开发
 无需 ROOT 权限即可修改设备位置
@@ -109,14 +109,20 @@
 • 两步确认模式（App内）/ 一步直达（悬浮窗）
 • 路线模拟与循环播放
 
+v1.5.1 更新：
+• 修复悬浮窗地图选点位置模拟不生效问题
+• 修复历史记录选择位置模拟不生效问题
+• 修复 setPositionWgs84 经纬度参数颠倒问题
+• 统一位置函数参数顺序为 (lat, lng)
+• 增强摇杆移动和路线模拟的坐标验证
+• setLocation 三重验证（0.0/NaN/范围检查）
+• 优化更新对话框 UI，进度条内嵌按钮
+
 v1.5.0 更新：
 • 新增路线模拟与循环播放功能
 • 修复循环播放时起点跳跃的严重 Bug
-• 优化路线模拟时相机跟随逻辑，避开工具栏遮挡
-• 统一位置更新接口参数顺序，降低开发风险
-• 异步化数据库清理，提升模拟定位流畅度
-• PoiSearchHelper 单例化，减少内存泄漏风险
-• 增强 Fragment 异步回调生命周期防护</string>
+• 优化路线模拟时相机跟随逻辑
+• 异步化数据库清理，提升流畅度</string>
     
     <!-- 权限 -->
     <string name="permission_location">定位权限</string>
