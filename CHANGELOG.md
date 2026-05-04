@@ -7,6 +7,71 @@
 
 ---
 
+## [v1.5.1] - 2026-05-04
+
+### Fixed - 修复
+- **悬浮窗位置模拟不生效**：
+  - 修复 MapWindowController 地图选点后位置模拟不生效问题
+  - 修复 HistoryWindowController 历史记录选择后位置模拟不生效问题
+  - 修复 setPositionWgs84 经纬度参数颠倒问题
+- **更新对话框 UI 问题**：
+  - 修复更新内容很长时进度条挤出按钮的问题
+  - 进度条内嵌在更新按钮中，按钮始终可见
+  - 用户可以随时看到下载进度并取消操作
+
+### Changed - 变更
+- **位置函数参数顺序统一**：
+  - setPositionWgs84 参数顺序从 (lng, lat) 改为 (lat, lng)
+  - 与 startSimulation、updateTargetLocation 等其他函数保持一致
+  - 更新所有调用点，确保参数传递正确
+- **代码简化**：
+  - 删除未使用的 setPositionGcj02 函数，减少维护负担
+  - 简化 UpdateDialogFragment 逻辑，移除按钮容器管理
+
+### Added - 新增
+- **坐标验证增强**：
+  - performAutoMoveStep：验证计算出的新坐标是否有效
+  - updatePlaybackPosition：验证转换后的 WGS-84 坐标
+  - setLocation：三重验证（0.0、NaN、范围检查）
+- **签名配置修复**：
+  - 修复 RELEASE_STORE_FILE 路径配置（app/release.jks → release.jks）
+  - 清理 local.properties 中的重复配置
+
+### Technical Details - 技术细节
+- **versionCode**：7 → 8
+- **versionName**：1.5.0 → 1.5.1
+- **APK 大小**：69.07 MB (72,423,137 bytes)
+- **关键修复**：坐标参数顺序统一、三重坐标验证
+- **内存安全**：无内存泄漏风险，所有资源清理完善
+
+---
+
+## [v1.5.0] - 2026-04-16
+
+### Added - 新增
+- **路线模拟功能**：
+  - 支持多点路线规划与自动循环播放
+  - 实时显示路线播放进度
+  - 支持暂停/继续路线播放
+
+### Fixed - 修复
+- **路线模拟起点跳跃问题**：
+  - 修复循环播放时起点跳跃的严重 Bug
+  - 优化路线播放的位置平滑过渡
+
+### Optimized - 优化
+- **路线模拟体验**：
+  - 优化路线模拟时相机跟随逻辑
+  - 异步化数据库清理，提升流畅度
+
+### Technical Details - 技术细节
+- **versionCode**：6 → 7
+- **versionName**：1.4.1 → 1.5.0
+- **新功能**：路线模拟与循环播放
+- **关键修复**：起点跳跃问题
+
+---
+
 ## [v1.4.1] - 2026-04-30
 
 ### Fixed - 修复
@@ -165,6 +230,6 @@
 
 <div align="center">
 
-**最后更新**: 2026-04-16
+**最后更新**: 2026-05-04
 
 </div>
