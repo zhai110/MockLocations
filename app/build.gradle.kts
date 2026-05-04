@@ -47,8 +47,8 @@ android {
         applicationId = "com.mockloc"
         minSdk = 29
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.5.0"  // 路线模拟功能
+        versionCode = 8
+        versionName = "1.5.1"  // 修复悬浮窗位置模拟坐标问题
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
