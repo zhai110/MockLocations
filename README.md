@@ -1,6 +1,6 @@
 # 虚拟定位应用 (MockLoc)
 
-> **最新版本**: v1.4.1 | [下载 APK](https://gitee.com/eizmme/MockLocations/releases)
+> **最新版本**: v1.5.0 | [下载 APK](https://gitee.com/eizmme/MockLocations/releases)
 
 基于 **Kotlin + MVVM + Android 10+** 实现的现代化虚拟定位应用，采用 **Material Design 3** 设计规范，无需 ROOT 权限即可修改设备位置。
 
@@ -21,6 +21,7 @@
 - ✅ **连续移动** - 摇杆控制方向和速度，实时位置更新
 - ✅ **多速度模式** - 步行 (5km/h)、跑步 (12km/h)、骑行 (20km/h)
 - ✅ **随机偏移** - 增加位置真实性，避免被检测
+- ✅ **路线模拟** - 支持多点路线规划与自动循环播放
 
 ### 地图交互
 - ✅ **高德地图集成** - 3D 地图、POI 搜索、地理编码
@@ -431,6 +432,27 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 - [ ] 支持用户自定义主题色
 - [ ] 添加 E2E 测试（Espresso）
 - [ ] 集成 Firebase Performance 监控
+
+---
+
+## 📝 版本历史
+
+### v1.5.0 (2026-04-16)
+🎯 **路线模拟与循环播放功能**
+- ✨ 新增路线模拟与循环播放功能
+- 🐛 修复循环播放时起点跳跃的严重 Bug
+-  优化路线模拟时相机跟随逻辑，避开工具栏遮挡
+- 🔧 统一位置更新接口参数顺序，降低开发风险
+- ⚡ 异步化数据库清理，提升模拟定位流畅度
+- 🧹 PoiSearchHelper 单例化，减少内存泄漏风险
+- 🛡️ 增强 Fragment 异步回调生命周期防护
+
+### v1.4.1 (2026-04-24)
+🔧 **修复升级数据丢失问题**
+- 移除 DEBUG 模式破坏性迁移
+- 修复 MIGRATION_2_3 保留最新记录
+- 统一索引命名为 Room 标准格式
+- 确保 1.3.0→1.4.1 升级数据完整
 
 ---
 
