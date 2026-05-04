@@ -286,7 +286,8 @@ class LocationService : Service() {
                 processDirection(auto, angle, r)
             }
             override fun onPositionSelected(wgsLng: Double, wgsLat: Double, alt: Double) {
-                setPositionWgs84(wgsLng, wgsLat, alt)
+                // ✅ 修复：onPositionSelected 传入 (经度, 纬度)，setPositionWgs84 需要 (纬度, 经度)
+                setPositionWgs84(wgsLat, wgsLng, alt)
             }
             override fun onSpeedChanged(speedMs: Float) {
                 currentSpeed = speedMs
@@ -738,9 +739,17 @@ class LocationService : Service() {
             }
             // 加锁保护复合操作（read-modify-write），防止与 handler 线程的 setLocation 竞态
             locationLock.withLock {
-                currentLongitude += distanceLng / (METERS_PER_DEGREE_LNG_EQUATOR * Math.cos(Math.toRadians(currentLatitude)))
-                currentLatitude += distanceLat / METERS_PER_DEGREE_LAT
-                currentBearing = (90.0f - joystickAngle).toFloat()
+                val newLng = currentLongitude + distanceLng / (METERS_PER_DEGREE_LNG_EQUATOR * Math.cos(Math.toRadians(currentLatitude)))
+                val newLat = currentLatitude + distanceLat / METERS_PER_DEGREE_LAT
+                
+                // ✅ 坐标验证：确保新坐标在有效范围内
+                if (kotlin.math.abs(newLat) <= 90 && kotlin.math.abs(newLng) <= 180) {
+                    currentLongitude = newLng
+                    currentLatitude = newLat
+                    currentBearing = (90.0f - joystickAngle).toFloat()
+                } else {
+                    Timber.w("⚠️ performAutoMoveStep: 计算出的坐标超出范围 lat=$newLat, lng=$newLng，跳过更新")
+                }
             }
         }
     }
@@ -774,40 +783,21 @@ class LocationService : Service() {
     }
 
     /**
-     * 设置模拟位置（GCJ-02 坐标系）
-     * @param lat 纬度
-     * @param lng 经度
-     * @param alt 海拔
-     */
-    fun setPositionGcj02(lat: Double, lng: Double, alt: Double) {
-        val wgs = MapUtils.gcj02ToWgs84(lng, lat)
-        moveExecutor.execute {
-            locationLock.withLock {
-                currentLongitude = wgs[0]
-                currentLatitude = wgs[1]
-                altitude = alt
-            }
-            setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-            setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-        }
-    }
-
-    /**
      * 设置模拟位置（WGS-84 坐标系）
-     * @param lng 经度
      * @param lat 纬度
+     * @param lng 经度
      * @param alt 海拔
      */
-    fun setPositionWgs84(lng: Double, lat: Double, alt: Double) {
-        Timber.d("🔍 setPositionWgs84 被调用: lng=$lng, lat=$lat, alt=$alt, isRunning=$isRunning")
+    fun setPositionWgs84(lat: Double, lng: Double, alt: Double) {
+        Timber.d("🔍 setPositionWgs84 被调用: lat=$lat, lng=$lng, alt=$alt, isRunning=$isRunning")
         moveExecutor.execute {
             Timber.d("🔍 setPositionWgs84 在 moveExecutor 线程中执行")
             // ✅ 关键修复：如果未启动模拟，先启动模拟
             if (!isRunning) {
                 Timber.d("🚀 setPositionWgs84: 检测到未启动模拟，自动启动")
                 locationLock.withLock {
-                    currentLongitude = lng
                     currentLatitude = lat
+                    currentLongitude = lng
                     altitude = alt
                 }
                 isRunning = true
@@ -829,8 +819,8 @@ class LocationService : Service() {
                 // 已在模拟中：更新位置
                 Timber.d("📍 已在模拟中，更新位置")
                 locationLock.withLock {
-                    currentLongitude = lng
                     currentLatitude = lat
+                    currentLongitude = lng
                     altitude = alt
                 }
                 setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
@@ -854,9 +844,18 @@ class LocationService : Service() {
     fun updatePlaybackPosition(gcjLng: Double, gcjLat: Double, alt: Double, bearing: Float) {
         moveExecutor.execute {
             val wgs = MapUtils.gcj02ToWgs84(gcjLng, gcjLat)
+            val wgsLng = wgs[0]
+            val wgsLat = wgs[1]
+            
+            // ✅ 坐标验证：确保转换后的 WGS-84 坐标在有效范围内
+            if (kotlin.math.abs(wgsLat) > 90 || kotlin.math.abs(wgsLng) > 180) {
+                Timber.w("⚠️ updatePlaybackPosition: 转换后的坐标超出范围 lat=$wgsLat, lng=$wgsLng，跳过更新")
+                return@execute
+            }
+            
             locationLock.withLock {
-                currentLongitude = wgs[0]
-                currentLatitude = wgs[1]
+                currentLongitude = wgsLng
+                currentLatitude = wgsLat
                 altitude = alt
                 currentBearing = bearing
             }

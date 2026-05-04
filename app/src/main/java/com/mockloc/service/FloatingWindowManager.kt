@@ -131,6 +131,7 @@ class FloatingWindowManager(private val service: LocationService) {
                     switchToHistory()
                 },
                 onLocationSelected = { lat, lng ->
+                    // ✅ 修复：onPositionSelected 接口定义为 (wgsLng, wgsLat)，需要交换
                     listener?.onPositionSelected(lng, lat, 0.0)
                 }
             )
