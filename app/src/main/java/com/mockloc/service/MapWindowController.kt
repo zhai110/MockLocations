@@ -418,8 +418,7 @@ class MapWindowController(
         // 初始化地图
         setupMap()
         
-        // 注意：restoreSimulationState() 将在地图加载完成后调用
-        // 见 restoreMapState() 方法
+        // ✅ 恢复模拟状态（在地图加载完成后调用）
 
         // ===== 搜索框事件 =====
         searchEditText?.setOnTouchListener { v, event ->
@@ -638,8 +637,41 @@ class MapWindowController(
                 markMapPoint(markedPos)
                 Timber.d("恢复标记位置: $markedPos")
             }
+            
+            // ✅ 恢复模拟状态：如果正在模拟，显示激活状态的按钮
+            restoreSimulationState()
         } catch (e: Exception) {
             Timber.e(e, "恢复地图状态失败")
+        }
+    }
+
+    /**
+     * 恢复模拟状态
+     * - 如果服务正在模拟定位，将按钮设置为激活状态（ic_fly 图标 + 脉冲动画）
+     * - 如果未模拟，保持待命状态（ic_position 图标 + 慢速脉冲）
+     */
+    private fun restoreSimulationState() {
+        try {
+            val isSimulating = LocationService.isSimulating()
+            Timber.d("恢复模拟状态: isSimulating=$isSimulating")
+            
+            if (isSimulating) {
+                // 正在模拟：切换到激活状态
+                btnGoPulseAnimator?.cancel()
+                isPositionConfirmed = true
+                btnGo?.setImageResource(R.drawable.ic_fly)
+                btnGo?.let { btnGoPulseAnimator = AnimationHelper.pulseInfinite(it, 1200) }
+                Timber.d("模拟状态已恢复：激活状态")
+            } else {
+                // 未模拟：保持待命状态
+                btnGoPulseAnimator?.cancel()
+                isPositionConfirmed = false
+                btnGo?.setImageResource(R.drawable.ic_position)
+                btnGo?.let { btnGoPulseAnimator = AnimationHelper.pulseInfinite(it, 2000) }
+                Timber.d("模拟状态已恢复：待命状态")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "恢复模拟状态失败")
         }
     }
 
@@ -689,7 +721,7 @@ class MapWindowController(
         val marked = markedLatLng
         
         if (marked != null) {
-            // 有新位置：传送到新位置
+            // 有新位置：传送到新位置或启动模拟
             btnGoPulseAnimator?.cancel()
             
             if (!isPositionConfirmed) {
@@ -710,19 +742,27 @@ class MapWindowController(
                     ?.start()
             }
             
-            // 执行位置传送
-            val wgs = MapUtils.gcj02ToWgs84(marked.longitude, marked.latitude)
-            // 修正：gcj02ToWgs84 返回 [经度, 纬度]，而回调参数顺序是 (lat, lng)
-            onLocationSelected(wgs[1], wgs[0])
+            // ✅ 关键修复：检查是否正在模拟，决定是启动还是更新位置
+            val isSimulating = LocationService.isSimulating()
+            
+            if (isSimulating) {
+                // 正在模拟：更新位置（传送）
+                val wgs = MapUtils.gcj02ToWgs84(marked.longitude, marked.latitude)
+                onLocationSelected(wgs[1], wgs[0])
+                Timber.d("📍 悬浮窗地图：传送位置到 (${String.format("%.6f", wgs[1])}, ${String.format("%.6f", wgs[0])})")
+                UIFeedbackHelper.showToast(context, "已传送到新位置")
+            } else {
+                // 未模拟：启动模拟定位（传入 GCJ-02 坐标，让 Service 自行转换）
+                startSimulation(marked.latitude, marked.longitude)
+                Timber.d("🚀 悬浮窗地图：启动模拟定位 (GCJ-02: ${String.format("%.6f", marked.latitude)}, ${String.format("%.6f", marked.longitude)})")
+                UIFeedbackHelper.showToast(context, "已启动模拟定位")
+            }
             
             // 地图相机跟随（使用动画）
             val currentZoom = aMap?.cameraPosition?.zoom ?: 18f
             aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(marked, currentZoom))
             
             markedLatLng = null
-            
-            // 显示提示
-            UIFeedbackHelper.showToast(context, "已传送到新位置")
             
             // 保持激活状态
             isPositionConfirmed = true
@@ -731,7 +771,8 @@ class MapWindowController(
         } else {
             // 没有新位置：切换激活/去激活状态
             if (isPositionConfirmed) {
-                // 激活 -> 去激活
+                // 激活 -> 去激活（停止模拟）
+                stopSimulation()
                 btnGoPulseAnimator?.cancel()
                 isPositionConfirmed = false
                 btnGo?.setImageResource(R.drawable.ic_position)
@@ -740,6 +781,43 @@ class MapWindowController(
                 // 去激活 -> 无操作，提示用户先选择位置
                 UIFeedbackHelper.showToast(context, "请先在地图上选择一个位置")
             }
+        }
+    }
+
+    /**
+     * 启动模拟定位
+     * 通过 Intent 发送 ACTION_START 到 LocationService
+     */
+    private fun startSimulation(lat: Double, lng: Double) {
+        try {
+            // ✅ 发送 ACTION_START，参数为 GCJ-02 坐标（因为 markedLatLng 是 GCJ-02）
+            val intent = android.content.Intent(context, LocationService::class.java).apply {
+                action = LocationService.ACTION_START
+                putExtra(LocationService.EXTRA_LATITUDE, lat)
+                putExtra(LocationService.EXTRA_LONGITUDE, lng)
+                putExtra(LocationService.EXTRA_ALTITUDE, service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE).getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 55.0f).toDouble())
+                putExtra(LocationService.EXTRA_COORD_GCJ02, true)  // 传入的是 GCJ-02 坐标
+            }
+            context.startService(intent)
+            Timber.d("🚀 悬浮窗地图：发送启动模拟指令 (GCJ-02: $lat, $lng)")
+        } catch (e: Exception) {
+            Timber.e(e, "悬浮窗地图：启动模拟失败")
+        }
+    }
+
+    /**
+     * 停止模拟定位
+     */
+    private fun stopSimulation() {
+        // ✅ 通过 Intent 发送 ACTION_STOP
+        try {
+            val intent = android.content.Intent(context, LocationService::class.java).apply {
+                action = LocationService.ACTION_STOP
+            }
+            context.startService(intent)
+            Timber.d("🛑 悬浮窗地图：发送停止模拟指令")
+        } catch (e: Exception) {
+            Timber.e(e, "悬浮窗地图：停止模拟失败")
         }
     }
 
