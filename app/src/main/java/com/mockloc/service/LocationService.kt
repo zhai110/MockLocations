@@ -643,6 +643,30 @@ class LocationService : Service() {
 
     private fun setLocation(provider: String, accuracy: Int) {
         try {
+            // ✅ 关键修复：在构建 Location 之前先验证坐标有效性
+            val lat: Double
+            val lng: Double
+            val alt: Double
+            locationLock.withLock {
+                lat = currentLatitude
+                lng = currentLongitude
+                alt = altitude
+            }
+            
+            // 验证坐标是否有效
+            if (lat == 0.0 && lng == 0.0) {
+                Timber.w("⚠️ setLocation($provider): 坐标无效 (0.0, 0.0)，跳过注入")
+                return
+            }
+            if (lat.isNaN() || lng.isNaN()) {
+                Timber.w("⚠️ setLocation($provider): 坐标为 NaN，跳过注入")
+                return
+            }
+            if (kotlin.math.abs(lat) > 90 || kotlin.math.abs(lng) > 180) {
+                Timber.w("⚠️ setLocation($provider): 坐标超出范围 lat=$lat, lng=$lng，跳过注入")
+                return
+            }
+            
             // 加锁读取位置数据并构建 Location，防止与 moveExecutor 线程的写操作竞态
             val loc = locationLock.withLock {
                 Location(provider).apply {
@@ -663,7 +687,7 @@ class LocationService : Service() {
             }
             locationManager.setTestProviderLocation(provider, loc)
             // ✅ 增加调试日志，确认注入是否发生
-            Timber.d("📍 setLocation($provider): lat=$currentLatitude, lng=$currentLongitude, bearing=$currentBearing")
+            Timber.d("📍 setLocation($provider): lat=$lat, lng=$lng, alt=$alt")
         } catch (e: Exception) {
             Timber.w(e, "setLocation failed: $provider")
         }
