@@ -353,15 +353,19 @@ class MainViewModel(
      * 设置 LocationService 引用
      */
     fun setLocationService(service: LocationService?) {
-        locationService = service
-        
-        // ✅ 当 Service 绑定时，启动路线状态同步任务
-        if (service != null) {
-            startRouteStateSync()
-        } else {
-            // Service 解绑时，停止同步任务
+        // ✅ 关键修复：先停止同步任务，再更新引用，防止竞态条件
+        if (service == null) {
             routeStateSyncJob?.cancel()
             routeStateSyncJob = null
+            // 重置路线状态，防止 UI 显示过期的播放信息
+            _routeState.update { it.copy(playbackState = RoutePlaybackState(), currentPlaybackPosition = null) }
+        }
+        
+        locationService = service
+        
+        // 当 Service 绑定时，启动路线状态同步任务
+        if (service != null) {
+            startRouteStateSync()
         }
     }
     
