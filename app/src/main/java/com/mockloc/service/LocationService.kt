@@ -765,13 +765,37 @@ class LocationService : Service() {
      */
     fun setPositionWgs84(lat: Double, lng: Double, alt: Double) {
         moveExecutor.execute {
-            locationLock.withLock {
-                currentLongitude = lng
-                currentLatitude = lat
-                altitude = alt
+            // ✅ 关键修复：如果未启动模拟，先启动模拟
+            if (!isRunning) {
+                Timber.d("🚀 setPositionWgs84: 检测到未启动模拟，自动启动")
+                locationLock.withLock {
+                    currentLatitude = lat
+                    currentLongitude = lng
+                    altitude = alt
+                }
+                isRunning = true
+                staticIsRunning = true
+                setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                
+                // 确保协程循环正在运行
+                if (moveJob?.isActive != true) {
+                    initLocationUpdateLoop()
+                }
+                
+                saveLastLocation()
+                Timber.d("✅ 模拟已自动启动: lat=$lat, lng=$lng")
+            } else {
+                // 已在模拟中：更新位置
+                locationLock.withLock {
+                    currentLongitude = lng
+                    currentLatitude = lat
+                    altitude = alt
+                }
+                setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                Timber.d("📍 位置已更新: lat=$lat, lng=$lng")
             }
-            setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-            setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
         }
     }
 
