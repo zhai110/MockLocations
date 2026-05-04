@@ -794,20 +794,20 @@ class LocationService : Service() {
 
     /**
      * 设置模拟位置（WGS-84 坐标系）
-     * @param lat 纬度
      * @param lng 经度
+     * @param lat 纬度
      * @param alt 海拔
      */
-    fun setPositionWgs84(lat: Double, lng: Double, alt: Double) {
-        Timber.d("🔍 setPositionWgs84 被调用: lat=$lat, lng=$lng, alt=$alt, isRunning=$isRunning")
+    fun setPositionWgs84(lng: Double, lat: Double, alt: Double) {
+        Timber.d("🔍 setPositionWgs84 被调用: lng=$lng, lat=$lat, alt=$alt, isRunning=$isRunning")
         moveExecutor.execute {
             Timber.d("🔍 setPositionWgs84 在 moveExecutor 线程中执行")
             // ✅ 关键修复：如果未启动模拟，先启动模拟
             if (!isRunning) {
                 Timber.d("🚀 setPositionWgs84: 检测到未启动模拟，自动启动")
                 locationLock.withLock {
-                    currentLatitude = lat
                     currentLongitude = lng
+                    currentLatitude = lat
                     altitude = alt
                 }
                 isRunning = true
