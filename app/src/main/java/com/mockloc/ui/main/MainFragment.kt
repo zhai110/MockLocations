@@ -697,7 +697,25 @@ class MainFragment : Fragment() {
         }
 
         if (state.playbackState.isPlaying && state.currentPlaybackPosition != null) {
-            aMap.animateCamera(CameraUpdateFactory.newLatLng(state.currentPlaybackPosition))
+            // ✅ 关键修复：手动计算偏移后的目标点，避开右侧工具栏
+            val currentZoom = aMap.cameraPosition.zoom
+            val displayMetrics = resources.displayMetrics
+            val screenWidth = displayMetrics.widthPixels
+            
+            // 计算需要偏移的像素（右侧 15% 屏幕宽度）
+            val offsetFraction = 0.15
+            val projection = aMap.projection
+            val screenCenter = projection.toScreenLocation(state.currentPlaybackPosition)
+            val offsetX = (screenWidth * offsetFraction).toInt()
+            // ✅ 修正：让相机往右偏移，使蓝点显示在屏幕左侧可见区域中心
+            val targetScreenPoint = android.graphics.Point(screenCenter.x + offsetX, screenCenter.y)
+            val targetLatLng = projection.fromScreenLocation(targetScreenPoint)
+            
+            aMap.animateCamera(
+                CameraUpdateFactory.newLatLngZoom(targetLatLng, currentZoom),
+                300,
+                null
+            )
         }
 
         val pointCount = state.routePoints.size
