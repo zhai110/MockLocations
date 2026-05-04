@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ✅ 优化：使用 ConstraintLayout 固定按钮位置，进度条替换按钮区域 -->
+<!-- ✅ 优化：进度条内嵌在按钮中，按钮始终可见 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:fillViewport="true">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:padding="20dp">
 
     <!-- 标题 -->
@@ -19,9 +20,7 @@
         android:text="@string/update_title"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="?attr/colorOnSurface"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:textColor="?attr/colorOnSurface" />
 
     <!-- 版本号 -->
     <TextView
@@ -30,9 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:textSize="16sp"
-        android:textColor="?attr/colorOnSurface"
-        app:layout_constraintTop_toBottomOf="@id/tv_title"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:textColor="?attr/colorOnSurface" />
 
     <!-- 文件大小 -->
     <TextView
@@ -41,9 +38,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:textSize="14sp"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        app:layout_constraintTop_toBottomOf="@id/tv_version"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:textColor="?attr/colorOnSurfaceVariant" />
 
     <!-- 更新说明标题 -->
     <TextView
@@ -54,59 +49,26 @@
         android:text="@string/update_content_label"
         android:textSize="14sp"
         android:textStyle="bold"
-        android:textColor="?attr/colorOnSurface"
-        app:layout_constraintTop_toBottomOf="@id/tv_file_size"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:textColor="?attr/colorOnSurface" />
 
     <!-- 更新说明内容 -->
     <TextView
         android:id="@+id/tv_release_notes"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:textSize="14sp"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        app:layout_constraintTop_toBottomOf="@id/tv_content_label"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:textColor="?attr/colorOnSurfaceVariant" />
 
-    <!-- 下载进度条（替换按钮区域） -->
-    <ProgressBar
-        android:id="@+id/progress_bar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:visibility="gone"
-        android:max="100"
-        app:layout_constraintTop_toBottomOf="@id/tv_release_notes"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- 下载进度文本 -->
-    <TextView
-        android:id="@+id/tv_progress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textSize="12sp"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/progress_bar"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <!-- 按钮区域（与进度条共用位置） -->
+    <!-- 按钮区域（始终显示） -->
     <LinearLayout
-        android:id="@+id/button_container"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:orientation="horizontal"
-        android:gravity="end"
-        app:layout_constraintTop_toBottomOf="@id/tv_release_notes"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:gravity="end">
 
+        <!-- 取消按钮 -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_cancel"
             style="@style/Widget.MaterialComponents.Button.TextButton"
@@ -115,14 +77,44 @@
             android:text="@string/update_cancel"
             android:layout_marginEnd="8dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_update"
+        <!-- 更新按钮（内嵌进度条） -->
+        <FrameLayout
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/update_now" />
+            android:layout_height="wrap_content">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_update"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/update_now" />
+
+            <!-- 进度条（覆盖在按钮上） -->
+            <ProgressBar
+                android:id="@+id/progress_bar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:visibility="gone"
+                android:max="100" />
+
+        </FrameLayout>
 
     </LinearLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- 下载进度文本（按钮下方） -->
+    <TextView
+        android:id="@+id/tv_progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_gravity="center_horizontal"
+        android:textSize="12sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:visibility="gone" />
+
+</LinearLayout>
 
 </ScrollView>
