@@ -42,6 +42,7 @@ import com.mockloc.VirtualLocationApp
 import com.amap.api.maps.model.LatLng
 import com.mockloc.service.RoutePoint
 import com.mockloc.service.RoutePlaybackState
+import com.mockloc.repository.PoiSearchHelper
 
 /**
  * 虚拟定位服务（前台服务）
@@ -124,6 +125,9 @@ class LocationService : Service() {
     private val moveExecutor = Executors.newSingleThreadExecutor()
     private lateinit var noteActionReceiver: NoteActionReceiver
     private lateinit var prefs: SharedPreferences
+    
+    // ✅ 修复：PoiSearchHelper 单例化，避免频繁创建导致内存泄漏
+    private var poiSearchHelper: PoiSearchHelper? = null
 
     // 当前速度模式（持久化到 SP）
     @Volatile private var currentSpeedMode = "walk"
@@ -238,6 +242,9 @@ class LocationService : Service() {
         prefs = getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
         altitude = prefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 55.0f).toDouble()
         currentSpeedMode = prefs.getString(PrefsConfig.Settings.KEY_SPEED_MODE, "walk") ?: "walk"
+        
+        // ✅ 初始化 PoiSearchHelper 单例
+        poiSearchHelper = PoiSearchHelper(applicationContext)
         
         // ✅ 应用保存的速度模式（防止服务重启后速度重置为默认值）
         applySpeedMode(currentSpeedMode)
@@ -437,11 +444,15 @@ class LocationService : Service() {
         floatingWindowManager?.destroy()
         isJoystickVisible = false
         
-        // 5. 停止并清理路线播放引擎
+        // 5. 销毁悬浮窗管理器（会清理所有视图和协程）
+        floatingWindowManager?.destroy()
+        isJoystickVisible = false
+        
+        // 6. 停止并清理路线播放引擎
         routePlaybackEngine?.destroy()
         routePlaybackEngine = null
         
-        // 6. 关闭 ExecutorService
+        // 7. 关闭 ExecutorService
         moveExecutor.shutdown()
         try {
             if (!moveExecutor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
@@ -456,10 +467,10 @@ class LocationService : Service() {
             Timber.e(e, "moveExecutor shutdown interrupted")
         }
         
-        // 7. 移除 TestProvider
+        // 8. 移除 TestProvider
         removeTestProviders()
 
-        // 8. 注销广播接收器
+        // 9. 注销广播接收器
         try { 
             unregisterReceiver(noteActionReceiver)
             Timber.d("noteActionReceiver unregistered")
@@ -830,12 +841,12 @@ class LocationService : Service() {
         val expiryDays = prefs.getInt(PrefsConfig.Settings.KEY_HISTORY_EXPIRY, 30)
         if (expiryDays <= 0) return  // -1 = 永久保存
         val cutoffTime = System.currentTimeMillis() - (expiryDays.toLong() * 24 * 60 * 60 * 1000)
-        moveExecutor.execute {
+        
+        // ✅ 关键修复：使用 serviceScope 异步执行，避免阻塞 moveExecutor 线程
+        serviceScope.launch(Dispatchers.IO) {
             try {
                 val db = com.mockloc.VirtualLocationApp.getDatabase()
-                kotlinx.coroutines.runBlocking {
-                    db.historyLocationDao().deleteOlderThan(cutoffTime)
-                }
+                db.historyLocationDao().deleteOlderThan(cutoffTime)
                 Timber.d("Cleaned up history older than $expiryDays days")
             } catch (e: Exception) {
                 Timber.w(e, "Failed to cleanup expired history")

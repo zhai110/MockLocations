@@ -417,6 +417,9 @@ class MainFragment : Fragment() {
                     }
                 }
                 
+                // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态，防止回调悬空
+                if (!isAdded || view == null) return@launch
+                
                 val name = if (resolvedName.isNotEmpty()) {
                     resolvedName
                 } else {
@@ -1267,6 +1270,10 @@ class MainFragment : Fragment() {
                             if (cont.isActive) cont.resume(Pair(name, addr)) {}
                         }
                     }
+                    
+                    // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态
+                    if (!isAdded || view == null) return@launch
+                    
                     withContext(Dispatchers.Main) {
                         if (_binding != null && fullAddress.isNotEmpty()) {
                             AnimationHelper.fadeIn(binding.addressText, 200)
@@ -1375,12 +1382,21 @@ class MainFragment : Fragment() {
                     val db = com.mockloc.VirtualLocationApp.getDatabase()
                     val exists = db.favoriteLocationDao().exists(location.latitude, location.longitude)
                     
+                    // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态
+                    if (!isAdded || view == null) return@launch
+                    
                     if (exists) {
-                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                            UIFeedbackHelper.showToast(requireContext(), "该位置已在收藏中")
+                        withContext(Dispatchers.Main) {
+                            if (isAdded && view != null) {
+                                UIFeedbackHelper.showToast(requireContext(), "该位置已在收藏中")
+                            }
                         }
                     } else {
                         val (name, fullAddress) = getAddressFromLocation(location)
+                        
+                        // ✅ 再次检查，防止在等待逆地理编码期间 Fragment 被销毁
+                        if (!isAdded || view == null) return@launch
+                        
                         val favorite = com.mockloc.data.db.FavoriteLocation(
                             name = name,
                             address = fullAddress,
@@ -1389,14 +1405,13 @@ class MainFragment : Fragment() {
                         )
                         db.favoriteLocationDao().insert(favorite)
                         
-                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                            UIFeedbackHelper.showToast(requireContext(), "已添加到收藏")
+                        withContext(Dispatchers.Main) {
+                            if (isAdded && view != null) {
+                                UIFeedbackHelper.showToast(requireContext(), "已添加到收藏")
+                            }
                         }
                     }
                 } catch (e: Exception) {
-                    viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                        UIFeedbackHelper.showToast(requireContext(), "添加失败，请重试")
-                    }
                     Timber.e(e, "添加收藏失败")
                 }
             }
