@@ -752,15 +752,17 @@ class MainViewModel(
         }
     }
 
-    fun getSavedRouteGroups(onResult: (List<String>) -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val groups = com.mockloc.VirtualLocationApp.getDatabase().savedRouteDao().getAllGroups()
-                withContext(Dispatchers.Main) { onResult(groups) }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to get route groups")
-                withContext(Dispatchers.Main) { onResult(emptyList()) }
-            }
+    /**
+     * 获取所有路线组名称
+     */
+    suspend fun getSavedRouteGroups(): List<String> {
+        return try {
+            com.mockloc.VirtualLocationApp.getDatabase()
+                .savedRouteDao()
+                .getAllGroups()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to get route groups")
+            emptyList()
         }
     }
 
