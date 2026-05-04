@@ -126,9 +126,14 @@ class RoutePlaybackEngine(
         Timber.d("🎬 RoutePlaybackEngine.play() started: resumeIndex=$resumeIndex, totalPoints=${points.size}")
         playbackJob = scope.launch(Dispatchers.Default) {
             try {
+                var isFirstLoop = true
                 do {
                     val pts = pointsLock.withLock { routePoints }
-                    for (i in resumeIndex until pts.size - 1) {
+                    // ✅ 关键修复：只有第一圈才从 resumeIndex 开始，后续循环必须从 0 开始以实现真正的闭环
+                    val startIndex = if (isFirstLoop) resumeIndex else 0
+                    isFirstLoop = false
+                    
+                    for (i in startIndex until pts.size - 1) {
                         if (!isActive) break
                         val from = pts[i].latLng
                         val to = pts[i + 1].latLng

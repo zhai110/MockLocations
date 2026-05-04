@@ -738,10 +738,15 @@ class LocationService : Service() {
         applySpeedMode(mode)
     }
 
-    fun setPositionGcj02(gcjLng: Double, gcjLat: Double, alt: Double) {
-        val wgs = MapUtils.gcj02ToWgs84(gcjLng, gcjLat)
+    /**
+     * 设置模拟位置（GCJ-02 坐标系）
+     * @param lat 纬度
+     * @param lng 经度
+     * @param alt 海拔
+     */
+    fun setPositionGcj02(lat: Double, lng: Double, alt: Double) {
+        val wgs = MapUtils.gcj02ToWgs84(lng, lat)
         moveExecutor.execute {
-            // ✅ 协程循环会自动处理更新，无需手动触发 handler
             locationLock.withLock {
                 currentLongitude = wgs[0]
                 currentLatitude = wgs[1]
@@ -752,12 +757,17 @@ class LocationService : Service() {
         }
     }
 
-    fun setPositionWgs84(wgsLng: Double, wgsLat: Double, alt: Double) {
+    /**
+     * 设置模拟位置（WGS-84 坐标系）
+     * @param lat 纬度
+     * @param lng 经度
+     * @param alt 海拔
+     */
+    fun setPositionWgs84(lat: Double, lng: Double, alt: Double) {
         moveExecutor.execute {
-            // ✅ 协程循环会自动处理更新，无需手动触发 handler
             locationLock.withLock {
-                currentLongitude = wgsLng
-                currentLatitude = wgsLat
+                currentLongitude = lng
+                currentLatitude = lat
                 altitude = alt
             }
             setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
@@ -799,16 +809,7 @@ class LocationService : Service() {
         return Pair(gcj[1], gcj[0])
     }
     
-    /**
-     * 更新模拟位置（GCJ02坐标）
-     * 用于在模拟过程中动态传送到新位置
-     */
-    fun updatePosition(gcjLat: Double, gcjLng: Double, altitude: Double) {
-        // GCJ02 -> WGS84
-        val wgs = MapUtils.gcj02ToWgs84(gcjLng, gcjLat)
-        setPositionWgs84(wgs[0], wgs[1], altitude)
-        Timber.d("Position updated to: $gcjLat, $gcjLng (GCJ02)")
-    }
+
     // ==================== 日志控制 ====================
 
     private var loggingEnabled = true
