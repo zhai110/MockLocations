@@ -74,7 +74,6 @@ class UpdateDialogFragment : DialogFragment() {
         val btnCancel = view.findViewById<MaterialButton>(R.id.btn_cancel)
         val progressBar = view.findViewById<ProgressBar>(R.id.progress_bar)
         val tvProgress = view.findViewById<TextView>(R.id.tv_progress)
-        val buttonContainer = view.findViewById<android.widget.LinearLayout>(R.id.button_container)
         
         // 设置内容
         tvVersion.text = "新版本：${info.versionName}"
@@ -113,13 +112,12 @@ class UpdateDialogFragment : DialogFragment() {
             btnUpdate.isEnabled = false
             btnCancel.isEnabled = false
             
-            // ✅ 修复：隐藏按钮区域，显示进度条区域（互相替换，不增加高度）
-            buttonContainer.visibility = View.GONE
+            // ✅ 修复：显示进度条（覆盖在按钮上），按钮仍然可见
             progressBar.visibility = View.VISIBLE
             tvProgress.visibility = View.VISIBLE
             
             // 开始下载
-            downloadApk(info, progressBar, tvProgress, btnUpdate, btnCancel, buttonContainer)
+            downloadApk(info, progressBar, tvProgress, btnUpdate, btnCancel)
         }
         
         btnCancel.setOnClickListener {
@@ -141,8 +139,7 @@ class UpdateDialogFragment : DialogFragment() {
         progressBar: ProgressBar,
         tvProgress: TextView,
         btnUpdate: MaterialButton,
-        btnCancel: MaterialButton,
-        buttonContainer: android.widget.LinearLayout
+        btnCancel: MaterialButton
     ) {
         // ✅ 创建主线程 Handler 用于更新 UI
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -165,9 +162,8 @@ class UpdateDialogFragment : DialogFragment() {
                 installApk(apkFile)
                 dismiss()
             }.onFailure { error ->
-                // 下载失败，恢复按钮区域
+                // 下载失败，恢复按钮状态
                 UIFeedbackHelper.showToast(requireContext(), "下载失败：${error.message}")
-                buttonContainer.visibility = View.VISIBLE
                 btnUpdate.isEnabled = true
                 btnCancel.isEnabled = true
                 progressBar.visibility = View.GONE
