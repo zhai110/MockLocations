@@ -546,8 +546,11 @@ class LocationService : Service() {
     private fun initLocationUpdateLoop() {
         // ✅ 修复：取消旧的协程，防止多个同时运行
         moveJob?.cancel()
+        Timber.d("🔄 initLocationUpdateLoop: 启动位置更新协程")
         moveJob = serviceScope.launch {
+            var loopCount = 0
             while (isActive) {
+                loopCount++
                 // 动态读取最新的更新间隔
                 val interval = prefs.getLong(PrefsConfig.Settings.KEY_LOCATION_UPDATE_INTERVAL, DEFAULT_LOCATION_UPDATE_INTERVAL_MS)
                 delay(interval)
@@ -555,8 +558,16 @@ class LocationService : Service() {
                 if (isRunning) {
                     setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
                     setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                    if (loopCount % 10 == 0) {  // 每10次循环打印一次日志
+                        Timber.d("🔄 位置更新循环 #${loopCount}: isRunning=$isRunning")
+                    }
+                } else {
+                    if (loopCount % 50 == 0) {  // 每50次打印一次，避免日志过多
+                        Timber.d("⏸️ 位置更新循环 #${loopCount}: isRunning=$isRunning (跳过注入)")
+                    }
                 }
             }
+            Timber.d("🛑 位置更新协程已退出")
         }
     }
 
