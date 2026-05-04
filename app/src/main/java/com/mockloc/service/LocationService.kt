@@ -775,7 +775,9 @@ class LocationService : Service() {
      * @param alt 海拔
      */
     fun setPositionWgs84(lat: Double, lng: Double, alt: Double) {
+        Timber.d("🔍 setPositionWgs84 被调用: lat=$lat, lng=$lng, alt=$alt, isRunning=$isRunning")
         moveExecutor.execute {
+            Timber.d("🔍 setPositionWgs84 在 moveExecutor 线程中执行")
             // ✅ 关键修复：如果未启动模拟，先启动模拟
             if (!isRunning) {
                 Timber.d("🚀 setPositionWgs84: 检测到未启动模拟，自动启动")
@@ -791,13 +793,17 @@ class LocationService : Service() {
                 
                 // 确保协程循环正在运行
                 if (moveJob?.isActive != true) {
+                    Timber.d("🔄 协程未运行，重新启动 initLocationUpdateLoop")
                     initLocationUpdateLoop()
+                } else {
+                    Timber.d("✅ 协程已在运行: isActive=${moveJob?.isActive}")
                 }
                 
                 saveLastLocation()
                 Timber.d("✅ 模拟已自动启动: lat=$lat, lng=$lng")
             } else {
                 // 已在模拟中：更新位置
+                Timber.d("📍 已在模拟中，更新位置")
                 locationLock.withLock {
                     currentLongitude = lng
                     currentLatitude = lat
@@ -805,7 +811,7 @@ class LocationService : Service() {
                 }
                 setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
                 setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-                Timber.d("📍 位置已更新: lat=$lat, lng=$lng")
+                Timber.d("✅ 位置已更新: lat=$lat, lng=$lng")
             }
         }
     }
