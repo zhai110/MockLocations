@@ -1,11 +1,11 @@
 {
-  "versionCode": 6,
-  "versionName": "1.4.1",
-  "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.4.1/app-release.apk",
-  "releaseNotes": "🔧 修复升级数据丢失问题\n• 移除DEBUG模式破坏性迁移\n• 修复MIGRATION_2_3保留最新记录\n• 统一索引命名为Room标准格式\n• 确保1.3.0→1.4.1升级数据完整",
+  "versionCode": 7,
+  "versionName": "1.5.0",
+  "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.5.0/app-release.apk",
+  "releaseNotes": "🎯 v1.5.0 重大更新\n\n✨ 新增功能\n• 路线模拟与循环播放功能\n\n🐛 Bug 修复\n• 修复循环播放时起点跳跃的严重 Bug\n\n⚡ 性能优化\n• 优化路线模拟时相机跟随逻辑\n• 异步化数据库清理，提升流畅度\n\n🔧 架构改进\n• 统一位置更新接口参数顺序\n• 增强 Fragment 生命周期防护",
   "forceUpdate": false,
   "minVersionCode": 1,
   "fileSize": 15728640,
   "md5": "",
-  "publishTime": "2026-04-24T10:00:00Z"
+  "publishTime": "2026-04-16T19:00:00Z"
 }
