@@ -1,11 +1,11 @@
 {
-  "versionCode": 7,
-  "versionName": "1.5.0",
-  "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.5.0/app-release.apk",
-  "releaseNotes": "🎯 v1.5.0 重大更新\n\n✨ 新增功能\n• 路线模拟与循环播放功能\n\n🐛 Bug 修复\n• 修复循环播放时起点跳跃的严重 Bug\n\n⚡ 性能优化\n• 优化路线模拟时相机跟随逻辑\n• 异步化数据库清理，提升流畅度\n\n🔧 架构改进\n• 统一位置更新接口参数顺序\n• 增强 Fragment 生命周期防护",
+  "versionCode": 8,
+  "versionName": "1.5.1",
+  "downloadUrl": "https://gitee.com/eizmme/MockLocations/releases/download/v1.5.1/app-release.apk",
+  "releaseNotes": "🎯 v1.5.1 修复更新\n\n🐛 Bug 修复\n• 修复悬浮窗地图选点位置模拟不生效问题\n• 修复历史记录选择位置模拟不生效问题\n• 修复 setPositionWgs84 经纬度参数颠倒问题\n\n⚡ 功能优化\n• 统一位置函数参数顺序为 (lat, lng)\n• 删除未使用的 setPositionGcj02 函数\n• 增强摇杆移动和路线模拟的坐标验证\n\n🔧 技术改进\n• setLocation 三重验证 (0.0/NaN/范围检查)\n• 修复签名文件路径配置\n• 无内存泄漏风险，所有资源清理完善",
   "forceUpdate": false,
   "minVersionCode": 1,
-  "fileSize": 15728640,
+  "fileSize": 72423137,
   "md5": "",
-  "publishTime": "2026-04-16T19:00:00Z"
+  "publishTime": "2026-05-04T20:34:26Z"
 }
