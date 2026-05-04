@@ -721,7 +721,7 @@ class MapWindowController(
         val marked = markedLatLng
         
         if (marked != null) {
-            // 有新位置：传送到新位置或启动模拟
+            // 有新位置：传送到新位置（如果未模拟会自动启动）
             btnGoPulseAnimator?.cancel()
             
             if (!isPositionConfirmed) {
@@ -742,21 +742,11 @@ class MapWindowController(
                     ?.start()
             }
             
-            // ✅ 关键修复：检查是否正在模拟，决定是启动还是更新位置
-            val isSimulating = LocationService.isSimulating()
-            
-            if (isSimulating) {
-                // 正在模拟：更新位置（传送）
-                val wgs = MapUtils.gcj02ToWgs84(marked.longitude, marked.latitude)
-                onLocationSelected(wgs[1], wgs[0])
-                Timber.d("📍 悬浮窗地图：传送位置到 (${String.format("%.6f", wgs[1])}, ${String.format("%.6f", wgs[0])})")
-                UIFeedbackHelper.showToast(context, "已传送到新位置")
-            } else {
-                // 未模拟：启动模拟定位（传入 GCJ-02 坐标，让 Service 自行转换）
-                startSimulation(marked.latitude, marked.longitude)
-                Timber.d("🚀 悬浮窗地图：启动模拟定位 (GCJ-02: ${String.format("%.6f", marked.latitude)}, ${String.format("%.6f", marked.longitude)})")
-                UIFeedbackHelper.showToast(context, "已启动模拟定位")
-            }
+            // ✅ 执行位置传送（setPositionWgs84 会自动处理启动逻辑）
+            val wgs = MapUtils.gcj02ToWgs84(marked.longitude, marked.latitude)
+            onLocationSelected(wgs[1], wgs[0])
+            Timber.d("📍 悬浮窗地图：位置已选择 (${String.format("%.6f", wgs[1])}, ${String.format("%.6f", wgs[0])})")
+            UIFeedbackHelper.showToast(context, "已传送到新位置")
             
             // 地图相机跟随（使用动画）
             val currentZoom = aMap?.cameraPosition?.zoom ?: 18f
@@ -781,27 +771,6 @@ class MapWindowController(
                 // 去激活 -> 无操作，提示用户先选择位置
                 UIFeedbackHelper.showToast(context, "请先在地图上选择一个位置")
             }
-        }
-    }
-
-    /**
-     * 启动模拟定位
-     * 通过 Intent 发送 ACTION_START 到 LocationService
-     */
-    private fun startSimulation(lat: Double, lng: Double) {
-        try {
-            // ✅ 发送 ACTION_START，参数为 GCJ-02 坐标（因为 markedLatLng 是 GCJ-02）
-            val intent = android.content.Intent(context, LocationService::class.java).apply {
-                action = LocationService.ACTION_START
-                putExtra(LocationService.EXTRA_LATITUDE, lat)
-                putExtra(LocationService.EXTRA_LONGITUDE, lng)
-                putExtra(LocationService.EXTRA_ALTITUDE, service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE).getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 55.0f).toDouble())
-                putExtra(LocationService.EXTRA_COORD_GCJ02, true)  // 传入的是 GCJ-02 坐标
-            }
-            context.startService(intent)
-            Timber.d("🚀 悬浮窗地图：发送启动模拟指令 (GCJ-02: $lat, $lng)")
-        } catch (e: Exception) {
-            Timber.e(e, "悬浮窗地图：启动模拟失败")
         }
     }
 
