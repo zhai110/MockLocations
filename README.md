@@ -437,7 +437,7 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 
 ## 📝 版本历史
 
-### v1.5.0 (2026-04-16)
+### v1.5.0 (2026-05-02)
 🎯 **路线模拟与循环播放功能**
 - ✨ 新增路线模拟与循环播放功能
 - 🐛 修复循环播放时起点跳跃的严重 Bug
