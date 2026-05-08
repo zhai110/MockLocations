@@ -116,6 +116,7 @@ api-keys.txt
 # These are development notes and reports, not needed in version control
 docs/
 CODE_WIKI.md
+REFACTOR_PLAN.md
 
 # Temporary build scripts and guides
 *.bat
