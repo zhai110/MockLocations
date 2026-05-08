@@ -87,6 +87,9 @@ class MainFragment : Fragment() {
     // 路线点编辑
     private var selectedPointIndex: Int = -1  // 当前选中的路线点索引
     
+    // ✅ 动态按钮切换状态
+    private var currentTabMode: Int = 0  // 0=单点定位, 1=路线模拟
+    
     // ✅ 搜索框文本监听器（用于清除时临时移除）
     private val searchTextWatcher = object : android.text.TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -207,6 +210,9 @@ class MainFragment : Fragment() {
 
         // 初始化BottomSheet
         initBottomSheet()
+
+        // 初始化Tab切换
+        initPanelTabs()
 
         // 初始化底部导航
         initBottomNavigation()
@@ -611,25 +617,28 @@ class MainFragment : Fragment() {
      * 更新模拟 UI
      */
     private fun updateSimulationUI(state: MainViewModel.SimulationState) {
-        if (state.isSimulating) {
-            binding.fab.setImageResource(R.drawable.ic_fly)
-            binding.fab.imageTintList = null
-            // 停止脉冲动画
-            idlePulseAnimator?.cancel()
-            idlePulseAnimator = null
-            
-            // 更新状态徽章
-            binding.statusText.text = "模拟中"
-        } else {
-            binding.fab.setImageResource(R.drawable.ic_position)
-            binding.fab.imageTintList = null
-            // 重启脉冲动画
-            if (idlePulseAnimator == null) {
-                idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
+        // ✅ 修复：只在单点模式下更新FAB图标，路线模式下由Tab控制
+        if (currentTabMode == 0) {
+            if (state.isSimulating) {
+                binding.fab.setImageResource(R.drawable.ic_fly)
+                binding.fab.imageTintList = null
+                // 停止脉冲动画
+                idlePulseAnimator?.cancel()
+                idlePulseAnimator = null
+                
+                // 更新状态徽章
+                binding.statusText.text = "模拟中"
+            } else {
+                binding.fab.setImageResource(R.drawable.ic_position)
+                binding.fab.imageTintList = null
+                // 重启脉冲动画
+                if (idlePulseAnimator == null) {
+                    idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
+                }
+                
+                // 更新状态徽章
+                binding.statusText.text = "未模拟"
             }
-            
-            // 更新状态徽章
-            binding.statusText.text = "未模拟"
         }
     }
 
@@ -697,6 +706,9 @@ class MainFragment : Fragment() {
         }
 
         if (state.playbackState.isPlaying && state.currentPlaybackPosition != null) {
+            // ✅ 更新位置信息卡片（实时显示当前位置）
+            updateLocationInfo(state.currentPlaybackPosition)
+            
             // ✅ 关键修复：手动计算偏移后的目标点，避开右侧工具栏
             val currentZoom = aMap.cameraPosition.zoom
             val displayMetrics = resources.displayMetrics
@@ -723,18 +735,23 @@ class MainFragment : Fragment() {
 
         val playback = state.playbackState
         if (playback.isPlaying) {
-            binding.routePlayBtn.setImageResource(R.drawable.ic_stop)
+            // ✅ 更新地图上方的播放按钮
+            binding.routePlayFabBtn.setImageResource(R.drawable.ic_stop)
+            
+            // ✅ 更新状态徽章为“模拟中”
+            binding.statusText.text = "模拟中"
+            
             binding.routeProgressSection.visibility = View.VISIBLE
             binding.routeProgress.progress = (playback.progress * 100).toInt()
-            val current = playback.currentIndex + 1
-            binding.routeProgressInfo.text = "$current/$pointCount"
         } else {
-            binding.routePlayBtn.setImageResource(R.drawable.ic_play)
-            if (pointCount >= 2) {
-                binding.routeProgressSection.visibility = View.VISIBLE
-            } else {
-                binding.routeProgressSection.visibility = View.GONE
-            }
+            // ✅ 更新地图上方的播放按钮
+            binding.routePlayFabBtn.setImageResource(R.drawable.ic_play)
+            
+            // ✅ 更新状态徽章为“未模拟”
+            binding.statusText.text = "未模拟"
+            
+            // ✅ 路线模式下进度条始终显示（即使未选点）
+            binding.routeProgressSection.visibility = View.VISIBLE
             binding.routeProgress.progress = (playback.progress * 100).toInt()
         }
 
@@ -743,6 +760,15 @@ class MainFragment : Fragment() {
             ContextCompat.getColor(requireContext(), loopColor)
         )
 
+        // ✅ 更新移动模式图标
+        val movementIconRes = when (state.movementMode) {
+            MainViewModel.MovementMode.WALK -> R.drawable.ic_walk
+            MainViewModel.MovementMode.RUN -> R.drawable.ic_run
+            MainViewModel.MovementMode.BIKE -> R.drawable.ic_bike
+        }
+        binding.routeMovementModeBtn.setImageResource(movementIconRes)
+
+        // ✅ 更新速度Chip
         val selectedChip = when (playback.speedMultiplier) {
             0.5f -> binding.speed05x
             2f -> binding.speed2x
@@ -750,6 +776,15 @@ class MainFragment : Fragment() {
             else -> binding.speed1x
         }
         updateSpeedChipSelection(selectedChip)
+        
+        // ✅ 更新 FAB 图标（路线模式下也需要切换，使用与单点模式一致的图标）
+        if (currentTabMode == 1) {
+            if (playback.isPlaying) {
+                binding.fab.setImageResource(R.drawable.ic_fly)
+            } else {
+                binding.fab.setImageResource(R.drawable.ic_position)
+            }
+        }
     }
 
     private fun updateSpeedChipSelection(selected: com.google.android.material.chip.Chip) {
@@ -1005,6 +1040,89 @@ class MainFragment : Fragment() {
     }
 
     /**
+     * 初始化面板Tab切换
+     */
+    private fun initPanelTabs() {
+        // ✅ 禁用 TabLayout 的所有动画（防止夜间模式闪烁）
+        binding.panelTabs.setScrollPosition(0, 0f, false)
+        
+        // ✅ 设置每个 Tab 的背景为透明（禁用选中背景动画）
+        for (i in 0 until binding.panelTabs.tabCount) {
+            val tab = binding.panelTabs.getTabAt(i)
+            tab?.view?.setBackgroundResource(android.R.color.transparent)
+        }
+        
+        binding.panelTabs.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
+                // ✅ 清除选中项的背景（防止夜间模式闪烁）
+                tab?.view?.setBackgroundResource(android.R.color.transparent)
+                
+                when (tab?.position) {
+                    0 -> {
+                        showPointModeButtons()
+                        viewModel.setRouteMode(false)  // ✅ 切换到单点模式
+                    }
+                    1 -> {
+                        showRouteModeButtons()
+                        viewModel.setRouteMode(true)   // ✅ 切换到路线模式
+                    }
+                }
+            }
+
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
+                // ✅ 清除未选中项的背景
+                tab?.view?.setBackgroundResource(android.R.color.transparent)
+            }
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+        })
+        
+        // 默认显示单点模式按钮
+        showPointModeButtons()
+    }
+
+    /**
+     * 显示单点模式按钮
+     */
+    private fun showPointModeButtons() {
+        currentTabMode = 0
+        binding.pointActionButtons.visibility = android.view.View.VISIBLE
+        
+        // ✅ 隐藏地图上方的路线控制栏
+        binding.routeControlCard.visibility = android.view.View.GONE
+        
+        // ✅ 隐藏 BottomSheet 内的路线控制面板
+        binding.routePanel.visibility = android.view.View.GONE
+        
+        // FAB显示定位图标
+        binding.fab.setImageResource(R.drawable.ic_position)
+        binding.fab.imageTintList = null
+        
+        Timber.d("Switched to point mode buttons")
+    }
+
+    /**
+     * 显示路线模式控制面板（直接替换4个按钮位置）
+     */
+    private fun showRouteModeButtons() {
+        currentTabMode = 1
+        binding.pointActionButtons.visibility = android.view.View.GONE
+        
+        // ✅ 显示地图上方的路线控制栏
+        binding.routeControlCard.visibility = android.view.View.VISIBLE
+        
+        // ✅ 显示 BottomSheet 内的路线控制面板（与4个按钮同位置）
+        binding.routePanel.visibility = android.view.View.VISIBLE
+        
+        // FAB保持定位图标
+        binding.fab.setImageResource(R.drawable.ic_position)
+        binding.fab.imageTintList = null
+        
+        Timber.d("Switched to route mode panel")
+    }
+
+
+
+    /**
      * 初始化底部导航
      */
     private fun initBottomNavigation() {
@@ -1131,34 +1249,51 @@ class MainFragment : Fragment() {
         }
 
         binding.routeBtn.setOnClickListener {
-            if (!viewModel.routeState.value.isRouteMode) {
-                binding.chipRouteMode.isChecked = true
-                viewModel.setRouteMode(true)
-                binding.routePanel.visibility = View.VISIBLE
-            }
+            // ✅ 切换到路线模式Tab
+            binding.panelTabs.getTabAt(1)?.select()
         }
 
         // FAB按钮
         binding.fab.setOnClickListener {
-            toggleSimulation()
+            // ✅ 修复：根据当前Tab模式执行不同操作
+            if (currentTabMode == 0) {
+                // 单点模式：启动/停止模拟
+                toggleSimulation()
+            } else {
+                // 路线模式：播放/暂停路线
+                toggleRoutePlaybackFromFab()
+            }
         }
 
-        // 模式切换
-        binding.modeChipGroup.setOnCheckedChangeListener { _, checkedId ->
-            val isRouteMode = checkedId == R.id.chip_route_mode
-            viewModel.setRouteMode(isRouteMode)
-            binding.routePanel.visibility = if (isRouteMode) View.VISIBLE else View.GONE
-        }
-
-        // 路线播放/暂停
-        binding.routePlayBtn.setOnClickListener {
-            val routeState = viewModel.routeState.value
-            if (routeState.routePoints.size < 2) {
+        // ✅ 路线控制栏按钮（地图上方）
+        binding.routePlayFabBtn.setOnClickListener {
+            if (viewModel.routeState.value.routePoints.size < 2) {
                 UIFeedbackHelper.showToast(requireContext(), "至少需要2个路线点")
                 return@setOnClickListener
             }
             viewModel.toggleRoutePlayback()
         }
+
+        binding.routeSpeedFabBtn.setOnClickListener {
+            // 循环切换速度：1x -> 2x -> 4x -> 0.5x -> 1x
+            val currentSpeed = viewModel.routeState.value.playbackState.speedMultiplier
+            val nextSpeed = when (currentSpeed) {
+                1f -> 2f
+                2f -> 4f
+                4f -> 0.5f
+                else -> 1f
+            }
+            viewModel.setRouteSpeedMultiplier(nextSpeed)
+            UIFeedbackHelper.showToast(requireContext(), "速度: ${nextSpeed}x")
+        }
+
+        binding.routeStopFabBtn.setOnClickListener {
+            // ✅ 停止路线播放（重置进度和位置）
+            viewModel.stopRoutePlayback()
+        }
+
+        // ✅ 路线播放/暂停（由地图上方的 route_control_card 控制）
+        // 移除了 BottomSheet 内的播放按钮点击事件
 
         // 速度选择
         binding.speed05x.setOnClickListener {
@@ -1182,6 +1317,11 @@ class MainFragment : Fragment() {
         binding.routeLoopBtn.setOnClickListener {
             val isLooping = !viewModel.routeState.value.playbackState.isLooping
             viewModel.setRouteLooping(isLooping)
+        }
+
+        // ✅ 移动模式切换
+        binding.routeMovementModeBtn.setOnClickListener {
+            viewModel.toggleMovementMode()
         }
 
         // 清除路线
@@ -1388,6 +1528,21 @@ class MainFragment : Fragment() {
 
         // 调用 ViewModel 确认模拟（事件处理器会显示 Toast，这里不需要再显示）
         viewModel.confirmSimulation()
+    }
+
+    /**
+     * ✅ 从 FAB 按钮触发路线播放/暂停
+     */
+    private fun toggleRoutePlaybackFromFab() {
+        val routeState = viewModel.routeState.value
+        
+        if (routeState.routePoints.size < 2) {
+            UIFeedbackHelper.showToast(requireContext(), "至少需要2个路线点")
+            return
+        }
+        
+        // 调用 ViewModel 的 toggleRoutePlayback
+        viewModel.toggleRoutePlayback()
     }
 
     /**
@@ -1800,6 +1955,10 @@ class MainFragment : Fragment() {
             val resources = themedContext.resources
             val theme = themedContext.theme
             
+            // ✅ 更新夜间模式状态（确保后续逻辑使用最新状态）
+            isNightMode = (resources.configuration.uiMode 
+                and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            
             val surfaceColor = resources.getColor(R.color.surface, theme)
             val backgroundColor = resources.getColor(R.color.background, theme)
             val primaryColor = resources.getColor(R.color.primary, theme)
@@ -1840,8 +1999,8 @@ class MainFragment : Fragment() {
             // 更新底部导航栏背景（使用 backgroundColor 而非 surfaceColor）
             binding.bottomNav.setBackgroundColor(backgroundColor)
             
-            // 更新模式切换卡片背景
-            binding.modeTabCard.setCardBackgroundColor(surfaceColor)
+            // 更新模式切换卡片背景（现在是路线控制栏）
+            binding.routeControlCard.setCardBackgroundColor(surfaceColor)
             
             // 更新路线面板背景
             binding.routePanel.setCardBackgroundColor(surfaceColor)
@@ -1890,6 +2049,16 @@ class MainFragment : Fragment() {
             updateButtonIconTint(binding.historyBtn, primaryColor, textSecondaryColor)
             updateButtonIconTint(binding.favoriteBtn, primaryColor, textSecondaryColor)
             updateButtonIconTint(binding.routeBtn, primaryColor, textSecondaryColor)
+            
+            // ✅ 更新路线控制栏按钮的图标颜色
+            binding.routePlayFabBtn.setColorFilter(primaryColor)
+            binding.routeSpeedFabBtn.setColorFilter(primaryColor)
+            binding.routeStopFabBtn.setColorFilter(resources.getColor(R.color.error, theme))
+            
+            // ✅ 更新 BottomSheet 内路线控制面板的图标颜色
+            binding.routeMovementModeBtn.setColorFilter(primaryColor)
+            binding.routeLoopBtn.setColorFilter(textSecondaryColor)
+            binding.routeClearBtn.setColorFilter(resources.getColor(R.color.error, theme))
             
             // 直接设置选中项指示器颜色（绕过 configChanges 导致的资源不刷新问题）
             binding.bottomNav.setItemActiveIndicatorColor(
@@ -1951,6 +2120,52 @@ class MainFragment : Fragment() {
                         
             // ✅ 更新路线模拟进度条颜色（传入 themedContext 确保颜色从正确版本加载）
             updateRouteProgressColors(themedContext)
+            
+            // ✅ 更新 TabLayout 颜色（夜间模式切换时刷新）
+            // 方法0：更新 TabLayout 背景色（从 surface 或 surface_variant 中选择）
+            binding.panelTabs.setBackgroundColor(surfaceColor)
+            
+            // ✅ 更新 TabLayout 底部边框颜色
+            binding.tabLayoutDivider.setBackgroundColor(dividerColor)
+            
+            // 方法1：设置 TabLayout 的颜色选择器
+            binding.panelTabs.setTabTextColors(
+                resources.getColor(R.color.text_secondary, theme),  // 未选中
+                primaryColor  // 选中
+            )
+            binding.panelTabs.setSelectedTabIndicatorColor(primaryColor)
+            
+            // 方法2：遍历并直接更新每个 Tab 的 TextView（确保立即生效）
+            val tabLayout = binding.panelTabs
+            for (i in 0 until tabLayout.tabCount) {
+                val tab = tabLayout.getTabAt(i)
+                val tabView = (tabLayout.getChildAt(0) as? android.view.ViewGroup)?.getChildAt(i)
+                if (tabView is android.view.ViewGroup) {
+                    for (j in 0 until tabView.childCount) {
+                        val child = tabView.getChildAt(j)
+                        if (child is android.widget.TextView) {
+                            // 根据 Tab 的选中状态设置颜色
+                            val color = if (tabLayout.selectedTabPosition == i) {
+                                primaryColor
+                            } else {
+                                resources.getColor(R.color.text_secondary, theme)
+                            }
+                            child.setTextColor(color)
+                        }
+                    }
+                }
+            }
+            
+            // 方法3：强制刷新指示器和状态
+            binding.panelTabs.post {
+                // 重新设置指示器颜色（确保指示器重绘）
+                binding.panelTabs.setSelectedTabIndicatorColor(primaryColor)
+                binding.panelTabs.refreshDrawableState()
+                // 强制请求布局（确保指示器重新绘制）
+                binding.panelTabs.requestLayout()
+            }
+            
+            Timber.d("TabLayout colors updated for theme change")
             
             // ✅ 更新位置信息卡片内的文字颜色
             // 卡片背景是 primary（蓝绿色），所以文字保持白色
@@ -2048,20 +2263,6 @@ class MainFragment : Fragment() {
             intArrayOf(primaryColor, chipBgUnselected)
         )
 
-        // ── 模式 Chip 文字（选中=白色，未选中=chip_mode_choice_text）──
-        val modeTextSelector = android.content.res.ColorStateList(
-            arrayOf(
-                intArrayOf(android.R.attr.state_checked),
-                intArrayOf(-android.R.attr.state_checked)
-            ),
-            intArrayOf(chipTextSelected, chipTextUnselected)
-        )
-
-        listOf(binding.chipPointMode, binding.chipRouteMode).forEach { chip ->
-            chip.chipBackgroundColor = chipBgSelector
-            chip.setTextColor(modeTextSelector)
-        }
-
         // ── 速度 Chip 文字（选中=白色，未选中=chip_mode_choice_text）──
         val speedTextSelector = android.content.res.ColorStateList(
             arrayOf(
@@ -2071,6 +2272,7 @@ class MainFragment : Fragment() {
             intArrayOf(chipTextSelected, chipTextUnselected)
         )
 
+        // ✅ 只更新速度 Chip（模式 Chip 已移除）
         listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
             chip.chipBackgroundColor = chipBgSelector
             chip.setTextColor(speedTextSelector)
@@ -2078,7 +2280,6 @@ class MainFragment : Fragment() {
 
         // ── 强制触发绘制刷新，确保选中态/未选中态即时呈现 ──────────
         listOf(
-            binding.chipPointMode, binding.chipRouteMode,
             binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x
         ).forEach { chip ->
             chip.invalidate()

@@ -175,6 +175,31 @@ class LocationService : Service() {
 
     // ==================== 路线播放引擎 ====================
     private var routePlaybackEngine: RoutePlaybackEngine? = null
+    
+    /**
+     * ✅ 公开访问路线播放引擎（用于悬浮窗状态监听）
+     */
+    val playbackEngine: RoutePlaybackEngine?
+        get() = routePlaybackEngine
+    
+    /**
+     * ✅ 路线控制悬浮窗状态监听器
+     */
+    private var routeControlStateListener: ((Boolean) -> Unit)? = null
+    
+    /**
+     * ✅ 设置路线控制状态监听器
+     */
+    fun setRouteControlStateListener(listener: ((Boolean) -> Unit)?) {
+        routeControlStateListener = listener
+    }
+    
+    /**
+     * ✅ 通知路线控制悬浮窗状态变化
+     */
+    private fun notifyRouteControlStateChanged(isPlaying: Boolean) {
+        routeControlStateListener?.invoke(isPlaying)
+    }
 
     inner class LocalBinder : Binder() {
         fun getService(): LocationService = this@LocationService
@@ -208,10 +233,14 @@ class LocationService : Service() {
     
     fun playRoute() {
         routePlaybackEngine?.play()
+        // ✅ 通知悬浮窗状态变化
+        notifyRouteControlStateChanged(true)
     }
     
     fun pauseRoute() {
         routePlaybackEngine?.pause()
+        // ✅ 通知悬浮窗状态变化
+        notifyRouteControlStateChanged(false)
     }
     
     fun stopRoute() {
@@ -232,6 +261,65 @@ class LocationService : Service() {
     
     fun getRoutePlaybackState(): RoutePlaybackState {
         return routePlaybackEngine?.state?.value ?: RoutePlaybackState()
+    }
+    
+    /**
+     * ✅ 隐藏悬浮窗（用于路线模式下不需要摇杆控制）
+     */
+    fun hideFloatingWindow() {
+        if (isJoystickVisible) {
+            floatingWindowManager?.hide()
+            isJoystickVisible = false
+            Timber.d("Floating window hidden (route mode)")
+        }
+    }
+    
+    /**
+     * ✅ 显示摇杆悬浮窗（单点模式）
+     */
+    fun showFloatingWindow() {
+        // ✅ 检查悬浮窗权限
+        if (!android.provider.Settings.canDrawOverlays(this)) {
+            Timber.w("Cannot show floating window: no overlay permission")
+            return
+        }
+        
+        // ✅ 只在非路线播放模式下显示摇杆
+        val isRoutePlaying = routePlaybackEngine?.state?.value?.isPlaying == true
+        if (!isRoutePlaying && !isJoystickVisible) {
+            floatingWindowManager?.show()
+            isJoystickVisible = true
+            Timber.d("Joystick window shown (single-point mode)")
+        }
+    }
+    
+    /**
+     * ✅ 显示路线控制悬浮窗
+     */
+    fun showRouteControlWindow() {
+        // ✅ 检查悬浮窗权限
+        if (!android.provider.Settings.canDrawOverlays(this)) {
+            Timber.w("Cannot show route control window: no overlay permission")
+            return
+        }
+        floatingWindowManager?.showRouteControl()
+        Timber.d("Route control window requested")
+    }
+    
+    /**
+     * ✅ 隐藏路线控制悬浮窗
+     */
+    fun hideRouteControlWindow() {
+        floatingWindowManager?.hideRouteControl()
+        Timber.d("Route control window hide requested")
+    }
+    
+    /**
+     * ✅ 停止路线播放并重置状态
+     */
+    fun stopRoutePlayback() {
+        routePlaybackEngine?.stop()
+        Timber.d("Route playback stopped")
     }
 
     // ==================== 生命周期 ====================
@@ -312,6 +400,15 @@ class LocationService : Service() {
         routePlaybackEngine = RoutePlaybackEngine(serviceScope) { latLng, bearing ->
             updatePlaybackPosition(latLng.longitude, latLng.latitude, altitude, bearing)
         }
+        
+        // ✅ 监听路线播放状态变化，通知悬浮窗
+        serviceScope.launch {
+            routePlaybackEngine?.state?.collect { state ->
+                // 当 isPlaying 状态变化时，通知悬浮窗
+                notifyRouteControlStateChanged(state.isPlaying)
+            }
+        }
+        
         Timber.d("RoutePlaybackEngine initialized in LocationService")
     }
 
@@ -332,14 +429,8 @@ class LocationService : Service() {
                     startSimulation(latitude, longitude)
                 }
 
-                if (!isJoystickVisible && Settings.canDrawOverlays(this)) {
-                    try {
-                        floatingWindowManager?.show()
-                        isJoystickVisible = true
-                    } catch (e: Exception) {
-                        Timber.w(e, "show joystick failed")
-                    }
-                }
+                // ✅ 不在这里显示摇杆悬浮窗，由 MainViewModel 的前后台监听控制
+                // 摇杆仅在 App 进入后台时显示（如果正在模拟）
             }
             ACTION_STOP -> {
                 stopSimulation()

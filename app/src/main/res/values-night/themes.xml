@@ -19,7 +19,6 @@
     <style name="InputCoordsDialogButton" parent="Widget.Material3.Button.TextButton.Dialog">
         <!-- 按钮背景 - 深色变体 -->
         <item name="backgroundTint">@color/surface_variant</item>
-        <item name="rippleColor">@color/primary_light</item>
         <item name="cornerRadius">8dp</item>
     </style>
 </resources>

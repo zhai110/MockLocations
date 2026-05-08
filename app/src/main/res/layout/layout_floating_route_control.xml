@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 路线控制悬浮窗 -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/route_control_root"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_floating_window">
+
+    <!-- 播放/暂停按钮 -->
+    <ImageButton
+        android:id="@+id/btn_play_pause"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_play"
+        android:contentDescription="播放/暂停"
+        app:tint="@color/primary" />
+
+    <!-- 分隔线 -->
+    <View
+        android:layout_width="1dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="4dp"
+        android:background="@color/divider" />
+
+    <!-- 速度切换按钮 -->
+    <ImageButton
+        android:id="@+id/btn_speed"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_speed"
+        android:contentDescription="速度切换"
+        app:tint="@color/primary" />
+
+    <!-- 分隔线 -->
+    <View
+        android:layout_width="1dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="4dp"
+        android:background="@color/divider" />
+
+    <!-- 停止按钮 -->
+    <ImageButton
+        android:id="@+id/btn_stop"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_close"
+        android:contentDescription="停止"
+        app:tint="@color/error" />
+
+</LinearLayout>

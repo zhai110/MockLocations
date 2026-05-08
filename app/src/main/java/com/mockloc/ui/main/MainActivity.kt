@@ -80,10 +80,14 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         try {
-            // 绑定 LocationService
-            val intent = Intent(this, LocationService::class.java)
-            bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-            Timber.d("Binding LocationService")
+            // 绑定 LocationService（如果尚未绑定）
+            if (!isServiceBound) {
+                val intent = Intent(this, LocationService::class.java)
+                bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+                Timber.d("Binding LocationService")
+            }
+            
+            // ✅ 前后台监听已移至 MainViewModel（使用 ProcessLifecycleOwner）
         } catch (e: Exception) {
             Timber.e(e, "Failed to bind LocationService")
         }
@@ -91,11 +95,22 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        // 解绑 LocationService
+        
+        // ✅ 前后台监听已移至 MainViewModel（使用 ProcessLifecycleOwner）
+        // ✅ 不在这里解绑 Service，保持连接以支持后台悬浮窗控制
+        
+        // 注意：Service 将在 onDestroy() 或应用退出时解绑
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        
+        // ✅ 在 Activity 销毁时解绑 Service
         if (isServiceBound) {
             try {
                 unbindService(serviceConnection)
                 viewModel.setLocationService(null)
+                Timber.d("Unbinding LocationService in onDestroy")
             } catch (e: Exception) {
                 Timber.w(e, "Error unbinding LocationService")
             }

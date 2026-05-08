@@ -4,6 +4,9 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import com.amap.api.location.AMapLocation
 import com.amap.api.location.AMapLocationClient
@@ -78,8 +81,16 @@ class MainViewModel(
         val isRouteMode: Boolean = false,
         val routePoints: List<RoutePoint> = emptyList(),
         val playbackState: RoutePlaybackState = RoutePlaybackState(),
-        val currentPlaybackPosition: LatLng? = null
+        val currentPlaybackPosition: LatLng? = null,
+        val movementMode: MovementMode = MovementMode.WALK  // ✅ 新增：移动模式
     )
+    
+    /** 移动模式枚举 */
+    enum class MovementMode {
+        WALK,   // 步行
+        RUN,    // 跑步
+        BIKE    // 骑车
+    }
 
     /** 底部面板状态 */
     data class BottomSheetState(
@@ -130,6 +141,32 @@ class MainViewModel(
         private fun roundCoordinate(value: Double): Double {
             return Math.round(value * 1_000_000) / 1_000_000.0
         }
+    }
+
+    // ==================== 前后台状态监听 ====================
+    
+    private val appLifecycleObserver = object : DefaultLifecycleObserver {
+        override fun onStart(owner: LifecycleOwner) {
+            super.onStart(owner)
+            // ✅ App 回到前台：隐藏所有悬浮窗
+            Timber.d("App entered foreground")
+            hideRouteControlIfNeeded()
+            hideJoystickIfNeeded()
+        }
+        
+        override fun onStop(owner: LifecycleOwner) {
+            super.onStop(owner)
+            // ✅ App 进入后台：根据模式显示对应的悬浮窗
+            Timber.d("App entered background")
+            showRouteControlIfNeeded()
+            showJoystickIfNeeded()
+        }
+    }
+    
+    init {
+        // ✅ 使用 ProcessLifecycleOwner 监听应用级别的前后台状态
+        ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
+        Timber.d("Registered app lifecycle observer for route control window")
     }
 
     // ==================== 初始化方法 ====================
@@ -641,7 +678,13 @@ class MainViewModel(
     fun setRouteMode(enabled: Boolean) {
         _routeState.update { it.copy(isRouteMode = enabled) }
         if (!enabled) {
+            // 切换回单点模式：停止路线播放，隐藏路线控制悬浮窗
             locationService?.stopRoute()
+            locationService?.hideRouteControlWindow()
+        } else {
+            // ✅ 切换到路线模式：隐藏摇杆悬浮窗，✅ 不显示路线控制悬浮窗（仅后台时显示）
+            locationService?.hideFloatingWindow()
+            // locationService?.showRouteControlWindow()  // ❌ 不在前台显示
         }
         Timber.d("Route mode: $enabled")
     }
@@ -684,13 +727,67 @@ class MainViewModel(
     fun toggleRoutePlayback() {
         val state = locationService?.getRoutePlaybackState() ?: RoutePlaybackState()
         if (state.isPlaying) {
+            // 暂停：只暂停播放，不重置位置
             locationService?.pauseRoute()
         } else {
-            if (!_simulationState.value.isSimulating && _routeState.value.routePoints.size >= 2) {
+            // 播放/恢复：只在首次启动时初始化位置，暂停后恢复不需要重新初始化
+            val isFirstStart = !_simulationState.value.isSimulating && state.currentIndex == 0 && state.progress == 0f
+            if (isFirstStart && _routeState.value.routePoints.size >= 2) {
                 val firstPoint = _routeState.value.routePoints.first().latLng
                 startRouteSimulation(firstPoint.latitude, firstPoint.longitude)
             }
             locationService?.playRoute()
+        }
+    }
+    
+    /**
+     * ✅ 停止路线播放（重置进度和模拟状态）
+     */
+    fun stopRoutePlayback() {
+        locationService?.stopRoutePlayback()
+        _simulationState.update { it.copy(isSimulating = false) }
+        Timber.d("Route playback stopped and simulation state reset")
+    }
+    
+    /**
+     * ✅ 显示路线控制悬浮窗（用于后台控制）
+     */
+    fun showRouteControlIfNeeded() {
+        if (_routeState.value.isRouteMode && _routeState.value.playbackState.isPlaying) {
+            locationService?.showRouteControlWindow()
+            Timber.d("Showing route control window for background control")
+        }
+    }
+    
+    /**
+     * ✅ 隐藏路线控制悬浮窗（回到前台时）
+     */
+    fun hideRouteControlIfNeeded() {
+        if (_routeState.value.isRouteMode) {
+            locationService?.hideRouteControlWindow()
+            Timber.d("Hiding route control window when returning to foreground")
+        }
+    }
+    
+    /**
+     * ✅ 显示摇杆悬浮窗（进入后台时，单点模式）
+     */
+    private fun showJoystickIfNeeded() {
+        // 只在单点模式且正在模拟时显示
+        if (!_routeState.value.isRouteMode && _simulationState.value.isSimulating) {
+            locationService?.showFloatingWindow()
+            Timber.d("Showing joystick window for background control (single-point mode)")
+        }
+    }
+    
+    /**
+     * ✅ 隐藏摇杆悬浮窗（回到前台时，单点模式）
+     */
+    private fun hideJoystickIfNeeded() {
+        // 只在单点模式下隐藏
+        if (!_routeState.value.isRouteMode) {
+            locationService?.hideFloatingWindow()
+            Timber.d("Hiding joystick window when returning to foreground (single-point mode)")
         }
     }
 
@@ -712,6 +809,20 @@ class MainViewModel(
 
     fun setRouteSpeedMultiplier(multiplier: Float) {
         locationService?.setRouteSpeedMultiplier(multiplier)
+    }
+    
+    /**
+     * ✅ 切换移动模式（步行 → 跑步 → 骑车 → 步行）
+     */
+    fun toggleMovementMode() {
+        val currentMode = _routeState.value.movementMode
+        val nextMode = when (currentMode) {
+            MovementMode.WALK -> MovementMode.RUN
+            MovementMode.RUN -> MovementMode.BIKE
+            MovementMode.BIKE -> MovementMode.WALK
+        }
+        _routeState.update { it.copy(movementMode = nextMode) }
+        Timber.d("Movement mode changed to: $nextMode")
     }
 
     fun saveRouteToDb(name: String) {
@@ -781,6 +892,10 @@ class MainViewModel(
         // ✅ 清理路线状态同步任务
         routeStateSyncJob?.cancel()
         routeStateSyncJob = null
+        
+        // ✅ 移除应用生命周期监听器，防止内存泄漏
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(appLifecycleObserver)
+        Timber.d("Removed app lifecycle observer")
         
         Timber.d("MainViewModel cleared")
     }

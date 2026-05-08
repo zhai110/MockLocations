@@ -40,7 +40,7 @@
     <color name="surface_container">#1E1E1E</color>
     <color name="surface_container_high">#262626</color>
     <color name="surface_container_highest">#2E2E2E</color>
-    
+
     <!-- AppBar/Toolbar 专用背景色（比 surface 稍亮） -->
     <color name="app_bar_background">#2A2A2A</color>
     <color name="white">#FFFFFF</color>
@@ -79,21 +79,21 @@
     <color name="joystick_stick_start">#4DB6AC</color>
     <color name="joystick_stick_end">#80CBC4</color>
     <color name="joystick_button_theme">#66BB6A</color>
-    
+
     <!-- 定位精度圈颜色 - 深色主题 -->
     <color name="location_accuracy_fill">#1A667EEA</color>
 
     <!-- 透明色 -->
     <color name="transparent">#00000000</color>
     <color name="semi_transparent">#80000000</color>
-    
+
     <!-- 底部导航栏选中项背景 - 夜间模式（深蓝绿色，低调不刺眼） -->
     <color name="nav_item_selected_background">#1A3D3A</color>
-    
+
     <!-- Chip 模式选择背景色 - 夜间模式 -->
     <color name="chip_mode_choice_bg">#2A2A2A</color>
     <color name="chip_mode_choice_text">#CCCCCC</color>
-    
+
     <!-- 旧颜色（向后兼容） -->
     <color name="primary_dark_legacy">#26A69A</color>
     <color name="primary_light_legacy">#80CBC4</color>

@@ -123,7 +123,7 @@ class RoutePlaybackEngine(
         val resumeIndex = _state.value.currentIndex
         val resumeProgress = _state.value.progress
         _state.update { it.copy(isPlaying = true) }
-        Timber.d("🎬 RoutePlaybackEngine.play() started: resumeIndex=$resumeIndex, totalPoints=${points.size}")
+        Timber.d("🎬 RoutePlaybackEngine.play() started: resumeIndex=$resumeIndex, resumeProgress=$resumeProgress, totalPoints=${points.size}")
         playbackJob = scope.launch(Dispatchers.Default) {
             try {
                 var isFirstLoop = true
@@ -131,6 +131,7 @@ class RoutePlaybackEngine(
                     val pts = pointsLock.withLock { routePoints }
                     // ✅ 关键修复：只有第一圈才从 resumeIndex 开始，后续循环必须从 0 开始以实现真正的闭环
                     val startIndex = if (isFirstLoop) resumeIndex else 0
+                    Timber.d("🎬 Starting loop from index: $startIndex (isFirstLoop=$isFirstLoop)")
                     isFirstLoop = false
                     
                     for (i in startIndex until pts.size - 1) {
@@ -166,10 +167,12 @@ class RoutePlaybackEngine(
     }
 
     fun pause() {
+        val pausedIndex = _state.value.currentIndex
+        val pausedProgress = _state.value.progress
         playbackJob?.cancel()
         playbackJob = null
         _state.update { it.copy(isPlaying = false) }
-        Timber.d("Route playback paused at index=${_state.value.currentIndex}")
+        Timber.d("Route playback paused at index=$pausedIndex, progress=$pausedProgress")
     }
 
     fun stop() {

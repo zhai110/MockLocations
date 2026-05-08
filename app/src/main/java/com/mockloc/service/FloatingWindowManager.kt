@@ -31,6 +31,7 @@ class FloatingWindowManager(private val service: LocationService) {
         private const val WINDOW_TYPE_JOYSTICK = 0
         private const val WINDOW_TYPE_MAP = 1
         private const val WINDOW_TYPE_HISTORY = 2
+        private const val WINDOW_TYPE_ROUTE_CONTROL = 3  // ✅ 路线控制悬浮窗
     }
 
     /** 缓存当前是否为深色模式，主题切换时用于刷新视图 */
@@ -71,11 +72,13 @@ class FloatingWindowManager(private val service: LocationService) {
     private var joystickController: JoystickWindowController? = null
     private var mapController: MapWindowController? = null
     private var historyController: HistoryWindowController? = null
+    private var routeControlController: RouteControlWindowController? = null  // ✅ 路线控制控制器
     
     // 跟踪视图是否已显示
     private var isJoystickViewShown = false
     private var isMapViewShown = false
     private var isHistoryViewShown = false
+    private var isRouteControlViewShown = false  // ✅ 路线控制视图显示状态
 
     // 回调接口
     interface FloatingWindowListener {
@@ -215,6 +218,7 @@ class FloatingWindowManager(private val service: LocationService) {
             WINDOW_TYPE_JOYSTICK -> joystickController
             WINDOW_TYPE_MAP -> mapController
             WINDOW_TYPE_HISTORY -> historyController
+            WINDOW_TYPE_ROUTE_CONTROL -> routeControlController  // ✅ 添加路线控制窗口
             else -> null
         }
     }
@@ -227,6 +231,7 @@ class FloatingWindowManager(private val service: LocationService) {
             WINDOW_TYPE_JOYSTICK -> isJoystickViewShown = value
             WINDOW_TYPE_MAP -> isMapViewShown = value
             WINDOW_TYPE_HISTORY -> isHistoryViewShown = value
+            WINDOW_TYPE_ROUTE_CONTROL -> isRouteControlViewShown = value  // ✅ 添加路线控制
         }
     }
     
@@ -270,6 +275,7 @@ class FloatingWindowManager(private val service: LocationService) {
             WINDOW_TYPE_JOYSTICK -> "Joystick"
             WINDOW_TYPE_MAP -> "Map"
             WINDOW_TYPE_HISTORY -> "History"
+            WINDOW_TYPE_ROUTE_CONTROL -> "RouteControl"  // ✅ 添加路线控制
             else -> "Unknown"
         }
     }
@@ -284,14 +290,22 @@ class FloatingWindowManager(private val service: LocationService) {
             WINDOW_TYPE_JOYSTICK -> {
                 mapController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
                 historyController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
+                routeControlController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }  // ✅ 添加路线控制窗口
             }
             WINDOW_TYPE_MAP -> {
                 joystickController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
                 historyController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
+                routeControlController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }  // ✅ 添加路线控制窗口
             }
             WINDOW_TYPE_HISTORY -> {
                 joystickController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
                 mapController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
+                routeControlController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }  // ✅ 添加路线控制窗口
+            }
+            WINDOW_TYPE_ROUTE_CONTROL -> {  // ✅ 新增：路线控制模式
+                joystickController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
+                mapController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
+                historyController?.rootView?.takeIf { it.parent != null }?.let { views.add(it) }
             }
         }
         
@@ -358,11 +372,89 @@ class FloatingWindowManager(private val service: LocationService) {
         joystickController?.rootView?.let { removeViewSafeImmediate(it) }
         mapController?.rootView?.let { removeViewSafeImmediate(it) }
         historyController?.rootView?.let { removeViewSafeImmediate(it) }
+        routeControlController?.rootView?.let { removeViewSafeImmediate(it) }  // ✅ 隐藏路线控制窗口
         
         // 重置显示标志
         isJoystickViewShown = false
         isMapViewShown = false
         isHistoryViewShown = false
+        isRouteControlViewShown = false  // ✅ 重置路线控制显示状态
+    }
+    
+    /**
+     * ✅ 显示路线控制悬浮窗
+     */
+    fun showRouteControl() {
+        if (isRouteControlViewShown) {
+            Timber.d("Route control window already shown")
+            return
+        }
+        
+        // 初始化控制器（如果尚未初始化）
+        if (routeControlController == null) {
+            routeControlController = RouteControlWindowController(themedContext, service, windowManager, windowParams)
+        }
+        
+        val controller = routeControlController!!
+        
+        // ✅ 调用控制器的 initialize()
+        controller.initialize()
+        
+        val view = controller.rootView
+        if (view != null) {
+            if (view.parent != null) {
+                Timber.d("Route control view already shown")
+                isRouteControlViewShown = true
+                currentWindowType = WINDOW_TYPE_ROUTE_CONTROL
+                return
+            }
+            
+            // ✅ 先隐藏其他窗口（带淡出动画）
+            val otherViews = getOtherVisibleViews()
+            
+            if (otherViews.isEmpty()) {
+                // 没有其他窗口显示，直接淡入
+                view.alpha = 0f
+                addViewSafe(view)
+                com.mockloc.util.AnimationHelper.fadeIn(view)
+            } else {
+                // 有其他窗口显示，先淡出再显示新窗口
+                fadeOutMultipleViews(otherViews) {
+                    showViewWithDrag(view)
+                }
+            }
+            
+            isRouteControlViewShown = true
+            currentWindowType = WINDOW_TYPE_ROUTE_CONTROL
+            Timber.d("Route control window shown successfully")
+        } else {
+            Timber.e("Route control rootView is null after initialization")
+        }
+    }
+    
+    /**
+     * ✅ 隐藏路线控制悬浮窗
+     */
+    fun hideRouteControl() {
+        if (!isRouteControlViewShown) {
+            return
+        }
+        
+        val view = routeControlController?.rootView
+        if (view != null && view.parent != null) {
+            // ✅ 淡出动画后移除视图
+            com.mockloc.util.AnimationHelper.fadeOut(view) {
+                try {
+                    windowManager.removeView(view)
+                    Timber.d("Route control window removed")
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to remove route control window")
+                }
+            }
+        }
+        
+        isRouteControlViewShown = false
+        Timber.d("Route control window hidden")
     }
 
     /**
@@ -434,7 +526,7 @@ class FloatingWindowManager(private val service: LocationService) {
             
             try {
                 // 使用显示标志判断悬浮窗是否真正在屏幕上显示
-                val wasShowing = isJoystickViewShown || isMapViewShown || isHistoryViewShown
+                val wasShowing = isJoystickViewShown || isMapViewShown || isHistoryViewShown || isRouteControlViewShown  // ✅ 添加路线控制窗口
                 
                 if (wasShowing) {
                     // ✅ 悬浮窗显示时：完全重建（销毁旧控制器 + 创建新控制器）
@@ -444,6 +536,9 @@ class FloatingWindowManager(private val service: LocationService) {
                     // ✅ 悬浮窗未显示时：只更新 themedContext，不销毁控制器
                     Timber.d("Floating window not showing, only update themedContext")
                     themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
+                    
+                    // ✅ 如果路线控制窗口已初始化，也需要更新主题
+                    routeControlController?.updateTheme(isNight)
                     
                     // 如果控制器已初始化，更新它们的 themedContext（通过重新初始化）
                     if (joystickController != null || mapController != null || historyController != null) {
@@ -468,26 +563,31 @@ class FloatingWindowManager(private val service: LocationService) {
      */
     private fun rebuildControllers() {
         val savedWindowType = currentWindowType
+        val wasRouteControlShown = isRouteControlViewShown  // ✅ 保存路线控制窗口状态
         
         // ✅ 关键修复：先重置显示标志，防止 show() 重复添加视图
         isJoystickViewShown = false
         isMapViewShown = false
         isHistoryViewShown = false
+        isRouteControlViewShown = false  // ✅ 添加路线控制窗口
         
         // 1. 移除所有窗口视图
         joystickController?.rootView?.let { removeViewSafeImmediate(it) }
         mapController?.rootView?.let { removeViewSafeImmediate(it) }
         historyController?.rootView?.let { removeViewSafeImmediate(it) }
+        routeControlController?.rootView?.let { removeViewSafeImmediate(it) }  // ✅ 添加路线控制窗口
 
         // 2. 销毁所有控制器（释放内部资源）
         joystickController?.destroy()
         mapController?.destroy()
         historyController?.destroy()
+        routeControlController?.destroy()  // ✅ 添加路线控制窗口
         
         // 3. 清空控制器引用（帮助 GC 回收）
         joystickController = null
         mapController = null
         historyController = null
+        routeControlController = null  // ✅ 添加路线控制窗口
         
         // 4. 创建新的 themedContext（使用新主题）
         themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
@@ -495,10 +595,32 @@ class FloatingWindowManager(private val service: LocationService) {
         // 5. 重新初始化控制器
         initializeControllers()
         
-        currentWindowType = savedWindowType
+        // ✅ 6. 如果之前路线控制窗口是显示的，重新创建它
+        if (wasRouteControlShown) {
+            Timber.d("Recreating route control controller after theme change")
+            routeControlController = RouteControlWindowController(themedContext, service, windowManager, windowParams)
+            routeControlController?.initialize()
+            
+            // ✅ 使用标准流程显示，而不是手动 addView
+            val view = routeControlController?.rootView
+            if (view != null && view.parent == null) {
+                try {
+                    view.alpha = 0f
+                    addViewSafe(view)
+                    com.mockloc.util.AnimationHelper.fadeIn(view)
+                    isRouteControlViewShown = true
+                    currentWindowType = WINDOW_TYPE_ROUTE_CONTROL  // ✅ 恢复窗口类型
+                    Timber.d("Route control window restored after theme change")
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to restore route control window")
+                }
+            }
+        } else {
+            // ✅ 7. 如果不是路线控制窗口，才调用 show() 恢复其他窗口
+            currentWindowType = savedWindowType
+            show()
+        }
         
-        // 6. 重新显示
-        show()
         Timber.d("Floating window restored after theme change")
     }
 

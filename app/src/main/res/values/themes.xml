@@ -142,8 +142,8 @@
         <item name="closeIconStartPadding">0dp</item>
         <item name="closeIconEndPadding">0dp</item>
         <item name="checkedIconVisible">false</item>
-        <item name="chipStartPadding">6dp</item>
-        <item name="chipEndPadding">6dp</item>
+        <item name="chipStartPadding">4dp</item>
+        <item name="chipEndPadding">4dp</item>
         <item name="chipCornerRadius">13dp</item>
     </style>
 

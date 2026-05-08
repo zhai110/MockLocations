@@ -130,6 +130,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    // ✅ 用于检测应用前后台状态
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
 
     // Room Database
     val roomVersion = "2.7.0"

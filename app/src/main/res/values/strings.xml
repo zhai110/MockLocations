@@ -156,4 +156,8 @@ v1.5.0 更新：
     <string name="map_type_standard">标准地图</string>
     <string name="map_type_satellite">卫星地图</string>
     <string name="map_type_night">夜景地图</string>
+    
+    <!-- BottomSheet Tab -->
+    <string name="tab_single_point">单点定位</string>
+    <string name="tab_route_simulation">路线模拟</string>
 </resources>
