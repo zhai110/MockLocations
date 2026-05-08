@@ -115,6 +115,7 @@ api-keys.txt
 # Temporary documentation files - moved to docs/ directory
 # These are development notes and reports, not needed in version control
 docs/
+CODE_WIKI.md
 
 # Temporary build scripts and guides
 *.bat
