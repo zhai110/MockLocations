@@ -92,7 +92,11 @@ class FloatingWindowManager(private val service: LocationService) {
 
     private var listener: FloatingWindowListener? = null
 
-    fun setListener(l: FloatingWindowListener) {
+    /**
+     * 设置监听器
+     * @param l 监听器，传入 null 可清除监听器引用防止内存泄漏
+     */
+    fun setListener(l: FloatingWindowListener?) {
         listener = l
     }
 
@@ -121,6 +125,12 @@ class FloatingWindowManager(private val service: LocationService) {
             )
             joystickController?.initialize()
             
+            // ✅ 检查初始化是否成功
+            if (joystickController?.rootView == null) {
+                Timber.e("❌ JoystickController initialization failed")
+                throw IllegalStateException("JoystickController rootView is null after initialization")
+            }
+            
             // 初始化地图控制器
             mapController = MapWindowController(
                 context = themedContext,
@@ -139,6 +149,12 @@ class FloatingWindowManager(private val service: LocationService) {
                 }
             )
             mapController?.initialize()
+            
+            // ✅ 检查初始化是否成功
+            if (mapController?.rootView == null) {
+                Timber.e("❌ MapWindowController initialization failed")
+                throw IllegalStateException("MapWindowController rootView is null after initialization")
+            }
             
             // 初始化历史记录控制器
             historyController = HistoryWindowController(
@@ -160,9 +176,21 @@ class FloatingWindowManager(private val service: LocationService) {
             )
             historyController?.initialize()
             
-            Timber.d("All window controllers initialized")
+            // ✅ 检查初始化是否成功
+            if (historyController?.rootView == null) {
+                Timber.e("❌ HistoryWindowController initialization failed")
+                throw IllegalStateException("HistoryWindowController rootView is null after initialization")
+            }
+            
+            Timber.d("All window controllers initialized successfully")
         } catch (e: Exception) {
             Timber.e(e, "Failed to initialize window controllers")
+            // ✅ 清空所有控制器引用，确保下次 show() 能检测到失败
+            joystickController = null
+            mapController = null
+            historyController = null
+            routeControlController = null
+            throw e  // ✅ 重新抛出异常，让调用方知道初始化失败
         }
     }
 
@@ -193,21 +221,43 @@ class FloatingWindowManager(private val service: LocationService) {
         show()
     }
 
+    // ✅ 递归保护：防止 show() 无限递归
+    private var isShowingInProgress = false
+    
     // ==================== 显示/隐藏 ====================
 
     /**
      * 显示当前窗口
      */
     fun show() {
-        val controller = getCurrentController()
-        
-        if (controller == null) {
-            initializeControllers()
-            // 重新获取 controller
-            return show()
+        // ✅ 防止无限递归
+        if (isShowingInProgress) {
+            Timber.w("show() already in progress, skipping to prevent infinite recursion")
+            return
         }
         
-        showController(controller)
+        isShowingInProgress = true
+        try {
+            val controller = getCurrentController()
+            
+            if (controller == null) {
+                Timber.d("Controller not initialized, initializing...")
+                initializeControllers()
+                
+                // ✅ 检查初始化是否成功
+                val newController = getCurrentController()
+                if (newController == null) {
+                    Timber.e("❌ Failed to initialize controllers after retry")
+                    return
+                }
+                
+                showController(newController)
+            } else {
+                showController(controller)
+            }
+        } finally {
+            isShowingInProgress = false
+        }
     }
     
     /**
@@ -593,32 +643,59 @@ class FloatingWindowManager(private val service: LocationService) {
         themedContext = com.mockloc.util.ThemeUtils.createThemedContext(service).also { isNightMode = it.second }.first
 
         // 5. 重新初始化控制器
-        initializeControllers()
+        try {
+            initializeControllers()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to reinitialize controllers after theme change")
+            // ✅ 即使初始化失败，也要恢复窗口类型标志
+            currentWindowType = savedWindowType
+            isSyncingTheme = false
+            return  // 放弃恢复，避免崩溃
+        }
         
         // ✅ 6. 如果之前路线控制窗口是显示的，重新创建它
         if (wasRouteControlShown) {
             Timber.d("Recreating route control controller after theme change")
-            routeControlController = RouteControlWindowController(themedContext, service, windowManager, windowParams)
-            routeControlController?.initialize()
-            
-            // ✅ 使用标准流程显示，而不是手动 addView
-            val view = routeControlController?.rootView
-            if (view != null && view.parent == null) {
-                try {
+            try {
+                routeControlController = RouteControlWindowController(themedContext, service, windowManager, windowParams)
+                routeControlController?.initialize()
+                
+                // ✅ 检查初始化是否成功
+                if (routeControlController?.rootView == null) {
+                    Timber.e("❌ RouteControlWindowController initialization failed after theme change")
+                    routeControlController = null
+                    isRouteControlViewShown = false
+                    currentWindowType = savedWindowType
+                    isSyncingTheme = false
+                    return
+                }
+                
+                // ✅ 使用标准流程显示，而不是手动 addView
+                val view = routeControlController?.rootView
+                if (view != null && view.parent == null) {
                     view.alpha = 0f
                     addViewSafe(view)
                     com.mockloc.util.AnimationHelper.fadeIn(view)
                     isRouteControlViewShown = true
                     currentWindowType = WINDOW_TYPE_ROUTE_CONTROL  // ✅ 恢复窗口类型
                     Timber.d("Route control window restored after theme change")
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to restore route control window")
                 }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to restore route control window")
+                routeControlController = null
+                isRouteControlViewShown = false
+                currentWindowType = savedWindowType
             }
         } else {
             // ✅ 7. 如果不是路线控制窗口，才调用 show() 恢复其他窗口
             currentWindowType = savedWindowType
-            show()
+            try {
+                show()
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to show window after theme change")
+                // ✅ 即使失败也要重置标志
+                isSyncingTheme = false
+            }
         }
         
         Timber.d("Floating window restored after theme change")

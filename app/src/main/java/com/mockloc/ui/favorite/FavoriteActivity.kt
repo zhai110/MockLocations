@@ -103,6 +103,9 @@ class FavoriteActivity : AppCompatActivity() {
     private fun loadData() {
         lifecycleScope.launch {
             try {
+                // ✅ 显示加载指示器
+                showLoading(true)
+                
                 val db = VirtualLocationApp.getDatabase()
                 val items = db.favoriteLocationDao().getAll()
                 
@@ -114,7 +117,21 @@ class FavoriteActivity : AppCompatActivity() {
                 updateEmptyState(favoriteItems.isEmpty())
             } catch (e: Exception) {
                 Timber.e(e, "加载收藏失败")
+            } finally {
+                // ✅ 隐藏加载指示器
+                showLoading(false)
             }
+        }
+    }
+
+    /**
+     * ✅ 显示/隐藏加载状态
+     */
+    private fun showLoading(isLoading: Boolean) {
+        binding.loadingProgress.visibility = if (isLoading) {
+            android.view.View.VISIBLE
+        } else {
+            android.view.View.GONE
         }
     }
 

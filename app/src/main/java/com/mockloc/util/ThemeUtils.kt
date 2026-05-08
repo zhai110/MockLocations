@@ -6,18 +6,17 @@ import androidx.appcompat.view.ContextThemeWrapper
 import com.mockloc.R
 
 object ThemeUtils {
+    /**
+     * 创建带主题的 Context
+     * @param context 已经包含正确 Configuration 的 Context（例如通过 createConfigurationContext 创建）
+     * @return Pair<带主题的Context, 是否夜间模式>
+     */
     fun createThemedContext(context: Context): Pair<Context, Boolean> {
+        // ✅ 直接从传入的 context 读取配置，不再重新创建 Configuration
         val isNight = (context.resources.configuration.uiMode
             and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        val nightModeFlags = if (isNight) {
-            Configuration.UI_MODE_NIGHT_YES
-        } else {
-            Configuration.UI_MODE_NIGHT_NO
-        }
-        val config = Configuration(context.resources.configuration).also {
-            it.uiMode = (it.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightModeFlags
-        }
-        val configContext = context.createConfigurationContext(config)
-        return Pair(ContextThemeWrapper(configContext, R.style.Theme_VirtualLocation), isNight)
+        
+        // ✅ 直接包裹主题，不修改 Configuration
+        return Pair(ContextThemeWrapper(context, R.style.Theme_VirtualLocation), isNight)
     }
 }

@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import timber.log.Timber
 
 /**
  * 应用数据库
@@ -84,29 +85,45 @@ abstract class AppDatabase : RoomDatabase() {
                     // 6. 删除临时表
                     database.execSQL("DROP TABLE search_history_backup")
                     
-                    android.util.Log.d("AppDatabase", "MIGRATION_5_6 completed successfully")
+                    Timber.d("✅ MIGRATION_5_6 completed successfully")
                 } catch (e: Exception) {
-                    android.util.Log.e("AppDatabase", "MIGRATION_5_6 failed: ${e.message}", e)
-                    throw e
+                    Timber.e(e, "❌ MIGRATION_5_6 failed: ${e.message}, rolling back...")
+                    // ✅ 尝试清理可能存在的临时表
+                    try {
+                        database.execSQL("DROP TABLE IF EXISTS search_history_backup")
+                    } catch (ignore: Exception) { }
+                    throw e  // 重新抛出，让 Room 处理
                 }
             }
         }
 
+        /**
+         * 从版本4升级到版本5：
+         * 添加保存路线表
+         * ✅ 添加异常处理
+         */
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("""
-                    CREATE TABLE IF NOT EXISTS saved_route (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        name TEXT NOT NULL,
-                        route_group TEXT NOT NULL,
-                        latitude REAL NOT NULL,
-                        longitude REAL NOT NULL,
-                        pointOrder INTEGER NOT NULL,
-                        timestamp INTEGER NOT NULL
-                    )
-                """.trimIndent())
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_route_timestamp ON saved_route(timestamp)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_route_route_group ON saved_route(route_group)")
+                try {
+                    Timber.d("📱 MIGRATION_4_5: Creating saved_route table")
+                    database.execSQL("""
+                        CREATE TABLE IF NOT EXISTS saved_route (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            name TEXT NOT NULL,
+                            route_group TEXT NOT NULL,
+                            latitude REAL NOT NULL,
+                            longitude REAL NOT NULL,
+                            pointOrder INTEGER NOT NULL,
+                            timestamp INTEGER NOT NULL
+                        )
+                    """.trimIndent())
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_route_timestamp ON saved_route(timestamp)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_route_route_group ON saved_route(route_group)")
+                    Timber.d("✅ MIGRATION_4_5 completed")
+                } catch (e: Exception) {
+                    Timber.e(e, "❌ MIGRATION_4_5 failed: ${e.message}")
+                    throw e
+                }
             }
         }
 
@@ -114,27 +131,35 @@ abstract class AppDatabase : RoomDatabase() {
          * 从版本3升级到版本4：
          * 修复索引名称，使其与 Room 自动生成的命名规则一致（index_{tableName}_{columns}）
          * 旧索引名是自定义的 idx_ 前缀，Room schema 验证不通过
+         * ✅ 添加异常处理
          */
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // 重命名 history_location 表的索引
-                database.execSQL("DROP INDEX IF EXISTS idx_history_timestamp")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_history_location_timestamp ON history_location(timestamp)")
+                try {
+                    Timber.d("📱 MIGRATION_3_4: Renaming indexes to Room standard")
+                    // 重命名 history_location 表的索引
+                    database.execSQL("DROP INDEX IF EXISTS idx_history_timestamp")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_history_location_timestamp ON history_location(timestamp)")
 
-                // 重命名 favorite_location 表的索引
-                database.execSQL("DROP INDEX IF EXISTS idx_favorite_timestamp")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_location_timestamp ON favorite_location(timestamp)")
+                    // 重命名 favorite_location 表的索引
+                    database.execSQL("DROP INDEX IF EXISTS idx_favorite_timestamp")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_location_timestamp ON favorite_location(timestamp)")
 
-                // 重命名 search_history 表的索引
-                database.execSQL("DROP INDEX IF EXISTS idx_search_keyword")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_keyword ON search_history(keyword)")
+                    // 重命名 search_history 表的索引
+                    database.execSQL("DROP INDEX IF EXISTS idx_search_keyword")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_keyword ON search_history(keyword)")
 
-                database.execSQL("DROP INDEX IF EXISTS idx_search_timestamp")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_timestamp ON search_history(timestamp)")
+                    database.execSQL("DROP INDEX IF EXISTS idx_search_timestamp")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_search_history_timestamp ON search_history(timestamp)")
 
-                // 重命名 search_history 唯一索引
-                database.execSQL("DROP INDEX IF EXISTS idx_search_lat_lng_unique")
-                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_search_history_latitude_longitude ON search_history(latitude, longitude)")
+                    // 重命名 search_history 唯一索引
+                    database.execSQL("DROP INDEX IF EXISTS idx_search_lat_lng_unique")
+                    database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_search_history_latitude_longitude ON search_history(latitude, longitude)")
+                    Timber.d("✅ MIGRATION_3_4 completed")
+                } catch (e: Exception) {
+                    Timber.e(e, "❌ MIGRATION_3_4 failed: ${e.message}")
+                    throw e
+                }
             }
         }
 
@@ -162,8 +187,10 @@ abstract class AppDatabase : RoomDatabase() {
                     database.execSQL(
                         "CREATE UNIQUE INDEX IF NOT EXISTS index_search_history_latitude_longitude ON search_history(latitude, longitude)"
                     )
+                    
+                    Timber.d("✅ MIGRATION_2_3 completed")
                 } catch (e: Exception) {
-                    android.util.Log.e("AppDatabase", "MIGRATION_2_3 failed: ${e.message}", e)
+                    Timber.e(e, "❌ MIGRATION_2_3 failed: ${e.message}")
                     throw e
                 }
             }
@@ -176,36 +203,45 @@ abstract class AppDatabase : RoomDatabase() {
          */
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // 1. 创建搜索历史表
-                database.execSQL("""
-                    CREATE TABLE IF NOT EXISTS search_history (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        keyword TEXT NOT NULL,
-                        name TEXT NOT NULL,
-                        address TEXT NOT NULL,
-                        latitude REAL NOT NULL,
-                        longitude REAL NOT NULL,
-                        timestamp INTEGER NOT NULL DEFAULT 0
+                try {
+                    Timber.d("📱 MIGRATION_1_2: Creating search_history table and indexes")
+                    
+                    // 1. 创建搜索历史表
+                    database.execSQL("""
+                        CREATE TABLE IF NOT EXISTS search_history (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            keyword TEXT NOT NULL,
+                            name TEXT NOT NULL,
+                            address TEXT NOT NULL,
+                            latitude REAL NOT NULL,
+                            longitude REAL NOT NULL,
+                            timestamp INTEGER NOT NULL DEFAULT 0
+                        )
+                    """.trimIndent())
+                    
+                    // 2. 为历史记录表添加时间戳索引（Room 标准命名）
+                    database.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_history_location_timestamp ON history_location(timestamp)"
                     )
-                """.trimIndent())
-                
-                // 2. 为历史记录表添加时间戳索引（Room 标准命名）
-                database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_history_location_timestamp ON history_location(timestamp)"
-                )
-                
-                // 3. 为收藏位置表添加时间戳索引（Room 标准命名）
-                database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_favorite_location_timestamp ON favorite_location(timestamp)"
-                )
-                
-                // 4. 为搜索历史表添加复合索引（Room 标准命名）
-                database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_search_history_keyword ON search_history(keyword)"
-                )
-                database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_search_history_timestamp ON search_history(timestamp)"
-                )
+                    
+                    // 3. 为收藏位置表添加时间戳索引（Room 标准命名）
+                    database.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_favorite_location_timestamp ON favorite_location(timestamp)"
+                    )
+                    
+                    // 4. 为搜索历史表添加复合索引（Room 标准命名）
+                    database.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_search_history_keyword ON search_history(keyword)"
+                    )
+                    database.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_search_history_timestamp ON search_history(timestamp)"
+                    )
+                    
+                    Timber.d("✅ MIGRATION_1_2 completed")
+                } catch (e: Exception) {
+                    Timber.e(e, "❌ MIGRATION_1_2 failed: ${e.message}")
+                    throw e
+                }
             }
         }
     }

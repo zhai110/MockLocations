@@ -176,43 +176,55 @@ object AddressCache {
     
     /**
      * 清理过期的条目
+     * ✅ 使用 synchronized 保证线程安全
      */
     private fun cleanupOldEntries() {
-        val currentTime = System.currentTimeMillis()
-        val expiredKeys = cache.filterValues { 
-            currentTime - it.timestamp > CACHE_EXPIRY_MS 
-        }.keys
-        
-        expiredKeys.forEach { cache.remove(it) }
-        
-        if (cache.size > MAX_CACHE_SIZE) {
-            val sortedEntries = cache.entries.sortedBy { it.value.timestamp }
-            val toRemove = sortedEntries.take(sortedEntries.size - MAX_CACHE_SIZE)
-            toRemove.forEach { cache.remove(it.key) }
+        synchronized(cache) {
+            val currentTime = System.currentTimeMillis()
+            
+            // 清理过期条目
+            val expiredKeys = cache.filterValues { 
+                currentTime - it.timestamp > CACHE_EXPIRY_MS 
+            }.keys
+            expiredKeys.forEach { cache.remove(it) }
+            
+            // 如果缓存仍超限，清理最旧的条目
+            if (cache.size > MAX_CACHE_SIZE) {
+                val sortedEntries = cache.entries.sortedBy { it.value.timestamp }
+                val toRemove = sortedEntries.take(sortedEntries.size - MAX_CACHE_SIZE)
+                toRemove.forEach { cache.remove(it.key) }
+            }
         }
         
+        // 同步块外执行 IO 操作，减少锁持有时间
         saveCacheToPrefs()
         Timber.d("Cleaned up cache, remaining: ${cache.size}")
     }
     
     /**
      * 清空所有缓存
+     * ✅ 使用 synchronized 保证线程安全
      */
     fun clear() {
-        cache.clear()
+        synchronized(cache) {
+            cache.clear()
+        }
         saveCacheToPrefs()
         Timber.d("Address cache cleared")
     }
     
     /**
      * 获取缓存统计信息
+     * ✅ 使用 synchronized 保证读取一致性
      */
     fun getStats(): Map<String, Any> {
-        return mapOf(
-            "size" to cache.size,
-            "maxSize" to MAX_CACHE_SIZE,
-            "expiryHours" to CACHE_EXPIRY_MS / (60 * 60 * 1000)
-        )
+        synchronized(cache) {
+            return mapOf(
+                "size" to cache.size,
+                "maxSize" to MAX_CACHE_SIZE,
+                "expiryHours" to CACHE_EXPIRY_MS / (60 * 60 * 1000)
+            )
+        }
     }
 
     /**

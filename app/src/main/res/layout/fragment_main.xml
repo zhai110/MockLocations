@@ -772,8 +772,6 @@
         android:layout_gravity="bottom"
         android:background="@color/background"
         style="@style/BottomNavigationViewStyle"
-        app:itemIconTint="@color/nav_item_color"
-        app:itemTextColor="@color/nav_item_color"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/bottom_nav_menu" />
 

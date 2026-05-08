@@ -904,7 +904,14 @@ class MainFragment : Fragment() {
      * 初始化地图
      */
     private fun initMap() {
+        // ✅ 防御性检查：确保 AMap 实例获取成功
         aMap = binding.mapView.map
+        if (aMap == null) {
+            Timber.e("❌ Failed to get AMap instance, map initialization failed")
+            Toast.makeText(requireContext(), "地图初始化失败，请重启应用", Toast.LENGTH_LONG).show()
+            return
+        }
+        Timber.d("✅ AMap instance obtained successfully")
         
         // ✅ 初始化夜间模式状态（确保地图类型正确）
         isNightMode = (resources.configuration.uiMode 
@@ -1126,12 +1133,39 @@ class MainFragment : Fragment() {
      * 初始化底部导航
      */
     private fun initBottomNavigation() {
-        // 设置选中态背景色（使用 primary_container 颜色）
+        // ✅ 关键修复：使用与主题切换时相同的方式获取颜色
+        val resources = requireContext().resources
+        val theme = requireContext().theme
+        
+        // ✅ 初始化选中态背景色（使用 nav_item_selected_background 颜色）
         try {
-            val containerColor = ContextCompat.getColor(requireContext(), R.color.primary_container)
+            val containerColor = resources.getColor(R.color.nav_item_selected_background, theme)
             binding.bottomNav.setItemActiveIndicatorColor(android.content.res.ColorStateList.valueOf(containerColor))
         } catch (e: Exception) {
             Timber.e(e, "Failed to set active indicator color")
+        }
+        
+        // ✅ 初始化图标和文字颜色（确保首次加载时使用正确的颜色）
+        try {
+            val primaryColor = resources.getColor(R.color.primary, theme)
+            val textSecondaryColor = resources.getColor(R.color.text_secondary, theme)
+            
+            val navItemColorStateList = android.content.res.ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_checked),
+                    intArrayOf(-android.R.attr.state_checked)
+                ),
+                intArrayOf(
+                    primaryColor,
+                    textSecondaryColor
+                )
+            )
+            binding.bottomNav.itemIconTintList = navItemColorStateList
+            binding.bottomNav.itemTextColor = navItemColorStateList
+            
+            Timber.d("✅ BottomNavigationView initialized: primary=#${Integer.toHexString(primaryColor)}, text_secondary=#${Integer.toHexString(textSecondaryColor)}")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to initialize BottomNavigationView colors")
         }
         
         binding.bottomNav.setOnItemSelectedListener { item ->
@@ -1939,6 +1973,11 @@ class MainFragment : Fragment() {
         val newConfigContext = requireContext().createConfigurationContext(newConfig)
         val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(newConfigContext).first
         
+        // ✅ 验证：打印新 Context 的夜间模式状态
+        val contextIsNight = (themedContext.resources.configuration.uiMode 
+            and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        Timber.d("✅ ThemedContext night mode: $contextIsNight (expected: $isNight)")
+        
         // 手动更新视图背景颜色（从新的 Context 获取 Resources）
         updateViewBackgrounds(themedContext)
     }
@@ -2014,14 +2053,16 @@ class MainFragment : Fragment() {
             binding.searchResultList.layoutManager?.requestLayout()
             
             // ✅ 更新 BottomNavigationView 的图标和文字颜色（ColorStateList 需要手动刷新）
+            Timber.d("🎨 BottomNav colors: primary=#${Integer.toHexString(primaryColor)}, text_secondary=#${Integer.toHexString(textSecondaryColor)}")
+            
             val navItemColorStateList = android.content.res.ColorStateList(
                 arrayOf(
                     intArrayOf(android.R.attr.state_checked),
                     intArrayOf(-android.R.attr.state_checked)
                 ),
                 intArrayOf(
-                    resources.getColor(R.color.primary, theme),
-                    resources.getColor(R.color.text_secondary, theme)
+                    primaryColor,
+                    textSecondaryColor
                 )
             )
             binding.bottomNav.itemIconTintList = navItemColorStateList

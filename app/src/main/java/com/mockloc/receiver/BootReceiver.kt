@@ -37,15 +37,19 @@ class BootReceiver : BroadcastReceiver() {
                 if (autoStartEnabled) {
                     Timber.d("Auto start enabled, starting service...")
                     
-                    val lastLat = prefs.getString(PrefsConfig.Settings.KEY_LAST_LAT, null)?.toDouble()
+                    // ✅ 修复：使用 toDoubleOrNull() 安全转换，并验证坐标范围
+                    val lastLat = prefs.getString(PrefsConfig.Settings.KEY_LAST_LAT, null)?.toDoubleOrNull()
                         ?: prefs.getFloat(PrefsConfig.Settings.KEY_LAST_LAT, 0f).toDouble()
-                    val lastLng = prefs.getString(PrefsConfig.Settings.KEY_LAST_LNG, null)?.toDouble()
+                    val lastLng = prefs.getString(PrefsConfig.Settings.KEY_LAST_LNG, null)?.toDoubleOrNull()
                         ?: prefs.getFloat(PrefsConfig.Settings.KEY_LAST_LNG, 0f).toDouble()
-                    val lastAlt = prefs.getString(PrefsConfig.Settings.KEY_LAST_ALT, null)?.toDouble()
+                    val lastAlt = prefs.getString(PrefsConfig.Settings.KEY_LAST_ALT, null)?.toDoubleOrNull()
                         ?: prefs.getFloat(PrefsConfig.Settings.KEY_LAST_ALT, 55.0f).toDouble()
                     
-                    // 如果有有效的位置信息，则启动服务
-                    if (lastLat != 0.0 && lastLng != 0.0) {
+                    // 验证坐标范围是否有效（纬度 -90~90，经度 -180~180）
+                    val isValidLat = lastLat in -90.0..90.0 && lastLat != 0.0
+                    val isValidLng = lastLng in -180.0..180.0 && lastLng != 0.0
+                    
+                    if (isValidLat && isValidLng) {
                         val serviceIntent = Intent(context, LocationService::class.java).apply {
                             action = LocationService.ACTION_START
                             putExtra(LocationService.EXTRA_LATITUDE, lastLat)

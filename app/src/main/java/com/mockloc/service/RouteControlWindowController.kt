@@ -63,9 +63,14 @@ class RouteControlWindowController(
             registerStateChangeListener()
             
             isInitialized = true
-            Timber.d("Route control window controller initialized")
+            Timber.d("Route control window controller initialized successfully")
         } catch (e: Exception) {
             Timber.e(e, "Failed to initialize RouteControlWindowController")
+            // ✅ 清空引用，确保调用方能检测到失败
+            binding = null
+            rootView = null
+            isInitialized = false
+            throw e  // ✅ 重新抛出异常
         }
     }
 

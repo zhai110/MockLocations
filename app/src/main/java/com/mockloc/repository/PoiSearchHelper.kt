@@ -30,6 +30,7 @@ class PoiSearchHelper(private val context: Context) {
     /**
      * 执行搜索（支持自动扩大范围）
      * @param attempt 当前尝试次数（1=首次20km, 2=扩大至50km）
+     * @param maxAttempts 最大尝试次数，防止无限递归
      */
     private fun performSearch(
         keyword: String,
@@ -37,8 +38,16 @@ class PoiSearchHelper(private val context: Context) {
         centerLat: Double?,
         centerLng: Double?,
         radius: Int,
-        attempt: Int
+        attempt: Int = 1,
+        maxAttempts: Int = 2  // ✅ 明确限制最大尝试次数
     ) {
+        // ✅ 防御性检查：防止无限递归
+        if (attempt > maxAttempts) {
+            Timber.w("Search exhausted all attempts (max=$maxAttempts), returning current results")
+            callback(emptyList())
+            return
+        }
+        
         val query = PoiSearch.Query(keyword, "", "全国")
         query.pageSize = 20
         query.pageNum = 0
@@ -64,10 +73,10 @@ class PoiSearchHelper(private val context: Context) {
                         )
                     }
                     
-                    // ✅ 方案D：如果结果少于3条且是首次搜索，自动扩大到50km重新搜索
-                    if (list.size < 3 && attempt == 1 && centerLat != null && centerLng != null) {
-                        Timber.d("搜索结果较少(${list.size}条)，自动扩大搜索范围至50km")
-                        performSearch(keyword, callback, centerLat, centerLng, 50000, attempt = 2)
+                    // ✅ 如果结果少于3条且未达到最大尝试次数，自动扩大搜索范围
+                    if (list.size < 3 && attempt < maxAttempts && centerLat != null && centerLng != null) {
+                        Timber.d("搜索结果较少(${list.size}条)，自动扩大搜索范围至50km (attempt=$attempt/$maxAttempts)")
+                        performSearch(keyword, callback, centerLat, centerLng, 50000, attempt = attempt + 1, maxAttempts = maxAttempts)
                         return
                     }
                     

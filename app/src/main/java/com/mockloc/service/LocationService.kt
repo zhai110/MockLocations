@@ -532,19 +532,21 @@ class LocationService : Service() {
         // 3. 取消自动移动任务
         cancelAutoMove()
         
-        // 4. 销毁悬浮窗管理器（会清理所有视图和协程）
-        floatingWindowManager?.destroy()
-        isJoystickVisible = false
+        // 4. 解注册监听器（防止内存泄漏）
+        floatingWindowManager?.setListener(null)
         
         // 5. 销毁悬浮窗管理器（会清理所有视图和协程）
         floatingWindowManager?.destroy()
         isJoystickVisible = false
         
-        // 6. 停止并清理路线播放引擎
+        // 6. 清理 floatingWindowManager 引用
+        floatingWindowManager = null
+        
+        // 7. 销毁路线播放引擎
         routePlaybackEngine?.destroy()
         routePlaybackEngine = null
         
-        // 7. 关闭 ExecutorService
+        // 8. 关闭 ExecutorService
         moveExecutor.shutdown()
         try {
             if (!moveExecutor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
@@ -559,10 +561,10 @@ class LocationService : Service() {
             Timber.e(e, "moveExecutor shutdown interrupted")
         }
         
-        // 8. 移除 TestProvider
+        // 10. 移除 TestProvider
         removeTestProviders()
 
-        // 9. 注销广播接收器
+        // 11. 注销广播接收器
         try { 
             unregisterReceiver(noteActionReceiver)
             Timber.d("noteActionReceiver unregistered")
@@ -572,14 +574,14 @@ class LocationService : Service() {
             Timber.e(e, "unregisterReceiver failed unexpectedly")
         }
         
-        // 9. 注销 SharedPreferences 监听器
+        // 10. 注销 SharedPreferences 监听器
         prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
         
-        // 10. 停止前台服务
+        // 11. 停止前台服务
         stopForeground(STOP_FOREGROUND_REMOVE)
         
-        // 11. 清理 floatingWindowManager 引用（防止内存泄漏）
-        floatingWindowManager = null
+        // 12. 清理 PoiSearchHelper 引用（防止内存泄漏）
+        poiSearchHelper = null
 
         Timber.d("LocationService destroyed completely")
         super.onDestroy()
