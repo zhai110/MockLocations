@@ -118,6 +118,10 @@ docs/
 CODE_WIKI.md
 REFACTOR_PLAN.md
 
+# Deprecated modular directories (removed from version control)
+core-base/
+core-util/
+
 # Temporary build scripts and guides
 *.bat
 !gradlew.bat
