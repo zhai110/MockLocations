@@ -36,6 +36,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
@@ -119,6 +121,9 @@ class MainViewModel(
 
     private val _routeState = MutableStateFlow(RouteState())
     val routeState: StateFlow<RouteState> = _routeState.asStateFlow()
+
+    private val _favoriteResult = MutableSharedFlow<String>()
+    val favoriteResult: SharedFlow<String> = _favoriteResult.asSharedFlow()
 
     // ==================== 依赖 ====================
 
@@ -844,6 +849,88 @@ class MainViewModel(
      */
     suspend fun isFavorite(latitude: Double, longitude: Double): Boolean {
         return locationRepository.isFavorite(latitude, longitude)
+    }
+
+    /**
+     * 保存位置到历史记录（异步）
+     * 使用高德逆地理编码获取地址名称，通过 LocationRepository 保存
+     * @param latitude 纬度（GCJ-02）
+     * @param longitude 经度（GCJ-02）
+     */
+    fun saveToHistoryAsync(latitude: Double, longitude: Double) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (resolvedName, resolvedAddress) = suspendCancellableCoroutine<Pair<String, String>> { cont ->
+                    reverseGeocode(latitude, longitude) { name, fullAddress ->
+                        if (cont.isActive) cont.resume(Pair(name, fullAddress)) {}
+                    }
+                }
+
+                val name = if (resolvedName.isNotEmpty()) {
+                    resolvedName
+                } else {
+                    val latDir = if (latitude >= 0) "N" else "S"
+                    val lngDir = if (longitude >= 0) "E" else "W"
+                    String.format("%.4f°%s, %.4f°%s", Math.abs(latitude), latDir, Math.abs(longitude), lngDir)
+                }
+
+                val result = saveToHistory(name, resolvedAddress, latitude, longitude)
+                when (result) {
+                    is AppResult.Success -> Timber.d("Total history records (after cleanup): ${result.data}")
+                    is AppResult.Error -> Timber.e(result.exception, "Failed to save to history")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to save to history")
+            }
+        }
+    }
+
+    /**
+     * 添加到收藏（异步）
+     * 检查是否已收藏，未收藏则通过逆地理编码获取地址后保存
+     * @param latitude 纬度（GCJ-02）
+     * @param longitude 经度（GCJ-02）
+     */
+    fun addToFavoriteAsync(latitude: Double, longitude: Double) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val exists = isFavorite(latitude, longitude)
+                if (exists) {
+                    _favoriteResult.emit("该位置已在收藏中")
+                    return@launch
+                }
+
+                val (name, fullAddress) = getAddressFromLocation(latitude, longitude)
+                addToFavorite(name, fullAddress, latitude, longitude)
+                _favoriteResult.emit("已添加到收藏")
+            } catch (e: Exception) {
+                Timber.e(e, "添加收藏失败")
+                _favoriteResult.emit("添加收藏失败")
+            }
+        }
+    }
+
+    /**
+     * 获取地址名称（使用高德逆地理编码）
+     * @param latitude 纬度（GCJ-02）
+     * @param longitude 经度（GCJ-02）
+     * @return Pair(name, fullAddress)
+     */
+    internal suspend fun getAddressFromLocation(latitude: Double, longitude: Double): Pair<String, String> {
+        return try {
+            val (name, fullAddress) = suspendCancellableCoroutine<Pair<String, String>> { cont ->
+                reverseGeocode(latitude, longitude) { n, addr ->
+                    if (cont.isActive) cont.resume(Pair(n, addr)) {}
+                }
+            }
+            val displayName = if (name.isNotEmpty()) name else String.format("%.4f, %.4f", latitude, longitude)
+            val displayAddress = if (fullAddress.isNotEmpty()) fullAddress else displayName
+            Pair(displayName, displayAddress)
+        } catch (e: Exception) {
+            Timber.w(e, "逆地理编码失败")
+            val fallback = String.format("%.4f, %.4f", latitude, longitude)
+            Pair(fallback, fallback)
+        }
     }
 
     // ==================== 生命周期 ====================

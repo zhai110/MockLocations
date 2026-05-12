@@ -2,7 +2,12 @@ package com.mockloc.ui.main.delegate
 
 import android.content.Context
 import android.content.res.Configuration
+import android.view.View
+import android.widget.ImageView
+import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
+import com.amap.api.maps.AMap
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.mockloc.R
 import com.mockloc.databinding.FragmentMainBinding
 import timber.log.Timber
@@ -341,6 +346,70 @@ class ThemeDelegate(
         } catch (e: Exception) {
             Timber.e(e, "Failed to update button icon tint")
         }
+    }
+
+    /**
+     * 显示地图图层选择对话框
+     *
+     * 提供三种地图图层供用户选择：
+     * - 标准（MAP_TYPE_NORMAL）：默认白天地图
+     * - 卫星（MAP_TYPE_SATELLITE）：卫星影像图
+     * - 夜间（MAP_TYPE_NIGHT）：深色底图，适合夜间使用
+     *
+     * 用户手动选择图层后，将 isManualLayerSelected 设为 true，
+     * 后续日夜模式切换时不再自动覆盖用户的图层选择。
+     *
+     * @param aMap 高德地图 AMap 实例，用于读取和设置地图类型
+     */
+    fun showMapLayerDialog(aMap: AMap) {
+        val dialogView = fragment.layoutInflater.inflate(R.layout.dialog_map_layers, null)
+
+        val normalLayer = dialogView.findViewById<LinearLayout>(R.id.layer_normal)
+        val satelliteLayer = dialogView.findViewById<LinearLayout>(R.id.layer_satellite)
+        val nightLayer = dialogView.findViewById<LinearLayout>(R.id.layer_night)
+
+        val normalCheck = dialogView.findViewById<ImageView>(R.id.check_normal)
+        val satelliteCheck = dialogView.findViewById<ImageView>(R.id.check_satellite)
+        val nightCheck = dialogView.findViewById<ImageView>(R.id.check_night)
+
+        val dialog = BottomSheetDialog(fragment.requireContext())
+        dialog.setContentView(dialogView)
+
+        fun updateSelection(selected: String) {
+            normalCheck.visibility = if (selected == "normal") View.VISIBLE else View.GONE
+            satelliteCheck.visibility = if (selected == "satellite") View.VISIBLE else View.GONE
+            nightCheck.visibility = if (selected == "night") View.VISIBLE else View.GONE
+        }
+
+        updateSelection(when (aMap.mapType) {
+            AMap.MAP_TYPE_NORMAL -> "normal"
+            AMap.MAP_TYPE_SATELLITE -> "satellite"
+            AMap.MAP_TYPE_NIGHT -> "night"
+            else -> "normal"
+        })
+
+        normalLayer.setOnClickListener {
+            aMap.mapType = AMap.MAP_TYPE_NORMAL
+            setManualLayerSelected(true)
+            updateSelection("normal")
+            dialog.dismiss()
+        }
+
+        satelliteLayer.setOnClickListener {
+            aMap.mapType = AMap.MAP_TYPE_SATELLITE
+            setManualLayerSelected(true)
+            updateSelection("satellite")
+            dialog.dismiss()
+        }
+
+        nightLayer.setOnClickListener {
+            aMap.mapType = AMap.MAP_TYPE_NIGHT
+            setManualLayerSelected(true)
+            updateSelection("night")
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     /**

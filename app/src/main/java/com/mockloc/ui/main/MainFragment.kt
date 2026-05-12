@@ -11,7 +11,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -31,7 +30,6 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.snackbar.Snackbar
 import com.mockloc.R
 import com.mockloc.databinding.FragmentMainBinding
-import com.mockloc.service.LocationService
 import com.mockloc.ui.favorite.FavoriteActivity
 import com.mockloc.ui.history.HistoryActivity
 import com.mockloc.ui.settings.SettingsActivity
@@ -83,6 +81,7 @@ class MainFragment : Fragment() {
     private lateinit var simulationDelegate: com.mockloc.ui.main.delegate.SimulationDelegate
     private lateinit var routeEditDelegate: com.mockloc.ui.main.delegate.RouteEditDelegate
     private lateinit var themeDelegate: com.mockloc.ui.main.delegate.ThemeDelegate
+    private lateinit var dialogDelegate: com.mockloc.ui.main.delegate.DialogDelegate
 
     // 路线点编辑
     private val historyLauncher = registerForActivityResult(
@@ -200,12 +199,16 @@ class MainFragment : Fragment() {
         
         simulationDelegate = com.mockloc.ui.main.delegate.SimulationDelegate(this, viewModel, binding)
         simulationDelegate.onPermissionCheckNeeded = { checkPermissions() }
+        simulationDelegate.onUpdateMarker = { latLng, moveCamera -> updateMarker(latLng, moveCamera) }
+        simulationDelegate.onSaveToHistory = { lat, lng -> saveToHistory(lat, lng) }
         
         routeEditDelegate = com.mockloc.ui.main.delegate.RouteEditDelegate(this, viewModel, binding)
         routeEditDelegate.onGetAMap = { if (::aMap.isInitialized) aMap else null }
         
         themeDelegate = com.mockloc.ui.main.delegate.ThemeDelegate(this, binding)
         themeDelegate.init()
+
+        dialogDelegate = com.mockloc.ui.main.delegate.DialogDelegate(this)
 
     // 路线点编辑
         try {
@@ -305,209 +308,31 @@ class MainFragment : Fragment() {
                 // 观察模拟控制事件
                 launch {
                     viewModel.simulationControlEvents.collect { event ->
-                        handleSimulationControlEvent(event)
+                        simulationDelegate.handleSimulationControlEvent(event)
+                    }
+                }
+
+                launch {
+                    viewModel.favoriteResult.collect { message ->
+                        UIFeedbackHelper.showToast(requireContext(), message)
                     }
                 }
             }
         }
     }
     
-    /**
-     * 处理模拟控制事件，由 [MainViewModel.simulationControlEvents] 触发。
-     *
-     * 事件类型：
-     * - START_SIMULATION → [startSimulation]：启动位置模拟
-     * - STOP_SIMULATION → [stopSimulation]：停止位置模拟
-     * - UPDATE_POSITION → [teleportToPosition] + [saveToHistory]：模拟中手动传送
-     */
-    private fun handleSimulationControlEvent(event: MainViewModel.SimulationControlEvent) {
-        Timber.d("🔔 handleSimulationControlEvent: eventType=${event.eventType}, lat=${event.latitude}, lng=${event.longitude}")
-        
-        when (event.eventType) {
-            MainViewModel.SimulationControlEvent.EventType.START_SIMULATION -> {
-                Timber.d("🚀 Calling startSimulation...")
-                startSimulation(event.latitude!!, event.longitude!!, event.altitude)
-            }
-            MainViewModel.SimulationControlEvent.EventType.STOP_SIMULATION -> {
-                Timber.d("⏹️ Calling stopSimulation...")
-                stopSimulation()
-            }
-            MainViewModel.SimulationControlEvent.EventType.UPDATE_POSITION -> {
-                Timber.d("📍 Calling teleportToPosition (manual teleport)...")
-                // ✅ 修复：模拟中手动传送，坐标来自地图（GCJ-02），需要转换
-                teleportToPosition(event.latitude!!, event.longitude!!, event.altitude)
-                
-                // ✅ 修复：只有主动传送（Teleport）时才保存历史记录
-                saveToHistory(event.latitude, event.longitude)
-            }
-        }
-    }
+    
     
     /**
-     * 启动位置模拟。
-     *
-     * 通过 Intent 与 [LocationService] 通信，坐标为 GCJ-02，
-     * Service 内部自动转换为 WGS-84 后注入 Mock Location。
-     * 同时保存位置到历史记录，并更新地图标记。
-     */
-    private fun startSimulation(latitude: Double, longitude: Double, altitude: Float) {
-        try {
-        // 可以在这里更新底部面板的展开/收起状态
-            saveToHistory(latitude, longitude)
-            
-            Timber.d("🚀 Starting simulation: lat=$latitude, lng=$longitude (GCJ-02)")
-            
-            val intent = android.content.Intent(requireContext(), LocationService::class.java).apply {
-                action = LocationService.ACTION_START
-                putExtra(LocationService.EXTRA_LATITUDE, latitude)
-                putExtra(LocationService.EXTRA_LONGITUDE, longitude)
-                putExtra(LocationService.EXTRA_ALTITUDE, altitude.toDouble())
-                // ✅ 修复：所有传给Service的坐标都是GCJ-02，需要转换为WGS-84
-                putExtra(LocationService.EXTRA_COORD_GCJ02, true)
-            }
-            
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                requireContext().startForegroundService(intent)
-            } else {
-                requireContext().startService(intent)
-            }
-            
-    // 路线点编辑
-            val targetLatLng = com.amap.api.maps.model.LatLng(latitude, longitude)
-            updateMarker(targetLatLng, moveCamera = true)
-            
-        // 监听输入框变化，动态显示/隐藏清除按钮
-            val wgs84 = com.mockloc.util.MapUtils.gcj02ToWgs84(longitude, latitude)
-            Timber.d("📍 Red marker (GCJ-02): ($latitude, $longitude)")
-            Timber.d("📍 Blue dot expected (WGS-84 injected): (${wgs84[1]}, ${wgs84[0]})")
-            Timber.d("📍 Blue dot will display as GCJ-02 by AMap: ($latitude, $longitude)")
-            
-            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_simulation_started))
-        } catch (e: Exception) {
-            Timber.e(e, "启动模拟失败")
-            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_simulation_start_failed, e.message))
-        }
-    }
-    
-    /**
-     * 保存位置到历史记录。
-     *
-     * 通过 ViewModel → Repository 链路保存，使用高德异步逆地理编码获取地址名称，
-     * 避免原生 Geocoder 阻塞 IO 线程。
+     * 保存位置到历史记录（委托给 ViewModel）
      */
     private fun saveToHistory(latitude: Double, longitude: Double) {
-        Timber.d("saveToHistory called: lat=$latitude, lng=$longitude")
-        
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // ✅ Phase 1: 通过 ViewModel 使用 SearchRepository 的单例 PoiSearchHelper
-                val (resolvedName, resolvedAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
-                    viewModel.reverseGeocode(latitude, longitude) { name, fullAddress ->
-                        if (cont.isActive) cont.resume(Pair(name, fullAddress)) {}
-                    }
-                }
-                
-                // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态，防止回调悬空
-                if (!isAdded || view == null) return@launch
-                
-                val name = if (resolvedName.isNotEmpty()) {
-                    resolvedName
-                } else {
-                    val latDir = if (latitude >= 0) "N" else "S"
-                    val lngDir = if (longitude >= 0) "E" else "W"
-                    String.format("%.4f°%s, %.4f°%s", Math.abs(latitude), latDir, Math.abs(longitude), lngDir)
-                }
-                
-                Timber.d("Saving to history via Repository: name='$name', address='$resolvedAddress'")
-                
-                // ✅ Phase 1: 通过 ViewModel → LocationRepository 保存
-                val result = viewModel.saveToHistory(name, resolvedAddress, latitude, longitude)
-                when (result) {
-                    is com.mockloc.core.common.AppResult.Success ->
-                        Timber.d("Total history records (after cleanup): ${result.data}")
-                    is com.mockloc.core.common.AppResult.Error ->
-                        Timber.e(result.exception, "Failed to save to history")
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "❌ Failed to save to history")
-            }
-        }
+        viewModel.saveToHistoryAsync(latitude, longitude)
     }
     
-    /**
-     * 停止位置模拟，向 [LocationService] 发送停止指令。
-     */
-    private fun stopSimulation() {
-        try {
-            val intent = android.content.Intent(requireContext(), LocationService::class.java).apply {
-                action = LocationService.ACTION_STOP
-            }
-            requireContext().startService(intent)
-            
-            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_simulation_stopped))
-        } catch (e: Exception) {
-            Timber.e(e, "停止模拟失败")
-            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_simulation_stop_failed, e.message))
-        }
-    }
     
-    /**
-     * 传送位置（单点模式）。
-     *
-     * 坐标来自地图点击（GCJ-02），传给 [LocationService] 时标记为 GCJ-02，
-     * Service 内部自动转换为 WGS-84 后注入 Mock Location。
-     */
-    private fun teleportToPosition(latitude: Double, longitude: Double, altitude: Float) {
-        try {
-            val intent = android.content.Intent(requireContext(), LocationService::class.java).apply {
-                action = LocationService.ACTION_UPDATE
-                putExtra(LocationService.EXTRA_LATITUDE, latitude)
-                putExtra(LocationService.EXTRA_LONGITUDE, longitude)
-                putExtra(LocationService.EXTRA_ALTITUDE, altitude.toDouble())
-                // ✅ 修复：手动传送的坐标是GCJ-02，需要转换为WGS-84
-                putExtra(LocationService.EXTRA_COORD_GCJ02, true)
-            }
-            requireContext().startService(intent)
-            
-            // 移动相机到新位置
-            val targetLatLng = com.amap.api.maps.model.LatLng(latitude, longitude)
-            updateMarker(targetLatLng, moveCamera = true)
-            
-            UIFeedbackHelper.showToast(requireContext(), "地图初始化失败")
-        } catch (e: Exception) {
-            Timber.e(e, "启动模拟失败")
-            UIFeedbackHelper.showToast(requireContext(), "传送失败: ${e.message}")
-        }
-    }
 
-    /**
-     * 更新模拟位置（摇杆/路线模式）。
-     *
-     * 坐标来自 LocationService 内部（已是 WGS-84），不需要再转换，
-     * 传给 [LocationService] 时标记 EXTRA_COORD_GCJ02=false。
-     */
-    private fun updatePosition(latitude: Double, longitude: Double, altitude: Float) {
-        try {
-            val intent = android.content.Intent(requireContext(), LocationService::class.java).apply {
-                action = LocationService.ACTION_UPDATE
-                putExtra(LocationService.EXTRA_LATITUDE, latitude)
-                putExtra(LocationService.EXTRA_LONGITUDE, longitude)
-                putExtra(LocationService.EXTRA_ALTITUDE, altitude.toDouble())
-                // ✅ 修复：摇杆移动的坐标来自LocationService内部（已是WGS-84），不需要再转换
-                putExtra(LocationService.EXTRA_COORD_GCJ02, false)
-            }
-            requireContext().startService(intent)
-            
-    // 路线点编辑
-            val targetLatLng = com.amap.api.maps.model.LatLng(latitude, longitude)
-            updateMarker(targetLatLng, moveCamera = true)
-            
-            UIFeedbackHelper.showToast(requireContext(), "地图初始化失败")
-        } catch (e: Exception) {
-            Timber.e(e, "启动模拟失败")
-            UIFeedbackHelper.showToast(requireContext(), "传送失败: ${e.message}")
-        }
-    }
+
 
     /**
      * 响应地图状态变化，更新标记和位置信息。
@@ -878,15 +703,6 @@ class MainFragment : Fragment() {
         binding.zoomOutBtn.setOnClickListener {
             aMap.animateCamera(CameraUpdateFactory.zoomOut())
         }
-        
-    // 路线点编辑
-        binding.btnDeleteRoutePoint.setOnClickListener {
-            routeEditDelegate.deleteSelectedRoutePoint()
-        }
-        
-        binding.btnCancelSelect.setOnClickListener {
-            routeEditDelegate.hideRoutePointEditButtons()
-        }
 
         binding.locationBtn.setOnClickListener {
             viewModel.mapState.value.currentLocation?.let { loc ->
@@ -898,12 +714,15 @@ class MainFragment : Fragment() {
         }
 
         binding.layerBtn.setOnClickListener {
-            showMapLayerDialog()
+            themeDelegate.showMapLayerDialog(aMap)
         }
 
         // 操作按钮
         binding.inputCoordsBtn.setOnClickListener {
-            showInputCoordsDialog()
+            dialogDelegate.showInputCoordsDialog { gcjLatLng ->
+                viewModel.selectPosition(gcjLatLng, moveCamera = true)
+                updateLocationInfo(gcjLatLng)
+            }
         }
 
         binding.historyBtn.setOnClickListener {
@@ -919,81 +738,8 @@ class MainFragment : Fragment() {
             binding.panelTabs.getTabAt(1)?.select()
         }
 
-        // FAB按钮
-        binding.fab.setOnClickListener {
-        // 初始化Tab切换
-            if (currentTabMode == 0) {
-                // 单点模式：启动/停止模拟
-                toggleSimulation()
-            } else {
-            // ✅ 权限被拒绝，检查是否需要显示解释
-                toggleRoutePlaybackFromFab()
-            }
-        }
-
-        // 监听输入框变化，动态显示/隐藏清除按钮
-        binding.routePlayFabBtn.setOnClickListener {
-            if (viewModel.routeState.value.routePoints.size < 2) {
-            UIFeedbackHelper.showToast(requireContext(), "地图初始化失败")
-                return@setOnClickListener
-            }
-            viewModel.toggleRoutePlayback()
-        }
-
-        binding.routeSpeedFabBtn.setOnClickListener {
-            // 循环切换速度：1x -> 2x -> 4x -> 0.5x -> 1x
-            val currentSpeed = viewModel.routeState.value.playbackState.speedMultiplier
-            val nextSpeed = when (currentSpeed) {
-                1f -> 2f
-                2f -> 4f
-                4f -> 0.5f
-                else -> 1f
-            }
-            viewModel.setRouteSpeedMultiplier(nextSpeed)
-            UIFeedbackHelper.showToast(requireContext(), "速度: ${nextSpeed}x")
-        }
-
-        binding.routeStopFabBtn.setOnClickListener {
-        // 显示蓝点+方向箭头，但不自动移动相机
-            viewModel.stopRoutePlayback()
-        }
-
-        // ✅ 路线播放/暂停（由地图上方的 route_control_card 控制）
-        // 初始化BottomSheet
-
-        // 速度选择
-        binding.speed05x.setOnClickListener {
-            viewModel.setRouteSpeedMultiplier(0.5f)
-            simulationDelegate.updateSpeedChipSelection(binding.speed05x)
-        }
-        binding.speed1x.setOnClickListener {
-            viewModel.setRouteSpeedMultiplier(1f)
-            simulationDelegate.updateSpeedChipSelection(binding.speed1x)
-        }
-        binding.speed2x.setOnClickListener {
-            viewModel.setRouteSpeedMultiplier(2f)
-            simulationDelegate.updateSpeedChipSelection(binding.speed2x)
-        }
-        binding.speed4x.setOnClickListener {
-            viewModel.setRouteSpeedMultiplier(4f)
-            simulationDelegate.updateSpeedChipSelection(binding.speed4x)
-        }
-
-        // 循环
-        binding.routeLoopBtn.setOnClickListener {
-            val isLooping = !viewModel.routeState.value.playbackState.isLooping
-            viewModel.setRouteLooping(isLooping)
-        }
-
-    // 路线点编辑
-        binding.routeMovementModeBtn.setOnClickListener {
-            viewModel.toggleMovementMode()
-        }
-
-        // 清除路线
-        binding.routeClearBtn.setOnClickListener {
-            viewModel.clearRoute()
-        }
+        simulationDelegate.setupClickListeners()
+        routeEditDelegate.setupClickListeners()
     }
 
     /**
@@ -1089,21 +835,14 @@ class MainFragment : Fragment() {
             String.format("%.6f°", latLng.longitude)
         )
         
-        // 获取地址信息
         if (address.isNotEmpty()) {
             AnimationHelper.fadeIn(binding.addressText, 200)
             binding.addressText.text = address
         } else {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                // ✅ Phase 1: 通过 ViewModel 使用 SearchRepository 的单例 PoiSearchHelper
-                    val (_, fullAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
-                        viewModel.reverseGeocode(latLng.latitude, latLng.longitude) { name, addr ->
-                            if (cont.isActive) cont.resume(Pair(name, addr)) {}
-                        }
-                    }
+                    val (_, fullAddress) = viewModel.getAddressFromLocation(latLng.latitude, latLng.longitude)
                     
-                // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态，防止回调悬空
                     if (!isAdded || view == null) return@launch
                     
                     withContext(Dispatchers.Main) {
@@ -1123,220 +862,22 @@ class MainFragment : Fragment() {
      * 切换模拟状态（委托给 [SimulationDelegate]），检查权限和标记位置后调用 ViewModel 确认。
      */
     private fun toggleSimulation() {
-        // 检查定位权限
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            checkPermissions()
-            return
-        }
-        
-        val mapState = viewModel.mapState.value
-        val simState = viewModel.simulationState.value
-        
-        // 未模拟时需要检查是否有标记位置
-        if (!simState.isSimulating && mapState.markedPosition == null) {
-            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_please_select_location))
-            return
-        }
-
-        // 调用 ViewModel 确认模拟
-        viewModel.confirmSimulation()
+        simulationDelegate.toggleSimulation()
     }
 
-    /**
-     * 从 FAB 切换路线播放/暂停（委托给 [SimulationDelegate]），路线点不足时提示。
-     */
     private fun toggleRoutePlaybackFromFab() {
-        val routeState = viewModel.routeState.value
-        
-        if (routeState.routePoints.size < 2) {
-            UIFeedbackHelper.showToast(requireContext(), "地图初始化失败")
-            return
-        }
-        
-        // 调用 ViewModel 的 toggleRoutePlayback
-        viewModel.toggleRoutePlayback()
+        simulationDelegate.toggleRoutePlaybackFromFab()
     }
 
     /**
-     * 添加到收藏，通过 ViewModel → Repository 链路保存。
-     * 已收藏时提示，未选中位置时引导选择。
+     * 添加到收藏（委托给 ViewModel）
      */
     private fun addToFavorite() {
         viewModel.mapState.value.markedPosition?.let { location ->
-            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                // ✅ Phase 1: 通过 ViewModel → LocationRepository 保存
-                    val exists = viewModel.isFavorite(location.latitude, location.longitude)
-                    
-                // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态，防止回调悬空
-                    if (!isAdded || view == null) return@launch
-                    
-                    if (exists) {
-                        withContext(Dispatchers.Main) {
-                            if (isAdded && view != null) {
-                                UIFeedbackHelper.showToast(requireContext(), "该位置已在收藏中")
-                            }
-                        }
-                    } else {
-                        // ✅ Phase 1: 通过 ViewModel 的 reverseGeocode 复用单例 PoiSearchHelper
-                        val (name, fullAddress) = getAddressFromLocation(location)
-                        
-                // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态，防止回调悬空
-                        if (!isAdded || view == null) return@launch
-                        
-                // ✅ Phase 1: 通过 ViewModel → LocationRepository 保存
-                        viewModel.addToFavorite(name, fullAddress, location.latitude, location.longitude)
-                        
-                        withContext(Dispatchers.Main) {
-                            if (isAdded && view != null) {
-                                UIFeedbackHelper.showToast(requireContext(), "已添加到收藏")
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "添加收藏失败")
-                }
-            }
+            viewModel.addToFavoriteAsync(location.latitude, location.longitude)
         } ?: run {
             UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_please_select_location))
         }
-    }
-
-    /**
-     * 获取地址名称（使用高德逆地理编码）— ✅ Phase 1: 通过 ViewModel + SearchRepository
-     */
-    private suspend fun getAddressFromLocation(latLng: LatLng): Pair<String, String> {
-        return try {
-            val (name, fullAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
-                viewModel.reverseGeocode(latLng.latitude, latLng.longitude) { n, addr ->
-                    if (cont.isActive) cont.resume(Pair(n, addr)) {}
-                }
-            }
-            val displayName = if (name.isNotEmpty()) name else String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
-            val displayAddress = if (fullAddress.isNotEmpty()) fullAddress else displayName
-            Pair(displayName, displayAddress)
-        } catch (e: Exception) {
-                    Timber.w(e, "逆地理编码失败")
-            val fallback = String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
-            Pair(fallback, fallback)
-        }
-    }
-
-    /**
-     * 显示手动输入坐标对话框，支持 WGS-84 / BD-09 / GCJ-09 输入。
-     *
-     * 输入的坐标自动转换为 GCJ-02 后选中位置并更新逆地理编码。
-     */
-    private fun showInputCoordsDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_input_coords, null)
-        val latEdit = dialogView.findViewById<android.widget.EditText>(R.id.edit_latitude)
-        val lngEdit = dialogView.findViewById<android.widget.EditText>(R.id.edit_longitude)
-        val radioGroup = dialogView.findViewById<RadioGroup>(R.id.radio_group_coordinate_system)
-        
-        // 使用 MaterialAlertDialogBuilder 自带圆角样式，去掉标题
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-            .setView(dialogView)
-            .setPositiveButton("确定") { _, _ ->
-                try {
-                    val lat = latEdit.text.toString().toDouble()
-                    val lng = lngEdit.text.toString().toDouble()
-                    
-                    // 验证坐标范围
-                    if (lat < -90.0 || lat > 90.0 || lng < -180.0 || lng > 180.0) {
-                        UIFeedbackHelper.showToast(requireContext(), "坐标超出有效范围")
-                        return@setPositiveButton
-                    }
-                    
-                    // 获取用户选择的坐标系
-                    val selectedCoordType = when (radioGroup.checkedRadioButtonId) {
-                        R.id.radio_gcj02 -> "GCJ02"
-                        R.id.radio_wgs84 -> "WGS84"
-                        R.id.radio_bd09 -> "BD09"
-                        else -> "GCJ02"
-                    }
-                    
-                // ✅ 修复：模拟中手动传送，坐标来自地图（GCJ-02），需要转换
-                    val gcjLatLng = when (selectedCoordType) {
-                        "GCJ02" -> com.amap.api.maps.model.LatLng(lat, lng)
-                        "WGS84" -> {
-                            val gcj = com.mockloc.util.MapUtils.wgs84ToGcj02(lng, lat)
-                            com.amap.api.maps.model.LatLng(gcj[1], gcj[0])
-                        }
-                        "BD09" -> {
-                            val gcj = com.mockloc.util.MapUtils.bd09ToGcj02(lng, lat)
-                            com.amap.api.maps.model.LatLng(gcj[1], gcj[0])
-                        }
-                        else -> com.amap.api.maps.model.LatLng(lat, lng)
-                    }
-                    
-    // 路线点编辑
-                    viewModel.selectPosition(gcjLatLng, moveCamera = true)
-                    updateLocationInfo(gcjLatLng)
-                    
-                    Timber.d("📍 Input coords: $lat, $lng ($selectedCoordType) -> GCJ02: ${gcjLatLng.latitude}, ${gcjLatLng.longitude}")
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to parse coordinates")
-                    UIFeedbackHelper.showToast(requireContext(), "坐标格式错误")
-                }
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    /**
-     * 显示地图图层选择对话框（标准/卫星/夜间），选择后设置 [ThemeDelegate.isManualLayerSelected]。
-     */
-    private fun showMapLayerDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_map_layers, null)
-        
-        val normalLayer = dialogView.findViewById<android.widget.LinearLayout>(R.id.layer_normal)
-        val satelliteLayer = dialogView.findViewById<android.widget.LinearLayout>(R.id.layer_satellite)
-        val nightLayer = dialogView.findViewById<android.widget.LinearLayout>(R.id.layer_night)
-        
-        val normalCheck = dialogView.findViewById<android.widget.ImageView>(R.id.check_normal)
-        val satelliteCheck = dialogView.findViewById<android.widget.ImageView>(R.id.check_satellite)
-        val nightCheck = dialogView.findViewById<android.widget.ImageView>(R.id.check_night)
-        
-        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(requireContext())
-        dialog.setContentView(dialogView)
-        
-    // 路线点编辑
-        fun updateSelection(selected: String) {
-            normalCheck.visibility = if (selected == "normal") android.view.View.VISIBLE else android.view.View.GONE
-            satelliteCheck.visibility = if (selected == "satellite") android.view.View.VISIBLE else android.view.View.GONE
-            nightCheck.visibility = if (selected == "night") android.view.View.VISIBLE else android.view.View.GONE
-        }
-        
-    // 路线点编辑
-        updateSelection(when (aMap.mapType) {
-            AMap.MAP_TYPE_NORMAL -> "normal"
-            AMap.MAP_TYPE_SATELLITE -> "satellite"
-            AMap.MAP_TYPE_NIGHT -> "night"
-            else -> "normal"
-        })
-        
-        normalLayer.setOnClickListener {
-            aMap.mapType = AMap.MAP_TYPE_NORMAL
-            themeDelegate.setManualLayerSelected(true)
-            updateSelection("normal")
-            dialog.dismiss()
-        }
-        
-        satelliteLayer.setOnClickListener {
-            aMap.mapType = AMap.MAP_TYPE_SATELLITE
-            themeDelegate.setManualLayerSelected(true)
-            updateSelection("satellite")
-            dialog.dismiss()
-        }
-        
-        nightLayer.setOnClickListener {
-            aMap.mapType = AMap.MAP_TYPE_NIGHT
-            themeDelegate.setManualLayerSelected(true)
-            updateSelection("night")
-            dialog.dismiss()
-        }
-        
-        dialog.show()
     }
 
     /**

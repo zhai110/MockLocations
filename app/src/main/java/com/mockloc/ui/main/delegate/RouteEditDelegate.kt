@@ -284,6 +284,26 @@ class RouteEditDelegate(
     }
     
     /**
+     * 设置路线点编辑相关的按钮点击监听器
+     *
+     * 从 MainFragment.setupClickListeners() 迁移而来，
+     * 将路线点编辑按钮的点击逻辑集中到本 Delegate 中管理。
+     *
+     * 包含：
+     * - 删除选中的路线点按钮
+     * - 取消选择路线点按钮
+     */
+    fun setupClickListeners() {
+        binding.btnDeleteRoutePoint.setOnClickListener {
+            deleteSelectedRoutePoint()
+        }
+
+        binding.btnCancelSelect.setOnClickListener {
+            hideRoutePointEditButtons()
+        }
+    }
+
+    /**
      * 获取 AMap 实例的回调（由 MainFragment 提供）
      *
      * 设计原因：Delegate 不直接持有 AMap 引用。AMap 的生命周期与 MapView/Fragment 紧密绑定，
