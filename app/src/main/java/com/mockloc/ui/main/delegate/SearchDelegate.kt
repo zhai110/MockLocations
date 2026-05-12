@@ -69,6 +69,26 @@ class SearchDelegate(
      * 设置搜索相关监听器
      */
     private fun setupSearchListeners() {
+        // 搜索框 - 键盘搜索按钮
+        binding.searchEdit.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                val query = binding.searchEdit.text.toString()
+                if (query.isNotEmpty()) {
+                    // 获取当前地图中心作为搜索中心点
+                    val center = viewModel.mapState.value.currentLocation
+                    // 注意：这里需要外部提供 aMap，暂时传 null，由 MainFragment 处理
+                    if (center != null) {
+                        viewModel.searchPlaces(query, center.latitude, center.longitude)
+                    }
+                    // 搜索后隐藏键盘
+                    hideKeyboard()
+                }
+                true
+            } else {
+                false
+            }
+        }
+        
         // 搜索清除按钮
         binding.searchClearBtn.setOnClickListener {
             clearSearch()
@@ -88,6 +108,14 @@ class SearchDelegate(
                 }
             }
         }
+    }
+    
+    /**
+     * 隐藏键盘
+     */
+    private fun hideKeyboard() {
+        val imm = fragment.requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+        imm?.hideSoftInputFromWindow(binding.searchEdit.windowToken, 0)
     }
     
     /**

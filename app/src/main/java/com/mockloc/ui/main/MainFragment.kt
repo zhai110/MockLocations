@@ -1184,46 +1184,8 @@ class MainFragment : Fragment() {
      * 设置点击事件
      */
     private fun setupClickListeners() {
-        // 搜索框
-        binding.searchEdit.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
-                val query = binding.searchEdit.text.toString()
-                if (query.isNotEmpty()) {
-                    // 获取当前地图中心作为搜索中心点
-                    val center = viewModel.mapState.value.currentLocation ?: aMap.cameraPosition.target
-                    viewModel.searchPlaces(query, center.latitude, center.longitude)
-                    // 搜索后隐藏键盘
-                    hideKeyboard()
-                }
-                true
-            } else {
-                false
-            }
-        }
-
-        // 搜索框文本变化
-        binding.searchEdit.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                if (s.isNullOrEmpty()) {
-                    viewModel.hideSearchResults()
-                }
-            }
-        })
-
-        // 搜索框焦点变化
-        binding.searchEdit.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) {
-                viewModel.hideSearchResults()
-            } else {
-                val textLength = binding.searchEdit.text.length
-                if (textLength > 0) {
-                    binding.searchEdit.setSelection(textLength)
-                }
-            }
-        }
-
+        // ✅ Phase 2: 搜索相关监听器已迁移到 SearchDelegate，此处不再重复设置
+        
         // 地图控制按钮
         binding.zoomInBtn.setOnClickListener {
             aMap.animateCamera(CameraUpdateFactory.zoomIn())
