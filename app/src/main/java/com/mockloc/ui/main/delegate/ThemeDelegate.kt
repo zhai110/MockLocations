@@ -201,9 +201,14 @@ class ThemeDelegate(
     /**
      * 更新操作按钮的图标和文字颜色
      */
-    private fun updateButtonIconTint(button: com.google.android.material.button.MaterialButton, iconColor: Int, textColor: Int) {
-        button.iconTint = android.content.res.ColorStateList.valueOf(iconColor)
-        button.setTextColor(textColor)
+    private fun updateButtonIconTint(buttonContainer: android.widget.LinearLayout, iconColor: Int, textColor: Int) {
+        // 更新图标 tint
+        val icon = buttonContainer.getChildAt(0) as? android.widget.ImageView
+        icon?.setColorFilter(iconColor)
+        
+        // 更新文字颜色
+        val text = buttonContainer.getChildAt(1) as? android.widget.TextView
+        text?.setTextColor(textColor)
     }
     
     /**
