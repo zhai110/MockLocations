@@ -177,19 +177,10 @@ class MainFragment : Fragment() {
             Timber.e(e, "Failed to adjust search card position")
         }
 
-    // 路线点编辑
-        try {
-            binding.mapView.onCreate(savedInstanceState)
-            initMap()
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to initialize map")
-            UIFeedbackHelper.showToast(requireContext(), "地图初始化失败")
-        }
-        
-        // ✅ Phase 2: Delegate 成员变量
+        // ✅ Phase 2: Delegate 成员变量 (必须在 initMap() 之前初始化，因为 initMap 会使用 themeDelegate)
         searchDelegate = com.mockloc.ui.main.delegate.SearchDelegate(this, viewModel, binding)
         searchDelegate.onGetSearchCenter = { if (::aMap.isInitialized) aMap.cameraPosition.target else null }
-        searchDelegate.init()  // SearchDelegate 已包含 initSearch 的逻辑
+        searchDelegate.init()
         
         simulationDelegate = com.mockloc.ui.main.delegate.SimulationDelegate(this, viewModel, binding)
         simulationDelegate.onPermissionCheckNeeded = { checkPermissions() }
@@ -199,6 +190,15 @@ class MainFragment : Fragment() {
         
         themeDelegate = com.mockloc.ui.main.delegate.ThemeDelegate(this, binding)
         themeDelegate.init()
+
+    // 路线点编辑
+        try {
+            binding.mapView.onCreate(savedInstanceState)
+            initMap()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to initialize map")
+            UIFeedbackHelper.showToast(requireContext(), "地图初始化失败")
+        }
 
         // 初始化BottomSheet
         initBottomSheet()
