@@ -15,12 +15,21 @@ import timber.log.Timber
 
 /**
  * 搜索功能委托类
- * 
+ *
  * 职责：
  * - 初始化搜索 UI（RecyclerView、清除按钮）
  * - 管理搜索结果列表的显示/隐藏
  * - 处理搜索框文本变化和清除操作
  * - 响应 ViewModel 的搜索结果更新
+ *
+ * 与 ViewModel 的交互方式：
+ * - viewModel.searchPlaces(query, lat, lng)：发起 POI 搜索请求
+ * - viewModel.selectSearchResult(poi)：选中某条搜索结果，由 ViewModel 更新地图标记位置
+ * - viewModel.hideSearchResults()：隐藏搜索结果列表，由 ViewModel 通知 UI 层清除搜索状态
+ *
+ * 设计说明：
+ * - 本 Delegate 不直接持有 AMap 引用，避免与地图生命周期耦合
+ * - 搜索中心点通过 onGetSearchCenter 回调获取，由 MainFragment 在回调中返回当前地图中心
  */
 class SearchDelegate(
     private val fragment: Fragment,
@@ -118,6 +127,12 @@ class SearchDelegate(
     
     /**
      * 获取搜索中心点的回调（由 MainFragment 提供）
+     *
+     * 设计原因：Delegate 不直接持有 AMap 引用，无法自行获取地图中心点。
+     * 当 ViewModel 的 mapState 中没有 currentLocation 时，通过此回调
+     * 从 MainFragment 获取地图当前中心坐标作为搜索中心点。
+     *
+     * @return 地图中心点的 LatLng，若地图未就绪则返回 null
      */
     var onGetSearchCenter: (() -> com.amap.api.maps.model.LatLng?)? = null
     

@@ -18,13 +18,21 @@ import timber.log.Timber
 
 /**
  * 路线编辑委托类
- * 
+ *
  * 职责：
  * - 管理路线点和折线的显示/更新
  * - 处理路线点的点击编辑（显示/隐藏编辑按钮）
  * - 删除选中的路线点
  * - 创建路线点标记图标
  * - 响应路线状态变化
+ *
+ * 坐标系说明：
+ * - 路线点使用 GCJ-02 坐标系（国测局坐标），与高德地图一致
+ * - 无需额外的坐标转换即可直接用于 AMap 的 Marker 和 Polyline
+ *
+ * 设计说明：
+ * - 本 Delegate 不直接持有 AMap 引用，通过 onGetAMap 回调获取，
+ *   避免与地图生命周期强耦合
  */
 class RouteEditDelegate(
     private val fragment: Fragment,
@@ -35,6 +43,13 @@ class RouteEditDelegate(
     private var routePolyline: Polyline? = null
     private var routePointMarkers: MutableList<Marker> = mutableListOf()
     private var selectedPointIndex: Int = -1
+
+    /**
+     * 上一次路线点列表的 hashCode，用于判断路线点是否发生变化
+     *
+     * 避免重复绘制：当 ViewModel 状态通知到达但路线点实际未改变时，
+     * 跳过清除+重绘操作，减少不必要的 Marker/Polyline 创建和地图刷新
+     */
     private var lastRoutePointsHash: Int = 0
     
     /**
@@ -192,6 +207,20 @@ class RouteEditDelegate(
     
     /**
      * 创建路线点标记图标
+     *
+     * 绘制水滴形标记，整体结构为：上方圆形区域 + 下方锥形尖端。
+     * 圆形区域内居中显示序号文字（起点显示"起"，终点显示"终"，中间点显示序号）。
+     *
+     * 绘制逻辑：
+     * 1. 计算圆形与锥形交汇处的切线角度（halfAngleRad），确定弧线起止角度
+     * 2. 从尖端底部 (cx, tipY) 出发，用三次贝塞尔曲线（cubicTo）平滑过渡到圆形右侧
+     * 3. 沿圆形画弧线（arcTo），跨越顶部回到左侧
+     * 4. 再用三次贝塞尔曲线从左侧平滑过渡回尖端底部
+     * 5. 填充背景色，描边半透明白色边框，最后在圆形中心绘制文字标签
+     *
+     * @param label 标记文字（"起"、"终" 或序号字符串）
+     * @param bgColor 背景填充色（起点/终点/中间点使用不同颜色）
+     * @return 用于 AMap Marker 的 BitmapDescriptor
      */
     private fun createRoutePointIcon(label: String, bgColor: Int): com.amap.api.maps.model.BitmapDescriptor {
         val dp = fragment.resources.displayMetrics.density
@@ -256,6 +285,12 @@ class RouteEditDelegate(
     
     /**
      * 获取 AMap 实例的回调（由 MainFragment 提供）
+     *
+     * 设计原因：Delegate 不直接持有 AMap 引用。AMap 的生命周期与 MapView/Fragment 紧密绑定，
+     * 直接持有容易导致地图销毁后仍操作已释放的资源。通过回调在需要时获取当前有效的 AMap 实例，
+     * 若地图未就绪或已销毁则回调返回 null，安全跳过绘制操作。
+     *
+     * @return 当前有效的 AMap 实例，若地图未就绪则返回 null
      */
     var onGetAMap: (() -> AMap?)? = null
 }

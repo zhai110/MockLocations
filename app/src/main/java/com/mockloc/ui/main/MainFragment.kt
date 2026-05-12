@@ -46,16 +46,20 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
- * 主界面Fragment
- * 
- * 职责：
-
- * - 初始化地图（AMap、标记、相机）
- * - 管理搜索 UI（EditText、RecyclerView）
- * - 管理 BottomSheet（BottomSheetBehavior）
- * - 管理 FAB 动画
- * - 观察 ViewModel 状态并更新 UI
- * - 响应用户交互（点击、拖拽、搜索）
+ * 主界面 Fragment，应用的唯一入口页面。
+ *
+ * 通过 4 个 Delegate 分离职责：
+ * - [SearchDelegate]：搜索栏、搜索结果列表
+ * - [SimulationDelegate]：模拟状态 UI、FAB 动画、速度选择
+ * - [RouteEditDelegate]：路线点编辑、路线绘制
+ * - [ThemeDelegate]：夜间模式、地图类型切换
+ *
+ * Delegate 间不直接引用，通过 [MainViewModel] 的 StateFlow 中转通信。
+ *
+ * 坐标系约定：
+ * - 高德地图使用 GCJ-02 坐标系（地图显示、标记、点击回调）
+ * - Mock Location 注入使用 WGS-84 坐标系（传给 LocationService 时自动转换）
+ * - 用户输入支持 WGS-84 / BD-09 / GCJ-02，内部统一转为 GCJ-02
  */
 class MainFragment : Fragment() {
 
@@ -140,6 +144,9 @@ class MainFragment : Fragment() {
         }
     }
 
+    /**
+     * 加载布局并初始化 ViewBinding。
+     */
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -149,6 +156,15 @@ class MainFragment : Fragment() {
         return binding.root
     }
 
+    /**
+     * 视图创建后的初始化入口。
+     *
+     * 初始化顺序：
+     * 1. 设置沉浸式布局和状态栏偏移
+     * 2. 初始化 4 个 Delegate（**必须在 [initMap] 之前**，因为 initMap 会使用 themeDelegate）
+     * 3. 初始化地图、底部面板、Tab、底部导航、点击事件
+     * 4. 检查权限、观察 ViewModel、恢复地图状态
+     */
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -228,27 +244,28 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
+     * 更新夜间模式状态（委托给 ThemeDelegate）
+     * 检测日夜模式变化 → 更新地图类型 → 更新所有 View 颜色
      */
     private fun updateNightModeStatus() {
-        // 确保 View 已初始化
         if (!::aMap.isInitialized) {
             Timber.d("Map not initialized yet, skip night mode update")
             return
         }
-        
-        try {
-            val nightModeChanged = themeDelegate.updateNightModeStatus(resources.configuration)
-            if (nightModeChanged && ::aMap.isInitialized) {
-                themeDelegate.updateMapTypeForNightMode(aMap)
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to update night mode status")
-        }
+        val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(requireContext()).first
+        themeDelegate.handleThemeUpdate(aMap, themedContext)
     }
 
     /**
-     * 观察 ViewModel 状态变化
+     * 观察 ViewModel 的 StateFlow，将状态变化委托给各 Delegate 处理。
+     *
+     * 观察的状态流：
+     * - [MainViewModel.mapState] → [updateMapUI]
+     * - [MainViewModel.searchState] → [updateSearchUI]
+     * - [MainViewModel.simulationState] → [SimulationDelegate.updateSimulationUI]
+     * - [MainViewModel.bottomSheetState] → [updateBottomSheetUI]
+     * - [MainViewModel.routeState] → [RouteEditDelegate.updateRouteUI]
+     * - [MainViewModel.simulationControlEvents] → [handleSimulationControlEvent]
      */
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
@@ -296,7 +313,12 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 处理模拟控制事件
+     * 处理模拟控制事件，由 [MainViewModel.simulationControlEvents] 触发。
+     *
+     * 事件类型：
+     * - START_SIMULATION → [startSimulation]：启动位置模拟
+     * - STOP_SIMULATION → [stopSimulation]：停止位置模拟
+     * - UPDATE_POSITION → [teleportToPosition] + [saveToHistory]：模拟中手动传送
      */
     private fun handleSimulationControlEvent(event: MainViewModel.SimulationControlEvent) {
         Timber.d("🔔 handleSimulationControlEvent: eventType=${event.eventType}, lat=${event.latitude}, lng=${event.longitude}")
@@ -322,7 +344,11 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 启动模拟
+     * 启动位置模拟。
+     *
+     * 通过 Intent 与 [LocationService] 通信，坐标为 GCJ-02，
+     * Service 内部自动转换为 WGS-84 后注入 Mock Location。
+     * 同时保存位置到历史记录，并更新地图标记。
      */
     private fun startSimulation(latitude: Double, longitude: Double, altitude: Float) {
         try {
@@ -364,8 +390,10 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 保存位置到历史记录 — ✅ Phase 1: 通过 ViewModel + Repository
-     * 使用高德异步逆地理编码，避免原生 Geocoder 阻塞 IO 线程
+     * 保存位置到历史记录。
+     *
+     * 通过 ViewModel → Repository 链路保存，使用高德异步逆地理编码获取地址名称，
+     * 避免原生 Geocoder 阻塞 IO 线程。
      */
     private fun saveToHistory(latitude: Double, longitude: Double) {
         Timber.d("saveToHistory called: lat=$latitude, lng=$longitude")
@@ -407,7 +435,7 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 停止模拟
+     * 停止位置模拟，向 [LocationService] 发送停止指令。
      */
     private fun stopSimulation() {
         try {
@@ -424,7 +452,10 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 传送到新位置（手动传送，坐标来自地图GCJ-02）
+     * 传送位置（单点模式）。
+     *
+     * 坐标来自地图点击（GCJ-02），传给 [LocationService] 时标记为 GCJ-02，
+     * Service 内部自动转换为 WGS-84 后注入 Mock Location。
      */
     private fun teleportToPosition(latitude: Double, longitude: Double, altitude: Float) {
         try {
@@ -450,7 +481,10 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 更新位置（摇杆移动，坐标来自Service内部WGS-84）
+     * 更新模拟位置（摇杆/路线模式）。
+     *
+     * 坐标来自 LocationService 内部（已是 WGS-84），不需要再转换，
+     * 传给 [LocationService] 时标记 EXTRA_COORD_GCJ02=false。
      */
     private fun updatePosition(latitude: Double, longitude: Double, altitude: Float) {
         try {
@@ -476,7 +510,13 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 更新地图 UI
+     * 响应地图状态变化，更新标记和位置信息。
+     *
+     * 处理逻辑：
+     * - shouldMoveToCurrentLocation → 动画移动相机到当前位置
+     * - markedPosition 变化 → 更新标记位置
+     * - currentLocation + address → 更新位置信息显示
+     * - 非模拟状态 → 重置 FAB 图标
      */
     private fun updateMapUI(state: MainViewModel.MapState) {
         Timber.d("updateMapUI called: markedPosition=${state.markedPosition}, currentLocation=${state.currentLocation}, shouldMoveCamera=${state.shouldMoveCamera}, shouldMoveToCurrentLocation=${state.shouldMoveToCurrentLocation}")
@@ -525,7 +565,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 更新搜索 UI
+     * 委托给 [SearchDelegate] 处理搜索结果更新。
      */
     private fun updateSearchUI(state: MainViewModel.SearchState) {
         binding.searchProgress.visibility = if (state.isLoading) View.VISIBLE else View.GONE
@@ -540,14 +580,22 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 更新底部面板 UI
+     * 响应底部面板状态变化（预留扩展）。
      */
     private fun updateBottomSheetUI(state: MainViewModel.BottomSheetState) {
         // 可以在这里更新底部面板的展开/收起状态
     }
 
     /**
-     * 初始化地图
+     * 初始化高德地图。
+     *
+     * 设置以下监听：
+     * - 地图点击 → [onMapClick]
+     * - 地图长按 → [onMapLongClick]
+     * - 标记拖拽 → 更新选中位置
+     * - 相机变化 → 保存地图状态、标记拖动状态
+     *
+     * 使用 [ThemeDelegate] 设置夜间模式地图类型。
      */
     private fun initMap() {
         // ✅ 防御性检查：确保 AMap 实例获取成功
@@ -629,7 +677,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 初始化BottomSheet
+     * 初始化底部面板行为，设置 peekHeight、滑动回调和 FAB 联动。
      */
     private fun initBottomSheet() {
         bottomSheetBehavior = BottomSheetBehavior.from(binding.bottomSheet)
@@ -656,7 +704,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 应用BottomSheet视差效果
+     * 底部面板视差效果，根据滑动偏移量调整位置信息卡片透明度。
      */
     private fun applyBottomSheetParallax(slideOffset: Float) {
         val normalizedOffset = if (slideOffset < 0) 0f else slideOffset
@@ -666,7 +714,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 初始化面板Tab切换
+     * 初始化面板 Tab（单点/路线），切换时更新按钮和 ViewModel 状态。
      */
     private fun initPanelTabs() {
         // ✅ 禁用 TabLayout 的所有动画（防止夜间模式闪烁）
@@ -707,7 +755,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示单点模式按钮
+     * 显示单点模式按钮，隐藏路线控制面板，FAB 显示定位图标。
      */
     private fun showPointModeButtons() {
         currentTabMode = 0
@@ -727,7 +775,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
+     * 显示路线模式控制面板，隐藏单点按钮，FAB 保持定位图标。
      */
     private fun showRouteModeButtons() {
         currentTabMode = 1
@@ -749,7 +797,7 @@ class MainFragment : Fragment() {
 
 
     /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
+     * 初始化底部导航栏，设置图标/文字颜色和页面跳转（地图/历史/收藏/设置）。
      */
     private fun initBottomNavigation() {
         // ✅ 关键修复：使用与主题切换时相同的方式获取颜色
@@ -814,7 +862,10 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 设置点击事件
+     * 设置所有按钮点击事件，作为事件路由表分发到各 Delegate。
+     *
+     * 包括：地图缩放、路线点编辑、定位、图层、坐标输入、历史、收藏、
+     * FAB 模拟切换、路线播放/速度/停止、速度芯片、循环、移动模式、清除路线。
      */
     private fun setupClickListeners() {
         // ✅ Phase 2: 搜索相关监听器已迁移到 SearchDelegate，此处不再重复设置
@@ -946,7 +997,10 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 地图点击事件
+     * 地图点击回调，选择位置（GCJ-02 坐标）。
+     *
+     * 路线模式下自动添加路线点；单点模式下选中位置并更新逆地理编码。
+     * 拖动地图后 300ms 内的点击会被忽略，防止误触。
      */
     private fun onMapClick(latLng: LatLng) {
         if (isMapDragging) {
@@ -971,7 +1025,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 地图长按事件
+     * 地图长按回调，选择位置并移动相机（委托给 [onMapClick]）。
      */
     private fun onMapLongClick(latLng: LatLng) {
         Timber.d("Map long clicked: ${latLng.latitude}, ${latLng.longitude}")
@@ -980,9 +1034,12 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 更新地图标记
-     * @param latLng 标记位置
-     * @param moveCamera 是否移动相机到标记位置
+     * 更新地图标记位置。
+     *
+     * 已有标记时仅更新位置（避免 remove/add 导致跳动），首次创建时添加红色可拖拽标记。
+     *
+     * @param latLng 标记位置（GCJ-02）
+     * @param moveCamera 是否动画移动相机到标记位置
      */
     private fun updateMarker(latLng: LatLng, moveCamera: Boolean = false) {
         Timber.d("updateMarker called: latLng=$latLng, moveCamera=$moveCamera, currentCenter=${aMap.cameraPosition.target}")
@@ -1018,7 +1075,9 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 更新位置信息
+     * 更新位置信息显示（经纬度 + 逆地理编码地址）。
+     *
+     * 有地址时直接显示，无地址时通过 ViewModel 异步逆地理编码获取。
      */
     private fun updateLocationInfo(latLng: LatLng, address: String = "") {
         AnimationHelper.animateNumberChange(
@@ -1061,7 +1120,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 触发模拟（FAB 按钮）
+     * 切换模拟状态（委托给 [SimulationDelegate]），检查权限和标记位置后调用 ViewModel 确认。
      */
     private fun toggleSimulation() {
         // 检查定位权限
@@ -1084,7 +1143,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * ✅ 从 FAB 按钮触发路线播放/暂停
+     * 从 FAB 切换路线播放/暂停（委托给 [SimulationDelegate]），路线点不足时提示。
      */
     private fun toggleRoutePlaybackFromFab() {
         val routeState = viewModel.routeState.value
@@ -1099,7 +1158,8 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 保存位置到历史记录 — ✅ Phase 1: 通过 ViewModel + Repository
+     * 添加到收藏，通过 ViewModel → Repository 链路保存。
+     * 已收藏时提示，未选中位置时引导选择。
      */
     private fun addToFavorite() {
         viewModel.mapState.value.markedPosition?.let { location ->
@@ -1163,7 +1223,9 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
+     * 显示手动输入坐标对话框，支持 WGS-84 / BD-09 / GCJ-09 输入。
+     *
+     * 输入的坐标自动转换为 GCJ-02 后选中位置并更新逆地理编码。
      */
     private fun showInputCoordsDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_input_coords, null)
@@ -1222,7 +1284,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
+     * 显示地图图层选择对话框（标准/卫星/夜间），选择后设置 [ThemeDelegate.isManualLayerSelected]。
      */
     private fun showMapLayerDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_map_layers, null)
@@ -1278,7 +1340,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
+     * 检查定位权限，未授权时请求权限；已授权且无缓存位置时初始化定位。
      */
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -1329,7 +1391,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
+     * 恢复地图状态（相机位置和缩放级别），从 ViewModel 获取持久化的中心点。
      */
     private fun restoreMapState() {
         val center = viewModel.restoreMapState()
@@ -1384,6 +1446,12 @@ class MainFragment : Fragment() {
 
     // ==================== 生命周期方法 ====================
 
+    /**
+     * 恢复地图生命周期、恢复标记位置、更新夜间模式。
+     *
+     * 从 SharedPreferences 恢复相机位置（可能来自悬浮窗修改），
+     * 如果 launcher 刚设置了新位置（来自历史/收藏），跳过恢复避免覆盖。
+     */
     override fun onResume() {
         super.onResume()
         
@@ -1436,6 +1504,12 @@ class MainFragment : Fragment() {
         binding.mapView.onSaveInstanceState(outState)
     }
 
+    /**
+     * 清理地图监听、Delegate 动画资源、MapView。
+     *
+     * mapView.onDestroy() 必须在 binding 置 null 之前调用，
+     * 因为 onDestroy() 在 onDestroyView() 之后执行时 binding 已为 null。
+     */
     override fun onDestroyView() {
         super.onDestroyView()
         
@@ -1463,135 +1537,19 @@ class MainFragment : Fragment() {
 
     /**
      * 处理配置变化（夜间模式切换）
+     * configChanges="uiMode" 阻止了 Activity 重建，需要手动更新所有 View 颜色
+     * 使用 newConfig 创建 themedContext，确保 Resources 从正确的目录加载
      */
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-        
-        val isNight = (newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
+
+        val isNight = (newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES
         Timber.d("MainFragment configuration changed: isNight=$isNight")
-        
-        // 更新夜间模式状态并切换地图类型
-        updateNightModeStatus()
-        
-        // ✅ 关键修复：使用 newConfig 创建新的 Context，确保 Resources 从正确的目录加载
-        // 原因：configChanges 阻止了 Activity 重建，requireContext() 返回的是旧 Context
-        // 必须用 newConfig 创建新 Context，Resources 才会使用新的 Configuration
+
+        // 使用 newConfig 创建 themedContext，委托给 ThemeDelegate 完成全部主题更新
         val newConfigContext = requireContext().createConfigurationContext(newConfig)
         val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(newConfigContext).first
-        
-        // 手动更新视图背景颜色（委托给 ThemeDelegate）
-        themeDelegate.updateViewBackgrounds(themedContext)
-    }
-
-    /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
-     */
-    private fun updateButtonBackground(button: android.widget.ImageButton, color: Int) {
-        button.background = android.graphics.drawable.GradientDrawable().apply {
-            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-            cornerRadius = 12.dpToPx().toFloat()
-            setColor(color)
-        }
-    }
-
-    /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
-     */
-    private fun updateButtonIconTint(
-        buttonContainer: android.widget.LinearLayout,
-        iconTint: Int,
-        textColor: Int
-    ) {
-        try {
-            // 更新图标 tint
-            val icon = buttonContainer.getChildAt(0) as? android.widget.ImageView
-            icon?.setColorFilter(iconTint)
-            
-            // 更新文字颜色
-            val text = buttonContainer.getChildAt(1) as? android.widget.TextView
-            text?.setTextColor(textColor)
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to update button icon tint")
-        }
-    }
-    /**
-     * 更新 Chip 颜色（手动重建 ColorStateList，强制从 themedContext 加载正确的夜间/白天颜色）
-     * @param themedContext 使用 newConfig 创建的新 Context，确保 Resources 从正确的目录加载
-     *
-     * 背景：configChanges="uiMode" 阻止了 Activity 重建，XML 样式中静态引用的颜色不会重新解析，
-     *       必须通过代码显式创建 ColorStateList 并赋值给 Chip。
-     */
-    private fun updateChipColors(themedContext: Context) {
-        val resources = themedContext.resources
-        val theme = themedContext.theme
-
-        // ── 公共颜色 ────────────────────────────────────────────────
-        val primaryColor       = resources.getColor(R.color.primary, theme)
-        // chip_mode_choice_text = 未选中文字（白天 #666666，夜间 #CCCCCC）
-        val chipTextUnselected = resources.getColor(R.color.chip_mode_choice_text, theme)
-        // 未选中背景 = chip_mode_choice_bg（白天 #F0F0F0，夜间 #2A2A2A）── 不用透明，避免透出地图底色
-        val chipBgUnselected = resources.getColor(R.color.chip_mode_choice_bg, theme)
-        // 选中态文字固定白色（与 chip_mode_choice_text_selector.xml 保持一致）
-        val chipTextSelected = android.graphics.Color.WHITE
-
-        // ── 背景 ColorStateList（选中=primary，未选中=chip_mode_choice_bg）──
-        val chipBgSelector = android.content.res.ColorStateList(
-            arrayOf(
-                intArrayOf(android.R.attr.state_checked),
-                intArrayOf(-android.R.attr.state_checked)
-            ),
-            intArrayOf(primaryColor, chipBgUnselected)
-        )
-
-        // ── 速度 Chip 文字（选中=白色，未选中=chip_mode_choice_text）──
-        val speedTextSelector = android.content.res.ColorStateList(
-            arrayOf(
-                intArrayOf(android.R.attr.state_checked),
-                intArrayOf(-android.R.attr.state_checked)
-            ),
-            intArrayOf(chipTextSelected, chipTextUnselected)
-        )
-
-        // ✅ 只更新速度 Chip（模式 Chip 已移除）
-        listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
-            chip.chipBackgroundColor = chipBgSelector
-            chip.setTextColor(speedTextSelector)
-        }
-
-        // 清除待传送标记后更新 FAB
-        listOf(
-            binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x
-        ).forEach { chip ->
-            chip.invalidate()
-        }
-
-        Timber.d("Chip colors updated: primary=#${Integer.toHexString(primaryColor)}, bgUnselected=#${Integer.toHexString(chipBgUnselected)}, textUnselected=#${Integer.toHexString(chipTextUnselected)}")
-    }
-
-
-    /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
-     * @param themedContext 使用 newConfig 创建的新 Context，确保颜色从正确目录加载
-     */
-    private fun updateRouteProgressColors(themedContext: Context = requireContext()) {
-        try {
-            val resources = themedContext.resources
-            val theme = themedContext.theme
-            
-            // 获取最新的颜色（从正确的 themedContext 加载，避免旧 Context 返回白天模式颜色）
-            val primaryColor = resources.getColor(R.color.primary, theme)
-            val dividerColor = resources.getColor(R.color.divider, theme)
-            
-            // 更新进度条前景色（progressTint）
-            binding.routeProgress.progressTintList = android.content.res.ColorStateList.valueOf(primaryColor)
-            
-            // 更新进度条背景色（progressBackgroundTint）
-            binding.routeProgress.progressBackgroundTintList = android.content.res.ColorStateList.valueOf(dividerColor)
-            
-            Timber.d("Route progress bar colors updated for theme change")
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to update route progress bar colors")
-        }
+        themeDelegate.handleThemeUpdate(if (::aMap.isInitialized) aMap else null, themedContext)
     }
 }

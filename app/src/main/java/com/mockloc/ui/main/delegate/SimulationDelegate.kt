@@ -16,12 +16,17 @@ import timber.log.Timber
 
 /**
  * 模拟控制委托类
- * 
+ *
  * 职责：
  * - 处理单点定位的启动/停止模拟
  * - 处理路线模式的播放/暂停/停止
  * - 更新模拟 UI（FAB 图标、脉冲动画、状态徽章）
  * - 权限检查和用户反馈
+ *
+ * Delegate 间通信规则：
+ * - 各 Delegate 之间不直接引用，所有跨 Delegate 的状态共享通过 ViewModel 中转
+ * - 例如：SimulationDelegate 需要知道当前是否为路线模式，通过 currentTabMode 字段
+ *   由 MainFragment 在 Tab 切换时赋值，而非直接引用 RouteEditDelegate
  */
 class SimulationDelegate(
     private val fragment: Fragment,
@@ -118,11 +123,19 @@ class SimulationDelegate(
     
     /**
      * 权限检查回调（由 MainFragment 提供）
+     *
+     * 设计原因：Fragment 的 requestPermissions / registerForActivityResult 等
+     * 权限请求 API 必须在 Fragment 生命周期内调用，Delegate 无法独立发起权限请求。
+     * 因此通过回调将权限检查委托给 MainFragment 执行。
      */
     var onPermissionCheckNeeded: (() -> Unit)? = null
     
     /**
-     * 获取当前 Tab 模式（供 MainFragment 传递）
+     * 当前 Tab 模式（0=单点模式，1=路线模式）
+     *
+     * 由 MainFragment 在 Tab 切换时赋值，用于决定 FAB 按钮的行为：
+     * - 单点模式下点击 FAB 触发 toggleSimulation()
+     * - 路线模式下点击 FAB 触发 toggleRoutePlaybackFromFab()
      */
     var currentTabMode: Int = 0
 }
