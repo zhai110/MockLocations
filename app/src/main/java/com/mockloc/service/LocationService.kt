@@ -1,33 +1,17 @@
 package com.mockloc.service
 
-import android.annotation.SuppressLint
 import android.app.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
-import android.graphics.PixelFormat
 import android.location.Criteria
-import android.location.Location
 import android.location.LocationManager
-import android.location.provider.ProviderProperties
 import android.os.Binder
 import android.os.Build
-import android.os.Handler
-import android.os.HandlerThread
 import android.os.IBinder
-import android.os.Process
-import android.os.SystemClock
 import android.provider.Settings
-import android.view.Gravity
-import android.view.MotionEvent
-import android.view.View
-import android.widget.ImageButton
-import android.widget.LinearLayout
-import java.util.concurrent.Executors
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import androidx.core.app.NotificationCompat
@@ -36,11 +20,8 @@ import com.mockloc.R
 import com.mockloc.ui.main.MainActivity
 import com.mockloc.util.MapUtils
 import com.mockloc.util.PrefsConfig
-import com.mockloc.util.UIFeedbackHelper
-import com.mockloc.widget.JoystickView
 import timber.log.Timber
 import com.mockloc.VirtualLocationApp
-import com.amap.api.maps.model.LatLng
 import com.mockloc.service.RoutePoint
 import com.mockloc.service.RoutePlaybackState
 import com.mockloc.repository.PoiSearchHelper
@@ -51,7 +32,7 @@ import com.mockloc.repository.PoiSearchHelper
  * 核心职责：
  * 1. 注册 TestProvider (GPS + Network) 并持续注入模拟位置
  * 2. 坐标系转换：高德地图使用 GCJ-02，Mock Location 注入 WGS-84
- * 3. 支持摇杆控制移动（方向+速度）— 摇杆悬浮窗直接在本服务中创建
+ * 3. 支持摇杆控制移动（方向+速度）— 委托给 MovementController
  * 4. 前台服务 + 通知栏操作（显示/隐藏摇杆）
  * 5. 服务被系统回收后自动重启
  * 
@@ -105,19 +86,9 @@ class LocationService : Service() {
         // 默认位置更新间隔（毫秒），可通过设置调整
         private const val DEFAULT_LOCATION_UPDATE_INTERVAL_MS = 100L
         private const val HANDLER_MSG_ID = 0
-        private const val GPS_SATELLITE_COUNT = 7
-
-        private const val METERS_PER_DEGREE_LAT = 110.574
-        private const val METERS_PER_DEGREE_LNG_EQUATOR = 111.320
-
-        // 速度限制（m/s）
-        private const val MAX_SPEED_MS = 33.33f   // 120 km/h（高速公路限速）
-        private const val MIN_SPEED_MS = 0.1f     // 0.36 km/h（避免完全静止）
 
         private const val NOTE_ACTION_SHOW = "com.mockloc.action.SHOW_JOYSTICK"
         private const val NOTE_ACTION_HIDE = "com.mockloc.action.HIDE_JOYSTICK"
-
-        private const val JOYSTICK_MOVE_INTERVAL_MS = 1000L
 
         /** 静态标志，供外部查询服务是否正在运行 */
         @Volatile
@@ -128,47 +99,34 @@ class LocationService : Service() {
     }
 
     private lateinit var locationManager: LocationManager
-    // ✅ 已迁移至协程实现，移除旧的 HandlerThread 变量
-    // private lateinit var handlerThread: HandlerThread
-    // private lateinit var handler: Handler
 
     @Volatile private var isRunning = false
 
-    // 位置数据锁：保护 currentLatitude/currentLongitude/altitude/currentBearing 的复合操作
-    // @Volatile 只保证可见性，不保证 read-modify-write 原子性（如 +=）
-    // setLocation() 在 handler 线程读取，performAutoMoveStep() 在 moveExecutor 线程读写，
-    // 必须加锁防止竞态条件导致位置跳变
-    private val locationLock = ReentrantLock()
-    private var currentLatitude = 0.0
-    private var currentLongitude = 0.0
-    private var altitude = 55.0
-    @Volatile private var currentSpeed = 1.4f
-    private var currentBearing = 0f
-    
+    /** 位置注入器（Phase 3: 从 LocationService 中提取） */
+    private lateinit var positionInjector: PositionInjector
+
+    /** 摇杆移动控制器（Phase 3: 从 LocationService 中提取） */
+    private lateinit var movementController: MovementController
+
     // 位置更新间隔（可从设置中读取）
     private var locationUpdateInterval = DEFAULT_LOCATION_UPDATE_INTERVAL_MS
 
     private val binder = LocalBinder()
-    private val moveExecutor = Executors.newSingleThreadExecutor()
     private lateinit var noteActionReceiver: NoteActionReceiver
     private lateinit var prefs: SharedPreferences
     
     // ✅ 修复：PoiSearchHelper 单例化，避免频繁创建导致内存泄漏
     private var poiSearchHelper: PoiSearchHelper? = null
 
-    // 当前速度模式（持久化到 SP）
-    @Volatile private var currentSpeedMode = "walk"
-
     // SP 变更监听器：设置页修改后即时生效
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
             PrefsConfig.Settings.KEY_ALTITUDE -> {
-                locationLock.withLock { altitude = prefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 55.0f).toDouble() }
-                Timber.d("Altitude updated from settings: $altitude")
+                positionInjector.updateAltitude(prefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 55.0f).toDouble())
+                Timber.d("Altitude updated from settings: ${positionInjector.altitude}")
             }
             PrefsConfig.Settings.KEY_WALK_SPEED, PrefsConfig.Settings.KEY_RUN_SPEED, PrefsConfig.Settings.KEY_BIKE_SPEED -> {
-                // 当前模式的速度值被修改了，重新应用
-                applySpeedMode(currentSpeedMode)
+                movementController.applySpeedMode(movementController.getCurrentSpeedMode())
             }
             PrefsConfig.Settings.KEY_JOYSTICK_TYPE -> {
                 // 摇杆类型变化，通知悬浮窗切换
@@ -193,12 +151,6 @@ class LocationService : Service() {
     // ==================== 悬浮窗管理 ====================
     private var floatingWindowManager: FloatingWindowManager? = null
     private var isJoystickVisible = false
-
-    // ==================== 摇杆自动移动 ====================
-    private var autoMoveTimer: android.os.CountDownTimer? = null
-    @Volatile private var isAutoMoving = false
-    @Volatile private var joystickAngle = 0.0
-    @Volatile private var joystickR = 0.0
 
     // ==================== 路线播放引擎 ====================
     private var routePlaybackEngine: RoutePlaybackEngine? = null
@@ -355,19 +307,26 @@ class LocationService : Service() {
         super.onCreate()
 
         prefs = getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
-        altitude = prefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 55.0f).toDouble()
-        currentSpeedMode = prefs.getString(PrefsConfig.Settings.KEY_SPEED_MODE, "walk") ?: "walk"
-        
+
+        // 初始化 LocationManager 和 PositionInjector（必须在 altitude 设置之前）
+        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        positionInjector = PositionInjector(locationManager)
+        positionInjector.updateAltitude(prefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 55.0f).toDouble())
+
+        // 初始化摇杆移动控制器（必须在 applySpeedMode 之前）
+        movementController = MovementController(positionInjector, prefs)
+        movementController.applySpeedMode(prefs.getString(PrefsConfig.Settings.KEY_SPEED_MODE, "walk") ?: "walk")
+
         // ✅ 初始化 PoiSearchHelper 单例
         poiSearchHelper = PoiSearchHelper(applicationContext)
-        
+
         // ✅ 应用保存的速度模式（防止服务重启后速度重置为默认值）
-        applySpeedMode(currentSpeedMode)
-        
+        // 已在 movementController 初始化时应用
+
         // 读取位置更新间隔设置（毫秒）
         locationUpdateInterval = prefs.getLong(PrefsConfig.Settings.KEY_LOCATION_UPDATE_INTERVAL, DEFAULT_LOCATION_UPDATE_INTERVAL_MS)
         Timber.d("Location update interval: ${locationUpdateInterval}ms")
-        
+
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
 
         // 主题切换已改用 onConfigurationChanged 回调，不再需要广播
@@ -385,8 +344,7 @@ class LocationService : Service() {
         }
 
         try {
-            locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-            registerTestProviders()
+            positionInjector.registerTestProviders()
             initLocationUpdateLoop()
             registerNoteActionReceiver()
             Timber.d("LocationService created, TestProviders registered")
@@ -398,15 +356,13 @@ class LocationService : Service() {
         floatingWindowManager = FloatingWindowManager(this)
         floatingWindowManager?.setListener(object : FloatingWindowManager.FloatingWindowListener {
             override fun onDirection(auto: Boolean, angle: Double, r: Double) {
-                processDirection(auto, angle, r)
+                movementController.processDirection(auto, angle, r)
             }
             override fun onPositionSelected(wgsLng: Double, wgsLat: Double, alt: Double) {
-                // ✅ 修复：onPositionSelected 传入 (经度, 纬度)，setPositionWgs84 需要 (纬度, 经度)
                 setPositionWgs84(wgsLat, wgsLng, alt)
             }
             override fun onSpeedChanged(speedMs: Float) {
-                currentSpeed = speedMs
-                Timber.d("Speed changed to: $speedMs m/s")
+                movementController.setSpeed(speedMs)
             }
         })
 
@@ -425,7 +381,7 @@ class LocationService : Service() {
 
         // ✅ 初始化路线播放引擎（运行在前台服务中，支持后台位置更新）
         routePlaybackEngine = RoutePlaybackEngine(serviceScope) { latLng, bearing ->
-            updatePlaybackPosition(latLng.longitude, latLng.latitude, altitude, bearing)
+            updatePlaybackPosition(latLng.longitude, latLng.latitude, positionInjector.altitude, bearing)
         }
         
         // ✅ 监听路线播放状态变化，通知悬浮窗
@@ -446,7 +402,7 @@ class LocationService : Service() {
             ACTION_START -> {
                 val latitude = intent.getDoubleExtra(EXTRA_LATITUDE, 0.0)
                 val longitude = intent.getDoubleExtra(EXTRA_LONGITUDE, 0.0)
-                altitude = intent.getDoubleExtra(EXTRA_ALTITUDE, getAltitudeFromPrefs())
+                positionInjector.updateAltitude(intent.getDoubleExtra(EXTRA_ALTITUDE, getAltitudeFromPrefs()))
                 val isGcj02 = intent.getBooleanExtra(EXTRA_COORD_GCJ02, true)
 
                 if (isGcj02 && latitude != 0.0 && longitude != 0.0) {
@@ -463,7 +419,7 @@ class LocationService : Service() {
                 stopSimulation()
             }
             ACTION_UPDATE -> {
-                val (curLat, curLng) = locationLock.withLock { Pair(currentLatitude, currentLongitude) }
+                val (curLat, curLng) = positionInjector.getCurrentPosition()
                 val latitude = intent.getDoubleExtra(EXTRA_LATITUDE, curLat)
                 val longitude = intent.getDoubleExtra(EXTRA_LONGITUDE, curLng)
                 val isGcj02 = intent.getBooleanExtra(EXTRA_COORD_GCJ02, true)
@@ -478,11 +434,9 @@ class LocationService : Service() {
                     updateTargetLocation(latitude, longitude)
                 }
                 
-                // ✅ 修复：传送后立即注入一次位置，解决协程 delay 导致的延迟感
-                // 注意：这里不再判断 isRunning，只要服务活着就尝试注入
                 try {
-                    setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-                    setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                    positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                    positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
                     Timber.d("✅ Manual location injection triggered for UPDATE_POSITION")
                 } catch (e: Exception) {
                     Timber.e(e, "❌ Failed to inject location manually")
@@ -557,8 +511,8 @@ class LocationService : Service() {
         moveJob?.cancel()
         serviceScope.cancel() // 取消作用域内所有子协程
         
-        // 3. 取消自动移动任务
-        cancelAutoMove()
+        // 3. 关闭摇杆移动控制器（取消定时器 + 关闭执行器）
+        movementController.shutdown()
         
         // 4. 解注册监听器（防止内存泄漏）
         floatingWindowManager?.setListener(null)
@@ -574,25 +528,10 @@ class LocationService : Service() {
         routePlaybackEngine?.destroy()
         routePlaybackEngine = null
         
-        // 8. 关闭 ExecutorService
-        moveExecutor.shutdown()
-        try {
-            if (!moveExecutor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
-                moveExecutor.shutdownNow() // 强制关闭
-                Timber.w("moveExecutor forced to shutdown")
-            } else {
-                Timber.d("moveExecutor shutdown successfully")
-            }
-        } catch (e: InterruptedException) {
-            moveExecutor.shutdownNow()
-            Thread.currentThread().interrupt()
-            Timber.e(e, "moveExecutor shutdown interrupted")
-        }
-        
-        // 10. 移除 TestProvider
-        removeTestProviders()
+        // 8. 移除 TestProvider
+        positionInjector.removeTestProviders()
 
-        // 11. 注销广播接收器
+        // 9. 注销广播接收器
         try { 
             unregisterReceiver(noteActionReceiver)
             Timber.d("noteActionReceiver unregistered")
@@ -615,54 +554,6 @@ class LocationService : Service() {
         super.onDestroy()
     }
 
-    // ==================== TestProvider ====================
-
-    private fun registerTestProviders() {
-        safeRemoveTestProvider(LocationManager.NETWORK_PROVIDER)
-        safeRemoveTestProvider(LocationManager.GPS_PROVIDER)
-        addTestProvider(LocationManager.NETWORK_PROVIDER, true,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) ProviderProperties.POWER_USAGE_LOW else Criteria.POWER_LOW,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) ProviderProperties.ACCURACY_COARSE else Criteria.ACCURACY_COARSE)
-        addTestProvider(LocationManager.GPS_PROVIDER, false,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) ProviderProperties.POWER_USAGE_HIGH else Criteria.POWER_HIGH,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) ProviderProperties.ACCURACY_FINE else Criteria.ACCURACY_FINE)
-    }
-
-    private fun removeTestProviders() {
-        safeRemoveTestProvider(LocationManager.NETWORK_PROVIDER)
-        safeRemoveTestProvider(LocationManager.GPS_PROVIDER)
-    }
-
-    private fun addTestProvider(provider: String, requiresNetwork: Boolean, powerUsage: Int, accuracy: Int) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                // API 31+: addTestProvider 要求使用 ProviderProperties 常量（int 值 1~3）
-                // 而非 Criteria 常量（int 值 0~100），否则抛出 IllegalArgumentException
-                locationManager.addTestProvider(provider, requiresNetwork, false, true, true, true, true, true, powerUsage, accuracy)
-            } else {
-                // API 31 以下: 使用 Criteria 常量
-                @Suppress("WrongConstant")
-                locationManager.addTestProvider(provider, requiresNetwork, false, true, true, true, true, true, powerUsage, accuracy)
-            }
-            if (!locationManager.isProviderEnabled(provider)) {
-                locationManager.setTestProviderEnabled(provider, true)
-            }
-        } catch (e: Exception) {
-            Timber.w(e, "addTestProvider failed: $provider")
-        }
-    }
-
-    private fun safeRemoveTestProvider(provider: String) {
-        try {
-            if (locationManager.isProviderEnabled(provider)) {
-                locationManager.setTestProviderEnabled(provider, false)
-            }
-            locationManager.removeTestProvider(provider)
-        } catch (e: Exception) {
-            Timber.w(e, "removeTestProvider failed: $provider")
-        }
-    }
-
     // ==================== 位置更新循环 ====================
 
     private fun initLocationUpdateLoop() {
@@ -678,8 +569,8 @@ class LocationService : Service() {
                 delay(interval)
                 
                 if (isRunning) {
-                    setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-                    setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                    positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                    positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
                     if (loopCount % 10 == 0) {  // 每10次循环打印一次日志
                         Timber.d("🔄 位置更新循环 #${loopCount}: isRunning=$isRunning")
                     }
@@ -700,15 +591,12 @@ class LocationService : Service() {
             updateTargetLocation(latitude, longitude)
             return
         }
-        locationLock.withLock {
-            currentLatitude = latitude
-            currentLongitude = longitude
-        }
+        positionInjector.updatePosition(latitude, longitude)
         isRunning = true
         staticIsRunning = true
         _simulationState.update { it.copy(isSimulating = true) }
-        setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-        setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+        positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+        positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
         // 如果协程循环已被取消（stopSimulation后重启），需要重新启动
         if (moveJob?.isActive != true) {
             initLocationUpdateLoop()
@@ -727,7 +615,7 @@ class LocationService : Service() {
         staticIsRunning = false
         _simulationState.update { it.copy(isSimulating = false, isAutoMoving = false) }
         moveJob?.cancel() // ✅ 取消协程任务
-        cancelAutoMove()
+        movementController.cancelAutoMove()
         floatingWindowManager?.hide()
         isJoystickVisible = false
         stopSelf()
@@ -739,15 +627,11 @@ class LocationService : Service() {
      */
     private fun saveLastLocation() {
         try {
-            // 加锁读取位置数据，确保一致性
-            val (lat, lng, alt) = locationLock.withLock {
-                Triple(currentLatitude, currentLongitude, altitude)
-            }
-            // 获取GCJ02坐标（高德地图坐标）用于保存
+            val (lat, lng, alt) = positionInjector.getPositionTriple()
             val gcj = MapUtils.wgs84ToGcj02(lng, lat)
             prefs.edit()
-                .putString(PrefsConfig.Settings.KEY_LAST_LAT, gcj[1].toString())  // GCJ02纬度，使用String保存Double精度
-                .putString(PrefsConfig.Settings.KEY_LAST_LNG, gcj[0].toString())  // GCJ02经度，使用String保存Double精度
+                .putString(PrefsConfig.Settings.KEY_LAST_LAT, gcj[1].toString())
+                .putString(PrefsConfig.Settings.KEY_LAST_LNG, gcj[0].toString())
                 .putString(PrefsConfig.Settings.KEY_LAST_ALT, alt.toString())
                 .apply()
             Timber.d("Last location saved: GCJ02 (${gcj[1]}, ${gcj[0]}), alt=$alt")
@@ -757,153 +641,29 @@ class LocationService : Service() {
     }
 
     private fun updateTargetLocation(latitude: Double, longitude: Double) {
-        locationLock.withLock {
-            currentLatitude = latitude
-            currentLongitude = longitude
+        positionInjector.updatePosition(latitude, longitude)
+    }
+
+    // ==================== 速度模式（委托给 MovementController）====================
+
+    /**
+     * 切换速度模式（由悬浮窗调用）
+     * 委托给 MovementController，同时更新 SimulationState
+     * @param mode 速度模式（walk/run/bike）
+     */
+    fun setSpeedMode(mode: String) {
+        movementController.setSpeedMode(mode) { newMode ->
+            _simulationState.update { it.copy(speedMode = newMode) }
         }
     }
 
-    // ==================== 位置注入 ====================
-
-    private fun setLocation(provider: String, accuracy: Int) {
-        try {
-            // ✅ 关键修复：在构建 Location 之前先验证坐标有效性
-            val lat: Double
-            val lng: Double
-            val alt: Double
-            locationLock.withLock {
-                lat = currentLatitude
-                lng = currentLongitude
-                alt = altitude
-            }
-            
-            // 验证坐标是否有效
-            if (lat == 0.0 && lng == 0.0) {
-                Timber.w("⚠️ setLocation($provider): 坐标无效 (0.0, 0.0)，跳过注入")
-                return
-            }
-            if (lat.isNaN() || lng.isNaN()) {
-                Timber.w("⚠️ setLocation($provider): 坐标为 NaN，跳过注入")
-                return
-            }
-            if (kotlin.math.abs(lat) > 90 || kotlin.math.abs(lng) > 180) {
-                Timber.w("⚠️ setLocation($provider): 坐标超出范围 lat=$lat, lng=$lng，跳过注入")
-                return
-            }
-            
-            // 加锁读取位置数据并构建 Location，防止与 moveExecutor 线程的写操作竞态
-            val loc = locationLock.withLock {
-                Location(provider).apply {
-                    latitude = currentLatitude
-                    longitude = currentLongitude
-                    altitude = this@LocationService.altitude
-                    bearing = currentBearing
-                    speed = currentSpeed
-                    this.accuracy = accuracy.toFloat()
-                    time = System.currentTimeMillis()
-                    elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-                }
-            }
-            if (provider == LocationManager.GPS_PROVIDER) {
-                val bundle = android.os.Bundle()
-                bundle.putInt("satellites", GPS_SATELLITE_COUNT)
-                loc.extras = bundle
-            }
-            locationManager.setTestProviderLocation(provider, loc)
-            // ✅ 增加调试日志，确认注入是否发生
-            Timber.d("📍 setLocation($provider): lat=$lat, lng=$lng, alt=$alt")
-        } catch (e: Exception) {
-            Timber.w(e, "setLocation failed: $provider")
-        }
-    }
-
-    // ==================== 摇杆移动 ====================
-
-    private fun processDirection(auto: Boolean, angle: Double, r: Double) {
-        joystickAngle = angle
-        joystickR = r
-        
-        if (r <= 0.01) {
-            // 摇杆回中或归位，停止移动
-            cancelAutoMove()
-        } else {
-            // 无论哪种模式，都使用定时器以保持速度一致
-            startAutoMove()
-        }
-    }
-
-    private fun startAutoMove() {
-        if (isAutoMoving) return
-        isAutoMoving = true
-        autoMoveTimer = object : android.os.CountDownTimer(Long.MAX_VALUE, JOYSTICK_MOVE_INTERVAL_MS) {
-            override fun onTick(millisUntilFinished: Long) { performAutoMoveStep() }
-            override fun onFinish() { isAutoMoving = false }
-        }.start()
-    }
-
-    private fun cancelAutoMove() {
-        autoMoveTimer?.cancel()
-        autoMoveTimer = null
-        isAutoMoving = false
-    }
-
-    private fun performAutoMoveStep() {
-        if (!isRunning || joystickR <= 0.01) return
-        moveExecutor.execute {
-            val angleRad = Math.toRadians(joystickAngle)
-            var distanceLng = currentSpeed * (JOYSTICK_MOVE_INTERVAL_MS / 1000.0) * joystickR *
-                    Math.cos(angleRad) / 1000.0
-            var distanceLat = currentSpeed * (JOYSTICK_MOVE_INTERVAL_MS / 1000.0) * joystickR *
-                    Math.sin(angleRad) / 1000.0
-            // 随机偏移
-            if (prefs.getBoolean(PrefsConfig.Settings.KEY_RANDOM_OFFSET, false)) {
-                distanceLng += (Math.random() - 0.5) * 5.0 / 1000.0
-                distanceLat += (Math.random() - 0.5) * 5.0 / 1000.0
-            }
-            // 加锁保护复合操作（read-modify-write），防止与 handler 线程的 setLocation 竞态
-            locationLock.withLock {
-                val newLng = currentLongitude + distanceLng / (METERS_PER_DEGREE_LNG_EQUATOR * Math.cos(Math.toRadians(currentLatitude)))
-                val newLat = currentLatitude + distanceLat / METERS_PER_DEGREE_LAT
-                
-                // ✅ 坐标验证：确保新坐标在有效范围内
-                if (kotlin.math.abs(newLat) <= 90 && kotlin.math.abs(newLng) <= 180) {
-                    currentLongitude = newLng
-                    currentLatitude = newLat
-                    currentBearing = (90.0f - joystickAngle).toFloat()
-                } else {
-                    Timber.w("⚠️ performAutoMoveStep: 计算出的坐标超出范围 lat=$newLat, lng=$newLng，跳过更新")
-                }
-            }
-        }
-    }
-
+    /** 设置移动速度（委托给 MovementController） */
     fun setSpeed(speed: Float) {
-        currentSpeed = speed.coerceIn(MIN_SPEED_MS, MAX_SPEED_MS)
-        Timber.d("Speed set to: ${currentSpeed} m/s (${String.format("%.1f", currentSpeed * 3.6)} km/h)")
+        movementController.setSpeed(speed)
     }
     
     private fun getAltitudeFromPrefs(): Double {
         return prefs.getFloat(PrefsConfig.Settings.KEY_ALTITUDE, 0f).toDouble()
-    }
-
-    /** 根据速度模式从 SP 读取速度并应用 */
-    private fun applySpeedMode(mode: String) {
-        currentSpeedMode = mode
-        val speedKmh = when (mode) {
-            "walk" -> prefs.getInt(PrefsConfig.Settings.KEY_WALK_SPEED, 5).coerceIn(1, 15)    // 步行：1-15 km/h
-            "run" -> prefs.getInt(PrefsConfig.Settings.KEY_RUN_SPEED, 12).coerceIn(5, 30)     // 跑步：5-30 km/h
-            "bike" -> prefs.getInt(PrefsConfig.Settings.KEY_BIKE_SPEED, 20).coerceIn(10, 50)  // 骑行：10-50 km/h
-            else -> 5
-        }
-        currentSpeed = (speedKmh / 3.6).toFloat().coerceIn(MIN_SPEED_MS, MAX_SPEED_MS)
-        Timber.d("Speed mode applied: $mode = $speedKmh km/h = ${String.format("%.2f", currentSpeed)} m/s")
-    }
-
-    /** 切换速度模式（由悬浮窗调用） */
-    fun setSpeedMode(mode: String) {
-        prefs.edit().putString(PrefsConfig.Settings.KEY_SPEED_MODE, mode).apply()
-        _simulationState.update { it.copy(speedMode = mode) }
-        applySpeedMode(mode)
     }
 
     /**
@@ -914,42 +674,31 @@ class LocationService : Service() {
      */
     fun setPositionWgs84(lat: Double, lng: Double, alt: Double) {
         Timber.d("🔍 setPositionWgs84 被调用: lat=$lat, lng=$lng, alt=$alt, isRunning=$isRunning")
-        moveExecutor.execute {
-            Timber.d("🔍 setPositionWgs84 在 moveExecutor 线程中执行")
-            // ✅ 关键修复：如果未启动模拟，先启动模拟
+        serviceScope.launch(Dispatchers.IO) {
+            Timber.d("🔍 setPositionWgs84 在 IO 线程中执行")
             if (!isRunning) {
                 Timber.d("🚀 setPositionWgs84: 检测到未启动模拟，自动启动")
-                locationLock.withLock {
-                    currentLatitude = lat
-                    currentLongitude = lng
-                    altitude = alt
-                }
+                positionInjector.updatePosition(lat, lng, alt)
                 isRunning = true
                 staticIsRunning = true
                 _simulationState.update { it.copy(isSimulating = true) }
-                setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-                setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
 
-                // 确保协程循环正在运行
                 if (moveJob?.isActive != true) {
                     Timber.d("🔄 协程未运行，重新启动 initLocationUpdateLoop")
                     initLocationUpdateLoop()
                 } else {
                     Timber.d("✅ 协程已在运行: isActive=${moveJob?.isActive}")
                 }
-                
+
                 saveLastLocation()
                 Timber.d("✅ 模拟已自动启动: lat=$lat, lng=$lng")
             } else {
-                // 已在模拟中：更新位置
                 Timber.d("📍 已在模拟中，更新位置")
-                locationLock.withLock {
-                    currentLatitude = lat
-                    currentLongitude = lng
-                    altitude = alt
-                }
-                setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-                setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                positionInjector.updatePosition(lat, lng, alt)
+                positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
                 Timber.d("✅ 位置已更新: lat=$lat, lng=$lng")
             }
         }
@@ -958,45 +707,30 @@ class LocationService : Service() {
     /**
      * 更新路线播放位置
      * 
-     * ✅ 和摇杆模式完全一致：只更新坐标，不在这里注入位置
-     * 摇杆模式：performAutoMoveStep() 只更新坐标，initLocationUpdateLoop 协程统一按间隔注入
-     * 路线模拟：updatePlaybackPosition() 只更新坐标，initLocationUpdateLoop 协程统一按间隔注入
-     * 
-     * 之前在更新坐标后立即调用 setLocation() 会导致：
-     * 1. 和 initLocationUpdateLoop 协程重复注入，系统可能丢弃
-     * 2. 两个线程同时读写 currentLatitude/currentLongitude 有竞态（虽然加了锁，但时序不确定）
+     * 和摇杆模式一致：只更新坐标，initLocationUpdateLoop 协程统一按间隔注入
      */
     fun updatePlaybackPosition(gcjLng: Double, gcjLat: Double, alt: Double, bearing: Float) {
-        moveExecutor.execute {
+        serviceScope.launch(Dispatchers.IO) {
             val wgs = MapUtils.gcj02ToWgs84(gcjLng, gcjLat)
             val wgsLng = wgs[0]
             val wgsLat = wgs[1]
-            
-            // ✅ 坐标验证：确保转换后的 WGS-84 坐标在有效范围内
+
             if (kotlin.math.abs(wgsLat) > 90 || kotlin.math.abs(wgsLng) > 180) {
                 Timber.w("⚠️ updatePlaybackPosition: 转换后的坐标超出范围 lat=$wgsLat, lng=$wgsLng，跳过更新")
-                return@execute
+                return@launch
             }
-            
-            locationLock.withLock {
-                currentLongitude = wgsLng
-                currentLatitude = wgsLat
-                altitude = alt
-                currentBearing = bearing
-            }
-            // ✅ 只更新坐标，不在这里注入！注入统一由 initLocationUpdateLoop 协程按间隔执行
+
+            positionInjector.updatePosition(wgsLat, wgsLng, alt)
+            positionInjector.updateBearing(bearing)
             Timber.d("🎬 updatePlaybackPosition: lat=$gcjLat, lng=$gcjLng, bearing=$bearing (coordinate updated, injection delegated to loop)")
         }
     }
 
-    fun getCurrentLocation(): Pair<Double, Double> = locationLock.withLock {
-        Pair(currentLatitude, currentLongitude)
-    }
-    fun getCurrentLocationGcj02(): Pair<Double, Double> {
-        val (lat, lng) = locationLock.withLock { Pair(currentLatitude, currentLongitude) }
-        val gcj = MapUtils.wgs84ToGcj02(lng, lat)
-        return Pair(gcj[1], gcj[0])
-    }
+    /** 获取当前位置（WGS-84），委托给 PositionInjector */
+    fun getCurrentLocation(): Pair<Double, Double> = positionInjector.getCurrentPosition()
+
+    /** 获取当前位置（GCJ-02，高德地图坐标系），委托给 PositionInjector */
+    fun getCurrentLocationGcj02(): Pair<Double, Double> = positionInjector.getCurrentPositionGcj02()
     
 
     // ==================== 日志控制 ====================
@@ -1038,7 +772,7 @@ class LocationService : Service() {
         if (expiryDays <= 0) return  // -1 = 永久保存
         val cutoffTime = System.currentTimeMillis() - (expiryDays.toLong() * 24 * 60 * 60 * 1000)
         
-        // ✅ 关键修复：使用 serviceScope 异步执行，避免阻塞 moveExecutor 线程
+        // ✅ 关键修复：使用 serviceScope 异步执行，避免阻塞主线程
         serviceScope.launch(Dispatchers.IO) {
             try {
                 locationRepository.deleteHistoryOlderThan(cutoffTime)
