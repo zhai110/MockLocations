@@ -1,0 +1,171 @@
+package com.mockloc.ui.main.delegate
+
+import android.view.View
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
+import com.mockloc.R
+import com.mockloc.databinding.FragmentMainBinding
+import com.mockloc.repository.PoiSearchHelper
+import com.mockloc.ui.main.MainViewModel
+import com.mockloc.ui.search.SearchResultAdapter
+import com.mockloc.util.AnimationHelper
+import timber.log.Timber
+
+/**
+ * 搜索功能委托类
+ * 
+ * 职责：
+ * - 初始化搜索 UI（RecyclerView、清除按钮）
+ * - 管理搜索结果列表的显示/隐藏
+ * - 处理搜索框文本变化和清除操作
+ * - 响应 ViewModel 的搜索结果更新
+ */
+class SearchDelegate(
+    private val fragment: Fragment,
+    private val viewModel: MainViewModel,
+    private val binding: FragmentMainBinding
+) {
+    
+    private lateinit var searchAdapter: SearchResultAdapter
+    private var isSearchResultVisible = false
+    
+    // ✅ 搜索框文本监听器（用于清除时临时移除）
+    private val searchTextWatcher = object : android.text.TextWatcher {
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        override fun afterTextChanged(s: android.text.Editable?) {
+            updateClearButtonVisibility()
+        }
+    }
+    
+    /**
+     * 初始化搜索功能
+     */
+    fun init() {
+        initSearchAdapter()
+        setupSearchListeners()
+    }
+    
+    /**
+     * 初始化搜索适配器
+     */
+    private fun initSearchAdapter() {
+        searchAdapter = SearchResultAdapter { poi ->
+            // 点击搜索结果
+            viewModel.selectSearchResult(poi)
+            binding.searchEdit.setText(poi.name)
+            binding.searchEdit.setSelection(binding.searchEdit.text.length)
+        }
+        
+        binding.searchResultList.apply {
+            layoutManager = LinearLayoutManager(fragment.requireContext())
+            adapter = searchAdapter
+        }
+    }
+    
+    /**
+     * 设置搜索相关监听器
+     */
+    private fun setupSearchListeners() {
+        // 搜索清除按钮
+        binding.searchClearBtn.setOnClickListener {
+            clearSearch()
+        }
+        
+        // 监听输入框变化，动态显示/隐藏清除按钮
+        binding.searchEdit.addTextChangedListener(searchTextWatcher)
+        
+        // 搜索框焦点变化
+        binding.searchEdit.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                viewModel.hideSearchResults()
+            } else {
+                val textLength = binding.searchEdit.text.length
+                if (textLength > 0) {
+                    binding.searchEdit.setSelection(textLength)
+                }
+            }
+        }
+    }
+    
+    /**
+     * 获取搜索适配器（供外部使用）
+     */
+    fun getSearchAdapter(): SearchResultAdapter = searchAdapter
+    
+    /**
+     * 更新搜索结果列表
+     */
+    fun updateResults(results: List<PoiSearchHelper.PlaceItem>) {
+        searchAdapter.submitList(results)
+        if (results.isNotEmpty()) {
+            showSearchResults()
+        } else {
+            hideSearchResults()
+        }
+    }
+    
+    /**
+     * 显示搜索结果列表
+     */
+    private fun showSearchResults() {
+        if (!isSearchResultVisible) {
+            binding.searchResultContainer.visibility = View.VISIBLE
+            binding.searchResultList.animate().cancel()
+            AnimationHelper.fadeIn(binding.searchResultList, 250)
+            isSearchResultVisible = true
+            // 为搜索结果列表添加底部圆角，与搜索框保持一致
+            val radius = 16f * fragment.resources.displayMetrics.density
+            binding.searchResultList.background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(ContextCompat.getColor(fragment.requireContext(), R.color.surface))
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, radius, radius, radius, radius)
+            }
+        }
+    }
+    
+    /**
+     * 隐藏搜索结果列表
+     */
+    fun hideSearchResults() {
+        if (isSearchResultVisible) {
+            binding.searchResultList.animate().cancel()
+            AnimationHelper.fadeOut(binding.searchResultList, 200) {
+                binding.searchResultContainer.visibility = View.GONE
+            }
+            isSearchResultVisible = false
+        }
+    }
+    
+    /**
+     * 清除搜索（清空输入框、隐藏结果、隐藏清除按钮）
+     */
+    private fun clearSearch() {
+        // 先移除监听器，避免 setText 触发 TextWatcher
+        binding.searchEdit.removeTextChangedListener(searchTextWatcher)
+        
+        binding.searchEdit.setText("")
+        binding.searchEdit.clearFocus()
+        viewModel.hideSearchResults()
+        
+        // 手动更新按钮状态
+        binding.searchClearBtn.visibility = View.GONE
+        
+        // 重新添加监听器
+        binding.searchEdit.addTextChangedListener(searchTextWatcher)
+        
+        com.mockloc.util.UIFeedbackHelper.showToast(fragment.requireContext(), "已清除搜索")
+    }
+    
+    /**
+     * 更新清除按钮的可见性
+     */
+    private fun updateClearButtonVisibility() {
+        val hasText = binding.searchEdit.text.isNotEmpty()
+        val hasResults = isSearchResultVisible
+        
+        // 当有输入内容或有搜索结果时显示清除按钮
+        binding.searchClearBtn.visibility = if (hasText || hasResults) View.VISIBLE else View.GONE
+    }
+}
