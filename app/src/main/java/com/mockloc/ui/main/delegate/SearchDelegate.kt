@@ -74,14 +74,20 @@ class SearchDelegate(
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
                 val query = binding.searchEdit.text.toString()
                 if (query.isNotEmpty()) {
-                    // 获取当前地图中心作为搜索中心点
-                    val center = viewModel.mapState.value.currentLocation
-                    // 注意：这里需要外部提供 aMap，暂时传 null，由 MainFragment 处理
+                    // 获取搜索中心点（优先使用 ViewModel 的 currentLocation，否则通过回调获取）
+                    val center = viewModel.mapState.value.currentLocation ?: onGetSearchCenter?.invoke()
+                    
                     if (center != null) {
                         viewModel.searchPlaces(query, center.latitude, center.longitude)
+                        // 搜索后隐藏键盘
+                        hideKeyboard()
+                    } else {
+                        // 无法获取中心点，显示提示
+                        com.mockloc.util.UIFeedbackHelper.showToast(
+                            fragment.requireContext(),
+                            "无法获取当前位置"
+                        )
                     }
-                    // 搜索后隐藏键盘
-                    hideKeyboard()
                 }
                 true
             } else {
@@ -109,6 +115,11 @@ class SearchDelegate(
             }
         }
     }
+    
+    /**
+     * 获取搜索中心点的回调（由 MainFragment 提供）
+     */
+    var onGetSearchCenter: (() -> com.amap.api.maps.model.LatLng?)? = null
     
     /**
      * 隐藏键盘

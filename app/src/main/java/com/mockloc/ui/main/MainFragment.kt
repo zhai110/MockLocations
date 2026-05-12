@@ -214,6 +214,7 @@ class MainFragment : Fragment() {
         
         // ✅ Phase 2: 初始化 Delegate
         searchDelegate = com.mockloc.ui.main.delegate.SearchDelegate(this, viewModel, binding)
+        searchDelegate.onGetSearchCenter = { if (::aMap.isInitialized) aMap.cameraPosition.target else null }
         searchDelegate.init()  // SearchDelegate 已包含 initSearch 的逻辑
         
         simulationDelegate = com.mockloc.ui.main.delegate.SimulationDelegate(this, viewModel, binding)
