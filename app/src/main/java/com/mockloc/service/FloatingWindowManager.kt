@@ -6,6 +6,8 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import com.mockloc.R
+import com.mockloc.data.db.AppDatabase
+import com.mockloc.data.repository.LocationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -157,6 +159,10 @@ class FloatingWindowManager(private val service: LocationService) {
             }
             
             // 初始化历史记录控制器
+            val locationRepository = LocationRepository(
+                com.mockloc.VirtualLocationApp.getDatabase().historyLocationDao(),
+                com.mockloc.VirtualLocationApp.getDatabase().favoriteLocationDao()
+            )
             historyController = HistoryWindowController(
                 context = themedContext,
                 service = service,
@@ -172,7 +178,8 @@ class FloatingWindowManager(private val service: LocationService) {
                     // ✅ 修复：数据库中存储的是 GCJ-02，需要转换为 WGS-84
                     val wgs = com.mockloc.util.MapUtils.gcj02ToWgs84(location.longitude, location.latitude)
                     listener?.onPositionSelected(wgs[0], wgs[1], 0.0)
-                }
+                },
+                locationRepository = locationRepository  // ✅ Phase 1: 注入 Repository
             )
             historyController?.initialize()
             

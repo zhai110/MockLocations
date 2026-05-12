@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.mockloc.R
 import com.mockloc.data.db.HistoryLocation
+import com.mockloc.data.repository.LocationRepository
 import com.mockloc.util.MapUtils
 import com.mockloc.util.UIFeedbackHelper
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +41,8 @@ class HistoryWindowController(
     private val windowParams: android.view.WindowManager.LayoutParams,
     private val onSwitchToJoystick: () -> Unit,
     private val onSwitchToMap: () -> Unit,
-    private val onHistorySelected: (location: HistoryLocation) -> Unit
+    private val onHistorySelected: (location: HistoryLocation) -> Unit,
+    private val locationRepository: LocationRepository  // ✅ Phase 1: Repository 替代直接 DAO 访问
 ) : WindowController {
 
     override var rootView: View? = null
@@ -356,13 +358,12 @@ class HistoryWindowController(
     }
 
     /**
-     * 刷新历史记录（从数据库读取）
+     * 刷新历史记录 — ✅ Phase 1: 通过 LocationRepository
      */
     fun refreshHistory() {
         scope.launch {
             try {
-                val db = com.mockloc.VirtualLocationApp.getDatabase()
-                allRecords = db.historyLocationDao().getAll()
+                allRecords = locationRepository.getAllHistory()
                 withContext(Dispatchers.Main) {
                     showHistoryList(allRecords)
                 }

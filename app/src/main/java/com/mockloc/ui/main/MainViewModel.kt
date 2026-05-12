@@ -12,6 +12,11 @@ import com.amap.api.location.AMapLocation
 import com.amap.api.location.AMapLocationClient
 import com.amap.api.location.AMapLocationClientOption
 import com.amap.api.maps.model.LatLng
+import com.mockloc.core.common.AppResult
+import com.mockloc.core.service.LocationServiceConnector
+import com.mockloc.data.repository.LocationRepository
+import com.mockloc.data.repository.RouteRepository
+import com.mockloc.data.repository.SearchRepository
 import com.mockloc.repository.PoiSearchHelper
 import com.mockloc.service.LocationService
 import com.mockloc.service.RoutePlaybackState
@@ -117,9 +122,25 @@ class MainViewModel(
 
     // ==================== 依赖 ====================
 
-    private var locationService: LocationService? = null
+    // ✅ Phase 0: ServiceConnector 替代 locationService? + setLocationService() + 500ms轮询
+    private val serviceConnector = LocationServiceConnector(application)
+
+    // ✅ Phase 1: Repository 替代直接 DAO 访问
+    private val db by lazy { com.mockloc.VirtualLocationApp.getDatabase() }
+    private val locationRepository by lazy { LocationRepository(db.historyLocationDao(), db.favoriteLocationDao()) }
+    private val searchRepository by lazy { SearchRepository(db.searchHistoryDao(), PoiSearchHelper(application)) }
+    private val routeRepository by lazy { RouteRepository(db.savedRouteDao()) }
+
+    /** Service 连接状态（供 Activity 观察绑定） */
+    val connectionState = serviceConnector.connectionState
+
+    /** Service 模拟状态（响应式，替代 staticIsRunning + 500ms轮询） */
+    val serviceSimulationState = serviceConnector.simulationState
+
+    /** Service 路线播放状态（响应式，替代 startRouteStateSync 轮询） */
+    val serviceRoutePlaybackState = serviceConnector.routePlaybackState
+
     private var locationClient: AMapLocationClient? = null
-    private var poiSearchHelper: PoiSearchHelper? = null
     private val prefs: SharedPreferences = getApplication<Application>().getSharedPreferences(PrefsConfig.MAP_STATE, Application.MODE_PRIVATE)
     private val settingsPrefs: SharedPreferences = getApplication<Application>().getSharedPreferences(PrefsConfig.SETTINGS, Application.MODE_PRIVATE)
     private val prefsAltitude: Float
@@ -128,19 +149,8 @@ class MainViewModel(
     // 定位超时任务
     private var locationTimeoutJob: Job? = null
     
-    // ✅ 路线状态同步任务（定期从 Service 同步播放状态）
-    private var routeStateSyncJob: Job? = null
-    
     companion object {
         private const val LOCATION_TIMEOUT_MS = 10000L  // 定位超时时间：10秒
-        
-        /**
-         * 统一坐标精度为 6 位小数（约 0.1 米精度）
-         * 用于确保数据库 UNIQUE INDEX 和查询逻辑一致
-         */
-        private fun roundCoordinate(value: Double): Double {
-            return Math.round(value * 1_000_000) / 1_000_000.0
-        }
     }
 
     // ==================== 前后台状态监听 ====================
@@ -175,7 +185,7 @@ class MainViewModel(
      * 初始化搜索功能
      */
     fun initSearch() {
-        poiSearchHelper = PoiSearchHelper(getApplication())
+        // ✅ Phase 1: searchRepository 在 lazy 中自动初始化 PoiSearchHelper，无需手动创建
     }
 
     /**
@@ -387,53 +397,19 @@ class MainViewModel(
     // ==================== 模拟控制 ====================
 
     /**
-     * 设置 LocationService 引用
+     * 绑定 LocationService（通过 ServiceConnector）
+     * 由 MainActivity.onStart() 调用
      */
-    fun setLocationService(service: LocationService?) {
-        // ✅ 关键修复：先停止同步任务，再更新引用，防止竞态条件
-        if (service == null) {
-            routeStateSyncJob?.cancel()
-            routeStateSyncJob = null
-            // 重置路线状态，防止 UI 显示过期的播放信息
-            _routeState.update { it.copy(playbackState = RoutePlaybackState(), currentPlaybackPosition = null) }
-        }
-        
-        locationService = service
-        
-        // 当 Service 绑定时，启动路线状态同步任务
-        if (service != null) {
-            startRouteStateSync()
-        }
+    fun bindService() {
+        serviceConnector.bind()
     }
-    
+
     /**
-     * 启动路线状态同步任务（每 500ms 从 Service 同步一次播放状态）
+     * 解绑 LocationService（通过 ServiceConnector）
+     * 由 MainActivity.onDestroy() 调用
      */
-    private fun startRouteStateSync() {
-        routeStateSyncJob?.cancel() // 取消旧的任务
-        routeStateSyncJob = viewModelScope.launch {
-            while (isActive) {
-                delay(500) // 每 500ms 同步一次
-                locationService?.let { service ->
-                    val playbackState = service.getRoutePlaybackState()
-                    val routePoints = service.getRoutePoints()
-                    
-                    // ✅ 获取当前位置用于更新 currentPlaybackPosition
-                    val currentPos = if (playbackState.isPlaying) {
-                        val (lat, lng) = service.getCurrentLocation()
-                        LatLng(lat, lng)
-                    } else {
-                        null
-                    }
-                    
-                    _routeState.update { it.copy(
-                        playbackState = playbackState,
-                        routePoints = routePoints,
-                        currentPlaybackPosition = currentPos
-                    )}
-                }
-            }
-        }
+    fun unbindService() {
+        serviceConnector.unbind()
     }
 
     data class SimulationControlEvent(
@@ -553,7 +529,7 @@ class MainViewModel(
         _simulationState.update { state ->
             state.copy(speedMode = mode)
         }
-        locationService?.setSpeedMode(mode)
+        serviceConnector.execute { setSpeedMode(mode) }
         Timber.d("更新速度模式: $mode")
     }
 
@@ -575,7 +551,7 @@ class MainViewModel(
             state.copy(isLoading = true)
         }
         
-        poiSearchHelper?.searchPlace(query, { results ->
+        searchRepository.searchPlace(query, centerLat = centerLat, centerLng = centerLng) { results ->
             _searchState.update { state ->
                 state.copy(
                     query = query,
@@ -584,7 +560,7 @@ class MainViewModel(
                     isLoading = false
                 )
             }
-        }, centerLat = centerLat, centerLng = centerLng)
+        }
     }
 
     /**
@@ -619,42 +595,19 @@ class MainViewModel(
     }
     
     /**
-     * 保存搜索历史（带去重）
+     * 保存搜索历史（带去重）— ✅ Phase 1: 通过 SearchRepository
      */
     private fun saveToSearchHistory(place: PoiSearchHelper.PlaceItem) {
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val db = com.mockloc.VirtualLocationApp.getDatabase()
-                
-                // ✅ 统一坐标精度为 6 位小数，确保与 UNIQUE INDEX 一致
-                val roundedLat = roundCoordinate(place.lat)
-                val roundedLng = roundCoordinate(place.lng)
-                
-                // 检查是否已存在相同坐标的记录
-                val existing = db.searchHistoryDao().findByCoordinates(roundedLat, roundedLng)
-                
-                if (existing != null) {
-                    // 已存在，更新时间戳和名称/地址（可能用户搜索了不同的关键词）
-                    db.searchHistoryDao().updateTimestamp(existing.id, System.currentTimeMillis())
-                    Timber.d("Updated search history timestamp: ${place.name}")
-                } else {
-                    // 不存在，插入新记录（使用统一精度后的坐标）
-                    val searchHistory = com.mockloc.data.db.SearchHistory(
-                        keyword = place.name,  // 使用地点名称作为关键词
-                        name = place.name,
-                        address = place.address,
-                        latitude = roundedLat,
-                        longitude = roundedLng
-                    )
-                    
-                    db.searchHistoryDao().insert(searchHistory)
-                    Timber.d("Saved to search history: ${place.name}")
-                    
-                    // 限制最多100条记录
-                    db.searchHistoryDao().limitRecords()
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to save search history")
+            val result = searchRepository.saveToSearchHistory(
+                keyword = place.name,
+                name = place.name,
+                address = place.address,
+                latitude = place.lat,
+                longitude = place.lng
+            )
+            if (result is AppResult.Error) {
+                Timber.e(result.exception, "Failed to save search history")
             }
         }
     }
@@ -679,11 +632,11 @@ class MainViewModel(
         _routeState.update { it.copy(isRouteMode = enabled) }
         if (!enabled) {
             // 切换回单点模式：停止路线播放，隐藏路线控制悬浮窗
-            locationService?.stopRoute()
-            locationService?.hideRouteControlWindow()
+            serviceConnector.execute { stopRoute() }
+            serviceConnector.execute { hideRouteControlWindow() }
         } else {
-            // ✅ 切换到路线模式：隐藏摇杆悬浮窗，✅ 不显示路线控制悬浮窗（仅后台时显示）
-            locationService?.hideFloatingWindow()
+            // ✅ 切换到路线模式：隐藏摇杆悬浮窗
+            serviceConnector.execute { hideFloatingWindow() }
             // locationService?.showRouteControlWindow()  // ❌ 不在前台显示
         }
         Timber.d("Route mode: $enabled")
@@ -691,13 +644,13 @@ class MainViewModel(
 
     fun addRoutePoint(latLng: LatLng) {
         if (!_routeState.value.isRouteMode) return
-        locationService?.addRoutePoint(RoutePoint(latLng))
-        _routeState.update { it.copy(routePoints = locationService?.getRoutePoints() ?: emptyList()) }
+        serviceConnector.execute { addRoutePoint(RoutePoint(latLng)) }
+        _routeState.update { it.copy(routePoints = serviceConnector.query { getRoutePoints() } ?: emptyList()) }
     }
 
     fun removeLastRoutePoint() {
-        locationService?.removeLastRoutePoint()
-        _routeState.update { it.copy(routePoints = locationService?.getRoutePoints() ?: emptyList()) }
+        serviceConnector.execute { removeLastRoutePoint() }
+        _routeState.update { it.copy(routePoints = serviceConnector.query { getRoutePoints() } ?: emptyList()) }
     }
 
     /**
@@ -705,8 +658,8 @@ class MainViewModel(
      * @param index 点的索引（从 0 开始）
      */
     fun removeRoutePointAt(index: Int) {
-        locationService?.removeRoutePointAt(index)
-        _routeState.update { it.copy(routePoints = locationService?.getRoutePoints() ?: emptyList()) }
+        serviceConnector.execute { removeRoutePointAt(index) }
+        _routeState.update { it.copy(routePoints = serviceConnector.query { getRoutePoints() } ?: emptyList()) }
     }
 
     /**
@@ -715,28 +668,28 @@ class MainViewModel(
      * @param latLng 经纬度
      */
     fun insertRoutePointAt(index: Int, latLng: LatLng) {
-        locationService?.insertRoutePointAt(index, RoutePoint(latLng))
-        _routeState.update { it.copy(routePoints = locationService?.getRoutePoints() ?: emptyList()) }
+        serviceConnector.execute { insertRoutePointAt(index, RoutePoint(latLng)) }
+        _routeState.update { it.copy(routePoints = serviceConnector.query { getRoutePoints() } ?: emptyList()) }
     }
 
     fun clearRoute() {
-        locationService?.clearRoute()
+        serviceConnector.execute { clearRoute() }
         _routeState.update { it.copy(routePoints = emptyList(), playbackState = RoutePlaybackState()) }
     }
 
     fun toggleRoutePlayback() {
-        val state = locationService?.getRoutePlaybackState() ?: RoutePlaybackState()
+        val state = serviceConnector.query { getRoutePlaybackState() } ?: RoutePlaybackState()
         if (state.isPlaying) {
             // 暂停：只暂停播放，不重置位置
-            locationService?.pauseRoute()
+            serviceConnector.execute { pauseRoute() }
         } else {
-            // 播放/恢复：只在首次启动时初始化位置，暂停后恢复不需要重新初始化
+            // 播放/恢复
             val isFirstStart = !_simulationState.value.isSimulating && state.currentIndex == 0 && state.progress == 0f
             if (isFirstStart && _routeState.value.routePoints.size >= 2) {
                 val firstPoint = _routeState.value.routePoints.first().latLng
                 startRouteSimulation(firstPoint.latitude, firstPoint.longitude)
             }
-            locationService?.playRoute()
+            serviceConnector.execute { playRoute() }
         }
     }
     
@@ -744,7 +697,7 @@ class MainViewModel(
      * ✅ 停止路线播放（重置进度和模拟状态）
      */
     fun stopRoutePlayback() {
-        locationService?.stopRoutePlayback()
+        serviceConnector.execute { stopRoutePlayback() }
         _simulationState.update { it.copy(isSimulating = false) }
         Timber.d("Route playback stopped and simulation state reset")
     }
@@ -754,7 +707,7 @@ class MainViewModel(
      */
     fun showRouteControlIfNeeded() {
         if (_routeState.value.isRouteMode && _routeState.value.playbackState.isPlaying) {
-            locationService?.showRouteControlWindow()
+            serviceConnector.execute { showRouteControlWindow() }
             Timber.d("Showing route control window for background control")
         }
     }
@@ -764,7 +717,7 @@ class MainViewModel(
      */
     fun hideRouteControlIfNeeded() {
         if (_routeState.value.isRouteMode) {
-            locationService?.hideRouteControlWindow()
+            serviceConnector.execute { hideRouteControlWindow() }
             Timber.d("Hiding route control window when returning to foreground")
         }
     }
@@ -775,7 +728,7 @@ class MainViewModel(
     private fun showJoystickIfNeeded() {
         // 只在单点模式且正在模拟时显示
         if (!_routeState.value.isRouteMode && _simulationState.value.isSimulating) {
-            locationService?.showFloatingWindow()
+            serviceConnector.execute { showFloatingWindow() }
             Timber.d("Showing joystick window for background control (single-point mode)")
         }
     }
@@ -786,7 +739,7 @@ class MainViewModel(
     private fun hideJoystickIfNeeded() {
         // 只在单点模式下隐藏
         if (!_routeState.value.isRouteMode) {
-            locationService?.hideFloatingWindow()
+            serviceConnector.execute { hideFloatingWindow() }
             Timber.d("Hiding joystick window when returning to foreground (single-point mode)")
         }
     }
@@ -804,11 +757,11 @@ class MainViewModel(
     }
 
     fun setRouteLooping(loop: Boolean) {
-        locationService?.setRouteLooping(loop)
+        serviceConnector.execute { setRouteLooping(loop) }
     }
 
     fun setRouteSpeedMultiplier(multiplier: Float) {
-        locationService?.setRouteSpeedMultiplier(multiplier)
+        serviceConnector.execute { setRouteSpeedMultiplier(multiplier) }
     }
     
     /**
@@ -826,59 +779,71 @@ class MainViewModel(
     }
 
     fun saveRouteToDb(name: String) {
-        val points = locationService?.getRoutePoints() ?: emptyList()
+        val points = serviceConnector.query { getRoutePoints() } ?: emptyList()
         if (points.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val db = com.mockloc.VirtualLocationApp.getDatabase()
-                val group = "route_${System.currentTimeMillis()}"
-                val routes = points.mapIndexed { index, point ->
-                    com.mockloc.data.db.SavedRoute(
-                        name = name,
-                        routeGroup = group,
-                        latitude = point.latLng.latitude,
-                        longitude = point.latLng.longitude,
-                        pointOrder = index
-                    )
-                }
-                db.savedRouteDao().insertAll(routes)
-                Timber.d("Route saved: $name, ${points.size} points, group=$group")
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to save route")
+            val result = routeRepository.saveRoute(name, points)
+            if (result is AppResult.Error) {
+                Timber.e(result.exception, "Failed to save route")
             }
         }
     }
 
     fun loadRouteFromDb(group: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val db = com.mockloc.VirtualLocationApp.getDatabase()
-                val saved = db.savedRouteDao().getByGroup(group)
-                if (saved.isEmpty()) return@launch
-                val points = saved.map { RoutePoint(LatLng(it.latitude, it.longitude), it.timestamp) }
-                locationService?.setRoute(points)
-                _routeState.update {
-                    it.copy(routePoints = points, isRouteMode = true)
+            val result = routeRepository.loadRoute(group)
+            when (result) {
+                is AppResult.Success -> {
+                    val points = result.data
+                    if (points.isEmpty()) return@launch
+                    serviceConnector.execute { setRoute(points) }
+                    _routeState.update {
+                        it.copy(routePoints = points, isRouteMode = true)
+                    }
+                    Timber.d("Route loaded: $group, ${points.size} points")
                 }
-                Timber.d("Route loaded: $group, ${points.size} points")
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to load route")
+                is AppResult.Error -> Timber.e(result.exception, "Failed to load route")
             }
         }
     }
 
     /**
-     * 获取所有路线组名称
+     * 获取所有路线组名称 — ✅ Phase 1: 通过 RouteRepository
      */
     suspend fun getSavedRouteGroups(): List<String> {
-        return try {
-            com.mockloc.VirtualLocationApp.getDatabase()
-                .savedRouteDao()
-                .getAllGroups()
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to get route groups")
-            emptyList()
-        }
+        return routeRepository.getAllGroups()
+    }
+
+    // ==================== Phase 1: Repository 代理方法（供 Fragment 调用） ====================
+
+    /**
+     * 逆地理编码 — 通过 SearchRepository，复用单例 PoiSearchHelper
+     */
+    fun reverseGeocode(lat: Double, lng: Double, callback: (name: String, address: String) -> Unit) {
+        searchRepository.reverseGeocode(lat, lng, callback)
+    }
+
+    /**
+     * 保存到历史记录 — 通过 LocationRepository
+     */
+    suspend fun saveToHistory(name: String, address: String, latitude: Double, longitude: Double): AppResult<Int> {
+        return locationRepository.saveToHistory(name, address, latitude, longitude)
+    }
+
+    /**
+     * 添加到收藏 — 通过 LocationRepository
+     * @return true=新增成功, false=已存在
+     */
+    suspend fun addToFavorite(name: String, address: String, latitude: Double, longitude: Double): Boolean {
+        return locationRepository.addToFavorite(name, address, latitude, longitude)
+            .getOrDefault(false)
+    }
+
+    /**
+     * 检查是否已收藏 — 通过 LocationRepository
+     */
+    suspend fun isFavorite(latitude: Double, longitude: Double): Boolean {
+        return locationRepository.isFavorite(latitude, longitude)
     }
 
     // ==================== 生命周期 ====================
@@ -888,15 +853,14 @@ class MainViewModel(
         locationClient?.stopLocation()
         locationClient?.onDestroy()
         locationClient = null
-        
-        // ✅ 清理路线状态同步任务
-        routeStateSyncJob?.cancel()
-        routeStateSyncJob = null
-        
+
+        // ✅ 解绑 ServiceConnector
+        serviceConnector.unbind()
+
         // ✅ 移除应用生命周期监听器，防止内存泄漏
         ProcessLifecycleOwner.get().lifecycle.removeObserver(appLifecycleObserver)
         Timber.d("Removed app lifecycle observer")
-        
+
         Timber.d("MainViewModel cleared")
     }
 }

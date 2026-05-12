@@ -29,6 +29,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.mockloc.R
@@ -62,6 +63,32 @@ class LocationService : Service() {
     // ✅ 新增：服务专属的协程作用域，确保服务停止时所有任务自动取消
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var moveJob: Job? = null
+
+    // ==================== 对外暴露的 StateFlow（供 ServiceConnector 订阅）====================
+
+    /**
+     * 模拟状态 StateFlow
+     * 替代 @Volatile staticIsRunning 的静态标志，提供响应式观察
+     */
+    private val _simulationState = MutableStateFlow(SimulationState())
+    val simulationState: StateFlow<SimulationState> = _simulationState.asStateFlow()
+
+    /**
+     * 路线播放状态 StateFlow
+     * 透传 RoutePlaybackEngine 的状态，供 ServiceConnector flatMapLatest 订阅
+     */
+    val routePlaybackState: StateFlow<RoutePlaybackState>
+        get() = routePlaybackEngine?.state ?: MutableStateFlow(RoutePlaybackState()).asStateFlow()
+
+    /**
+     * 模拟状态数据类
+     */
+    data class SimulationState(
+        val isSimulating: Boolean = false,
+        val isAutoMoving: Boolean = false,
+        val speedMode: String = "walk",
+        val currentSpeed: Float = 1.4f
+    )
 
     companion object {
         const val ACTION_START = "com.mockloc.action.START"
@@ -524,6 +551,7 @@ class LocationService : Service() {
         // 1. 标记服务停止
         isRunning = false
         staticIsRunning = false
+        _simulationState.update { SimulationState() } // 重置模拟状态
         
         // 2. 取消协程任务（✅ 替代 HandlerThread 清理）
         moveJob?.cancel()
@@ -678,6 +706,7 @@ class LocationService : Service() {
         }
         isRunning = true
         staticIsRunning = true
+        _simulationState.update { it.copy(isSimulating = true) }
         setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
         setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
         // 如果协程循环已被取消（stopSimulation后重启），需要重新启动
@@ -696,6 +725,7 @@ class LocationService : Service() {
         
         isRunning = false
         staticIsRunning = false
+        _simulationState.update { it.copy(isSimulating = false, isAutoMoving = false) }
         moveJob?.cancel() // ✅ 取消协程任务
         cancelAutoMove()
         floatingWindowManager?.hide()
@@ -872,6 +902,7 @@ class LocationService : Service() {
     /** 切换速度模式（由悬浮窗调用） */
     fun setSpeedMode(mode: String) {
         prefs.edit().putString(PrefsConfig.Settings.KEY_SPEED_MODE, mode).apply()
+        _simulationState.update { it.copy(speedMode = mode) }
         applySpeedMode(mode)
     }
 
@@ -895,9 +926,10 @@ class LocationService : Service() {
                 }
                 isRunning = true
                 staticIsRunning = true
+                _simulationState.update { it.copy(isSimulating = true) }
                 setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
                 setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-                
+
                 // 确保协程循环正在运行
                 if (moveJob?.isActive != true) {
                     Timber.d("🔄 协程未运行，重新启动 initLocationUpdateLoop")
@@ -995,6 +1027,12 @@ class LocationService : Service() {
 
     // ==================== 历史记录清理 ====================
 
+    // ✅ Phase 1: 通过 LocationRepository 清理过期历史
+    private val locationRepository by lazy {
+        val db = com.mockloc.VirtualLocationApp.getDatabase()
+        com.mockloc.data.repository.LocationRepository(db.historyLocationDao(), db.favoriteLocationDao())
+    }
+
     private fun cleanupExpiredHistory() {
         val expiryDays = prefs.getInt(PrefsConfig.Settings.KEY_HISTORY_EXPIRY, 30)
         if (expiryDays <= 0) return  // -1 = 永久保存
@@ -1003,8 +1041,7 @@ class LocationService : Service() {
         // ✅ 关键修复：使用 serviceScope 异步执行，避免阻塞 moveExecutor 线程
         serviceScope.launch(Dispatchers.IO) {
             try {
-                val db = com.mockloc.VirtualLocationApp.getDatabase()
-                db.historyLocationDao().deleteOlderThan(cutoffTime)
+                locationRepository.deleteHistoryOlderThan(cutoffTime)
                 Timber.d("Cleaned up history older than $expiryDays days")
             } catch (e: Exception) {
                 Timber.w(e, "Failed to cleanup expired history")

@@ -34,7 +34,6 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.snackbar.Snackbar
 import com.mockloc.R
 import com.mockloc.databinding.FragmentMainBinding
-import com.mockloc.repository.PoiSearchHelper
 import com.mockloc.service.LocationService
 import com.mockloc.service.RoutePlaybackState
 import com.mockloc.ui.favorite.FavoriteActivity
@@ -404,21 +403,17 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 保存位置到历史记录
-     * ✅ 修复：使用高德异步逆地理编码，避免原生 Geocoder 阻塞 IO 线程
+     * 保存位置到历史记录 — ✅ Phase 1: 通过 ViewModel + Repository
+     * 使用高德异步逆地理编码，避免原生 Geocoder 阻塞 IO 线程
      */
     private fun saveToHistory(latitude: Double, longitude: Double) {
         Timber.d("saveToHistory called: lat=$latitude, lng=$longitude")
         
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val db = com.mockloc.VirtualLocationApp.getDatabase()
-                
-                // ✅ 优化：使用 PoiSearchHelper 进行异步逆地理编码
-                val helper = com.mockloc.repository.PoiSearchHelper(requireContext())
-                
+                // ✅ Phase 1: 通过 ViewModel 使用 SearchRepository 的单例 PoiSearchHelper
                 val (resolvedName, resolvedAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
-                    helper.latLngToAddress(latitude, longitude) { name, fullAddress ->
+                    viewModel.reverseGeocode(latitude, longitude) { name, fullAddress ->
                         if (cont.isActive) cont.resume(Pair(name, fullAddress)) {}
                     }
                 }
@@ -434,43 +429,16 @@ class MainFragment : Fragment() {
                     String.format("%.4f°%s, %.4f°%s", Math.abs(latitude), latDir, Math.abs(longitude), lngDir)
                 }
                 
-                Timber.d("Creating HistoryLocation: name='$name', address='$resolvedAddress'")
+                Timber.d("Saving to history via Repository: name='$name', address='$resolvedAddress'")
                 
-                val historyLocation = com.mockloc.data.db.HistoryLocation(
-                    name = name,
-                    address = resolvedAddress,
-                    latitude = latitude,
-                    longitude = longitude
-                )
-                
-                Timber.d("Inserting into database...")
-                
-                // ✅ 优化：检查是否与上一条历史记录坐标相同，避免重复
-                val allRecords = db.historyLocationDao().getAll()
-                val lastRecord = allRecords.firstOrNull()
-                
-                if (lastRecord != null && 
-                    lastRecord.latitude == latitude && 
-                    lastRecord.longitude == longitude) {
-                    // 坐标相同，只更新时间戳和名称
-                    val updatedRecord = lastRecord.copy(
-                        name = name,
-                        address = resolvedAddress,
-                        timestamp = System.currentTimeMillis()
-                    )
-                    db.historyLocationDao().update(updatedRecord)
-                    Timber.d("✅ Updated last history record timestamp: $name")
-                } else {
-                    // 坐标不同，插入新记录
-                    db.historyLocationDao().insert(historyLocation)
-                    Timber.d("✅ Inserted new history record: $name")
+                // ✅ Phase 1: 通过 ViewModel → LocationRepository 保存
+                val result = viewModel.saveToHistory(name, resolvedAddress, latitude, longitude)
+                when (result) {
+                    is com.mockloc.core.common.AppResult.Success ->
+                        Timber.d("Total history records (after cleanup): ${result.data}")
+                    is com.mockloc.core.common.AppResult.Error ->
+                        Timber.e(result.exception, "Failed to save to history")
                 }
-                
-                // ✅ 新增：自动清理旧数据，只保留最近 100 条
-                db.historyLocationDao().keepRecentRecords(100)
-                
-                val finalCount = db.historyLocationDao().getAll().size
-                Timber.d("Total history records in DB (after cleanup): $finalCount")
             } catch (e: Exception) {
                 Timber.e(e, "❌ Failed to save to history")
             }
@@ -1456,9 +1424,9 @@ class MainFragment : Fragment() {
         } else {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val helper = com.mockloc.repository.PoiSearchHelper(requireContext())
+                    // ✅ Phase 1: 通过 ViewModel 使用 SearchRepository 的单例 PoiSearchHelper
                     val (_, fullAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
-                        helper.latLngToAddress(latLng.latitude, latLng.longitude) { name, addr ->
+                        viewModel.reverseGeocode(latLng.latitude, latLng.longitude) { name, addr ->
                             if (cont.isActive) cont.resume(Pair(name, addr)) {}
                         }
                     }
@@ -1580,14 +1548,14 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 添加到收藏
+     * 添加到收藏 — ✅ Phase 1: 通过 ViewModel + Repository
      */
     private fun addToFavorite() {
         viewModel.mapState.value.markedPosition?.let { location ->
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val db = com.mockloc.VirtualLocationApp.getDatabase()
-                    val exists = db.favoriteLocationDao().exists(location.latitude, location.longitude)
+                    // ✅ Phase 1: 通过 ViewModel → LocationRepository 检查是否已收藏
+                    val exists = viewModel.isFavorite(location.latitude, location.longitude)
                     
                     // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态
                     if (!isAdded || view == null) return@launch
@@ -1599,18 +1567,14 @@ class MainFragment : Fragment() {
                             }
                         }
                     } else {
+                        // ✅ Phase 1: 通过 ViewModel 的 reverseGeocode 复用单例 PoiSearchHelper
                         val (name, fullAddress) = getAddressFromLocation(location)
                         
                         // ✅ 再次检查，防止在等待逆地理编码期间 Fragment 被销毁
                         if (!isAdded || view == null) return@launch
                         
-                        val favorite = com.mockloc.data.db.FavoriteLocation(
-                            name = name,
-                            address = fullAddress,
-                            latitude = location.latitude,
-                            longitude = location.longitude
-                        )
-                        db.favoriteLocationDao().insert(favorite)
+                        // ✅ Phase 1: 通过 ViewModel → LocationRepository 添加收藏
+                        viewModel.addToFavorite(name, fullAddress, location.latitude, location.longitude)
                         
                         withContext(Dispatchers.Main) {
                             if (isAdded && view != null) {
@@ -1628,13 +1592,12 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 获取地址名称（使用高德逆地理编码）
+     * 获取地址名称（使用高德逆地理编码）— ✅ Phase 1: 通过 ViewModel + SearchRepository
      */
     private suspend fun getAddressFromLocation(latLng: LatLng): Pair<String, String> {
         return try {
-            val helper = com.mockloc.repository.PoiSearchHelper(requireContext())
             val (name, fullAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
-                helper.latLngToAddress(latLng.latitude, latLng.longitude) { n, addr ->
+                viewModel.reverseGeocode(latLng.latitude, latLng.longitude) { n, addr ->
                     if (cont.isActive) cont.resume(Pair(n, addr)) {}
                 }
             }

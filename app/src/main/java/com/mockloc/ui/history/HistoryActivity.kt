@@ -6,9 +6,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.mockloc.VirtualLocationApp
 import com.mockloc.data.db.HistoryLocation
 import com.mockloc.data.db.SearchHistory
+import com.mockloc.data.repository.LocationRepository
+import com.mockloc.data.repository.SearchRepository
 import com.mockloc.databinding.ActivityHistoryBinding
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -21,6 +22,16 @@ class HistoryActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHistoryBinding
     private lateinit var locationAdapter: HistoryAdapter
     private lateinit var searchAdapter: SearchHistoryAdapter
+    
+    // ✅ Phase 1: Repository 替代直接 DAO 访问
+    private val locationRepository by lazy {
+        val db = com.mockloc.VirtualLocationApp.getDatabase()
+        LocationRepository(db.historyLocationDao(), db.favoriteLocationDao())
+    }
+    private val searchRepository by lazy {
+        val db = com.mockloc.VirtualLocationApp.getDatabase()
+        SearchRepository(db.searchHistoryDao(), com.mockloc.repository.PoiSearchHelper(this))
+    }
     
     // 当前选中的标签：0=位置记录, 1=搜索记录
     private var currentTab = 0
@@ -137,8 +148,7 @@ class HistoryActivity : AppCompatActivity() {
     private fun deleteLocationItem(item: HistoryItem) {
         lifecycleScope.launch {
             try {
-                val db = VirtualLocationApp.getDatabase()
-                db.historyLocationDao().deleteById(item.id)
+                locationRepository.deleteHistoryById(item.id)
                 loadData()
                 Timber.d("已删除位置记录: ${item.name}")
             } catch (e: Exception) {
@@ -150,8 +160,7 @@ class HistoryActivity : AppCompatActivity() {
     private fun deleteSearchItem(item: SearchHistoryItem) {
         lifecycleScope.launch {
             try {
-                val db = VirtualLocationApp.getDatabase()
-                db.searchHistoryDao().deleteById(item.id)
+                searchRepository.deleteSearchHistoryById(item.id)
                 loadData()
                 Timber.d("已删除搜索记录: ${item.keyword}")
             } catch (e: Exception) {
@@ -166,12 +175,11 @@ class HistoryActivity : AppCompatActivity() {
                 // 显示加载指示器
                 showLoading(true)
                 
-                val db = VirtualLocationApp.getDatabase()
                 Timber.d("Loading data, currentTab: $currentTab")
                 
                 if (currentTab == 0) {
-                    // 加载位置记录
-                    val items = db.historyLocationDao().getAll()
+                    // ✅ Phase 1: 通过 LocationRepository 加载位置记录
+                    val items = locationRepository.getAllHistory()
                     Timber.d("Loaded ${items.size} location history items")
                     val historyItems = items.map {
                         HistoryItem(it.id, it.name, it.latitude, it.longitude)
@@ -188,8 +196,8 @@ class HistoryActivity : AppCompatActivity() {
                     locationAdapter.submitList(historyItems)
                     updateEmptyState(historyItems.isEmpty(), isSearchTab = false)
                 } else {
-                    // 加载搜索历史
-                    val items = db.searchHistoryDao().getAll()
+                    // ✅ Phase 1: 通过 SearchRepository 加载搜索历史
+                    val items = searchRepository.getAllSearchHistory()
                     Timber.d("Loaded ${items.size} search history items")
                     val searchItems = items.map {
                         SearchHistoryItem(it.id, it.keyword, it.name, it.address, it.latitude, it.longitude)
