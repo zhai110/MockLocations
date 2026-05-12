@@ -16,15 +16,13 @@ import androidx.core.content.ContextCompat
 import com.amap.api.location.AMapLocationClient
 import com.amap.api.location.AMapLocationClientOption
 import com.amap.api.maps.AMap
-import com.amap.api.maps.CameraUpdateFactory
 import com.amap.api.maps.MapView
-import com.amap.api.maps.model.BitmapDescriptorFactory
 import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.model.Marker
-import com.amap.api.maps.model.MarkerOptions
 import com.amap.api.maps.model.MyLocationStyle
 import com.mockloc.R
-import com.mockloc.repository.PoiSearchHelper
+import com.mockloc.core.utils.MapDelegate
+import com.mockloc.data.repository.SearchRepository
 import com.mockloc.util.AnimationHelper
 import com.mockloc.util.MapUtils
 import com.mockloc.util.PrefsConfig
@@ -38,19 +36,28 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
- * 地图窗口控制器（完善版）
- * 
+ * 地图窗口控制器
+ *
  * 负责管理悬浮窗中的地图选点界面
  * 包括：搜索框、地图视图、POI搜索结果、定位按钮
+ *
+ * 设计：不持有 LocationService 引用，通过回调与外部交互
+ * - getCurrentLocationGcj02: 获取当前位置（GCJ-02），用于"回到当前位置"
+ * - onStopSimulation: 停止模拟定位
+ * - searchRepository: POI 搜索，替代直接创建 PoiSearchHelper
  */
 class MapWindowController(
     private val context: Context,
-    private val service: LocationService,
+    private val searchRepository: SearchRepository,
     private val windowManager: android.view.WindowManager,
     private val windowParams: android.view.WindowManager.LayoutParams,
     private val onSwitchToJoystick: () -> Unit,
     private val onSwitchToHistory: () -> Unit,
-    private val onLocationSelected: (lat: Double, lng: Double) -> Unit
+    private val onLocationSelected: (lat: Double, lng: Double) -> Unit,
+    private val getCurrentLocationGcj02: () -> Pair<Double, Double>,
+    private val isSimulating: () -> Boolean,
+    private val onStopSimulation: () -> Unit,
+    private val serviceContext: Context
 ) : WindowController {
 
     override var rootView: View? = null
@@ -65,17 +72,13 @@ class MapWindowController(
     // 内部视图引用
     private var mapView: MapView? = null
     private var aMap: AMap? = null
+    private var mapDelegate: MapDelegate? = null
     private var searchEditText: EditText? = null
+    private var locationClient: AMapLocationClient? = null
     private var btnClose: ImageButton? = null
     private var btnGo: ImageButton? = null
     private var searchScroll: ScrollView? = null
     private var searchList: LinearLayout? = null
-    
-    // POI 搜索
-    private var poiSearchHelper: PoiSearchHelper? = null
-    
-    // 定位客户端
-    private var locationClient: AMapLocationClient? = null
     
     // 状态管理
     private var markedLatLng: LatLng? = null
@@ -169,29 +172,25 @@ class MapWindowController(
         scope.cancel()
         btnGoPulseAnimator?.cancel()
         
-        // 1. 销毁定位客户端
         locationClient?.stopLocation()
         locationClient?.onDestroy()
         locationClient = null
         
-        // 2. 销毁地图视图（重要：必须调用 onDestroy 释放原生资源）
+        mapDelegate?.cleanup()
+        mapDelegate = null
         mapView?.onDestroy()
         mapView = null
         aMap = null
         
-        // 3. 清理所有视图引用
         searchEditText = null
         btnClose = null
         btnGo = null
         searchScroll = null
         searchList = null
-        poiSearchHelper = null
         rootView = null
         
         isInitialized = false
         isVisible = false
-        
-        Timber.d("MapWindowController destroyed")
     }
 
     /**
@@ -259,8 +258,6 @@ class MapWindowController(
     private fun createMapLayout() {
         val density = context.resources.displayMetrics.density
         val dp = { v: Int -> (v * density).toInt() }
-
-        poiSearchHelper = PoiSearchHelper(service)
 
         // 主容器（使用 DragLinearLayout 支持拖动）
         val container = DragLinearLayout(context).apply {
@@ -492,66 +489,49 @@ class MapWindowController(
         mapView?.onCreate(null)
         aMap = mapView?.map
         
-        // 初始化定位客户端（让蓝点能够跟随模拟位置移动）
+        val am = aMap ?: return
+        mapDelegate = MapDelegate(am)
+        
         initLocationClient()
         
-        aMap?.apply {
-            // 设置地图类型
-            mapType = if (isNightMode) {
-                val prefs = service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
-                prefs.getInt("map_type_night", AMap.MAP_TYPE_NIGHT)
-            } else {
-                val prefs = service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
-                prefs.getInt("map_type_day", AMap.MAP_TYPE_NORMAL)
-            }
+        am.apply {
+            val prefs = context.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
+            val nightType = prefs.getInt("map_type_night", AMap.MAP_TYPE_NIGHT)
+            val dayType = prefs.getInt("map_type_day", AMap.MAP_TYPE_NORMAL)
+            mapDelegate!!.setNightMode(isNightMode, nightType, dayType)
             
-            // 显示定位蓝点
             uiSettings.isMyLocationButtonEnabled = false
             myLocationStyle = MyLocationStyle().apply {
-                // 使用 LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER
-                // 显示蓝点+方向箭头，但不自动移动相机
-                // 这样既能看到朝向，又不会干扰用户选点
                 myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER)
                 showMyLocation(true)
-                // 设置精度圈颜色（与app内部一致）
                 strokeColor(ContextCompat.getColor(context, R.color.primary))
                 radiusFillColor(ContextCompat.getColor(context, R.color.location_accuracy_fill))
-                // 设置边框宽度
                 strokeWidth(2f)
             }
             isMyLocationEnabled = true
             
-            // 隐藏缩放按钮和指南针
-            uiSettings.isZoomControlsEnabled = false
-            uiSettings.isCompassEnabled = false
+            mapDelegate!!.setupDefaultSettings(
+                showLocationButton = false,
+                zoomControlsEnabled = false,
+                compassEnabled = false
+            )
             
-            // 地图点击标记
             setOnMapClickListener { latLng ->
-                // 点击地图时关闭搜索列表
                 searchScroll?.visibility = View.GONE
                 markMapPoint(latLng)
             }
             setOnMapLongClickListener { latLng ->
-                // 长按地图时关闭搜索列表
                 searchScroll?.visibility = View.GONE
                 markMapPoint(latLng)
             }
             
-            // 标记拖拽监听
             setOnMarkerDragListener(object : AMap.OnMarkerDragListener {
-                override fun onMarkerDragStart(marker: Marker) {
-                    // 拖拽开始
-                }
-
+                override fun onMarkerDragStart(marker: Marker) {}
                 override fun onMarkerDrag(marker: Marker) {
-                    // 拖拽中，更新标记位置
                     markedLatLng = marker.position
                 }
-
                 override fun onMarkerDragEnd(marker: Marker) {
-                    // 拖拽结束，更新位置
                     markedLatLng = marker.position
-                    // 触发脉冲动画
                     if (!isPositionConfirmed) {
                         btnGoPulseAnimator?.cancel()
                         isPositionConfirmed = true
@@ -561,27 +541,20 @@ class MapWindowController(
                 }
             })
             
-            // 地图相机变化监听
             setOnCameraChangeListener(object : AMap.OnCameraChangeListener {
-                override fun onCameraChange(cameraPosition: com.amap.api.maps.model.CameraPosition) {
-                    // 相机变化中，不做处理
-                }
-
+                override fun onCameraChange(cameraPosition: com.amap.api.maps.model.CameraPosition) {}
                 override fun onCameraChangeFinish(cameraPosition: com.amap.api.maps.model.CameraPosition) {
-                    // 相机变化完成，保存状态
-                    val prefs = service.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
+                    val prefs = context.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
                     prefs.edit().apply {
                         putFloat(PrefsConfig.MapState.KEY_LATITUDE, cameraPosition.target.latitude.toFloat())
                         putFloat(PrefsConfig.MapState.KEY_LONGITUDE, cameraPosition.target.longitude.toFloat())
                         putFloat(PrefsConfig.MapState.KEY_ZOOM, cameraPosition.zoom)
                         apply()
                     }
-                    Timber.d("保存地图状态: lat=${cameraPosition.target.latitude}, lng=${cameraPosition.target.longitude}, zoom=${cameraPosition.zoom}")
                 }
             })
         }
         
-        // 恢复地图状态（包括模拟位置）
         restoreMapState()
     }
 
@@ -589,16 +562,10 @@ class MapWindowController(
      * 根据夜间模式更新地图类型
      */
     private fun updateMapTypeForNightMode() {
-        aMap?.apply {
-            mapType = if (isNightMode) {
-                val prefs = service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
-                prefs.getInt("map_type_night", AMap.MAP_TYPE_NIGHT)
-            } else {
-                val prefs = service.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
-                prefs.getInt("map_type_day", AMap.MAP_TYPE_NORMAL)
-            }
-            Timber.d("Map type updated: isNightMode=$isNightMode, mapType=$mapType")
-        }
+        val prefs = context.getSharedPreferences(PrefsConfig.SETTINGS, Context.MODE_PRIVATE)
+        val nightType = prefs.getInt("map_type_night", AMap.MAP_TYPE_NIGHT)
+        val dayType = prefs.getInt("map_type_day", AMap.MAP_TYPE_NORMAL)
+        mapDelegate?.setNightMode(isNightMode, nightType, dayType)
     }
 
     /**
@@ -606,39 +573,25 @@ class MapWindowController(
      */
     private fun restoreMapState() {
         try {
-            if (aMap == null) {
-                Timber.w("aMap 为空，跳过恢复地图状态")
-                return
-            }
+            if (aMap == null) return
             
-            // 读取保存的地图状态
-            val prefs = service.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
             val lat = prefs.getFloat(PrefsConfig.MapState.KEY_LATITUDE, -1f)
             val lng = prefs.getFloat(PrefsConfig.MapState.KEY_LONGITUDE, -1f)
             val zoom = prefs.getFloat(PrefsConfig.MapState.KEY_ZOOM, 15f)
             
             if (lat > 0 && lng > 0) {
-                // 恢复到上次的位置和缩放级别
-                val target = com.amap.api.maps.model.LatLng(lat.toDouble(), lng.toDouble())
-                aMap?.moveCamera(
-                    com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(target, zoom)
-                )
-                Timber.d("恢复地图状态: lat=$lat, lng=$lng, zoom=$zoom")
-            } else {
-                // 如果没有保存的状态，定位到当前位置
-                Timber.d("无保存的地图状态，等待定位")
+                val target = LatLng(lat.toDouble(), lng.toDouble())
+                mapDelegate?.moveCamera(target, zoom)
             }
             
-            // ✅ 恢复标记位置
             val markedLat = prefs.getFloat(PrefsConfig.MapState.KEY_MARKED_LAT, -1f)
             val markedLng = prefs.getFloat(PrefsConfig.MapState.KEY_MARKED_LNG, -1f)
             if (markedLat > 0 && markedLng > 0) {
-                val markedPos = com.amap.api.maps.model.LatLng(markedLat.toDouble(), markedLng.toDouble())
+                val markedPos = LatLng(markedLat.toDouble(), markedLng.toDouble())
                 markMapPoint(markedPos)
-                Timber.d("恢复标记位置: $markedPos")
             }
             
-            // ✅ 恢复模拟状态：如果正在模拟，显示激活状态的按钮
             restoreSimulationState()
         } catch (e: Exception) {
             Timber.e(e, "恢复地图状态失败")
@@ -652,10 +605,10 @@ class MapWindowController(
      */
     private fun restoreSimulationState() {
         try {
-            val isSimulating = LocationService.isSimulating()
-            Timber.d("恢复模拟状态: isSimulating=$isSimulating")
+            val simulating = isSimulating()
+            Timber.d("恢复模拟状态: isSimulating=$simulating")
             
-            if (isSimulating) {
+            if (simulating) {
                 // 正在模拟：切换到激活状态
                 btnGoPulseAnimator?.cancel()
                 isPositionConfirmed = true
@@ -681,33 +634,15 @@ class MapWindowController(
     private fun markMapPoint(latLng: LatLng) {
         markedLatLng = latLng
         
-        // ✅ 保存标记位置到 SP（同步到主界面）
-        val prefs = service.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
         prefs.edit().apply {
             putFloat(PrefsConfig.MapState.KEY_MARKED_LAT, latLng.latitude.toFloat())
             putFloat(PrefsConfig.MapState.KEY_MARKED_LNG, latLng.longitude.toFloat())
             apply()
         }
-        Timber.d("保存标记位置: $latLng")
         
-        aMap?.apply {
-            clear()
-            // 使用红色标记（与app内部一致）
-            val marker = addMarker(
-                MarkerOptions()
-                    .position(latLng)
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-                    .draggable(true)  // 支持拖拽
-            )
-            
-            // 选中状态的标记样式
-            marker?.let {
-                it.setInfoWindowEnable(false)
-                it.isFlat = false
-            }
-        }
+        mapDelegate?.replaceMarker(latLng, draggable = true)
         
-        // 停止待命脉冲，切换到激活状态
         btnGoPulseAnimator?.cancel()
         isPositionConfirmed = true
         btnGo?.setImageResource(R.drawable.ic_fly)
@@ -742,15 +677,11 @@ class MapWindowController(
                     ?.start()
             }
             
-            // ✅ 执行位置传送（setPositionWgs84 会自动处理启动逻辑）
             val wgs = MapUtils.gcj02ToWgs84(marked.longitude, marked.latitude)
             onLocationSelected(wgs[1], wgs[0])
-            Timber.d("📍 悬浮窗地图：位置已选择 (${String.format("%.6f", wgs[1])}, ${String.format("%.6f", wgs[0])})")
             UIFeedbackHelper.showToast(context, "已传送到新位置")
             
-            // 地图相机跟随（使用动画）
-            val currentZoom = aMap?.cameraPosition?.zoom ?: 18f
-            aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(marked, currentZoom))
+            mapDelegate?.animateCamera(marked)
             
             markedLatLng = null
             
@@ -774,17 +705,9 @@ class MapWindowController(
         }
     }
 
-    /**
-     * 停止模拟定位
-     */
     private fun stopSimulation() {
-        // ✅ 通过 Intent 发送 ACTION_STOP
         try {
-            val intent = android.content.Intent(context, LocationService::class.java).apply {
-                action = LocationService.ACTION_STOP
-            }
-            context.startService(intent)
-            Timber.d("🛑 悬浮窗地图：发送停止模拟指令")
+            onStopSimulation()
         } catch (e: Exception) {
             Timber.e(e, "悬浮窗地图：停止模拟失败")
         }
@@ -794,12 +717,9 @@ class MapWindowController(
      * 重置地图相机
      */
     private fun resetMapCamera() {
-        val (lat, lng) = service.getCurrentLocationGcj02()
+        val (lat, lng) = getCurrentLocationGcj02()
         if (lat != 0.0 || lng != 0.0) {
-            // ✅ 使用动画平滑移动到当前位置
-            aMap?.animateCamera(
-                CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 15f)
-            )
+            mapDelegate?.animateCamera(LatLng(lat, lng), 15f)
         }
     }
 
@@ -809,23 +729,16 @@ class MapWindowController(
     private fun searchPoi(query: String) {
         Timber.d("Searching POI: $query")
         
-        // 获取当前地图中心点作为搜索中心
         val centerLat = aMap?.cameraPosition?.target?.latitude
         val centerLng = aMap?.cameraPosition?.target?.longitude
         
-        poiSearchHelper?.searchPlace(
+        searchRepository.searchPlace(
             keyword = query,
-            callback = { results ->
-                Timber.d("POI search result count: ${results.size}")
-                results.forEachIndexed { index, item ->
-                    Timber.d("Result $index: ${item.name}, lat=${item.lat}, lng=${item.lng}")
-                }
-                showSearchResults(results)
-            },
             centerLat = centerLat,
             centerLng = centerLng
-            // ✅ 使用默认半径20km（支持自动扩大到50km）
-        )
+        ) { results ->
+            showSearchResults(results)
+        }
     }
 
     /**
@@ -904,12 +817,10 @@ class MapWindowController(
      * 处理搜索结果点击事件
      */
     private fun onSearchResultClicked(result: com.mockloc.repository.PoiSearchHelper.PlaceItem) {
-        // 移动到搜索结果位置（使用动画）
         val pos = LatLng(result.lat, result.lng)
-        aMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+        mapDelegate?.animateCamera(pos, 16f)
         markMapPoint(pos)
-
-        // 隐藏搜索列表并清空输入
+        
         searchScroll?.visibility = View.GONE
         searchEditText?.setText("")
         searchEditText?.clearFocus()
@@ -923,7 +834,7 @@ class MapWindowController(
     private fun initLocationClient() {
         try {
             // 使用 service 作为 Context，而不是 themedContext
-            locationClient = AMapLocationClient(service)
+            locationClient = AMapLocationClient(serviceContext)
             locationClient?.setLocationOption(AMapLocationClientOption().apply {
                 locationMode = AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
                 isOnceLocation = false  // 持续定位

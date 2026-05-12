@@ -134,9 +134,14 @@ class FloatingWindowManager(private val service: LocationService) {
             }
             
             // 初始化地图控制器
+            val searchRepository = com.mockloc.data.repository.SearchRepository(
+                com.mockloc.VirtualLocationApp.getDatabase().searchHistoryDao(),
+                com.mockloc.repository.PoiSearchHelper(service)
+            )
+            
             mapController = MapWindowController(
                 context = themedContext,
-                service = service,
+                searchRepository = searchRepository,
                 windowManager = windowManager,
                 windowParams = windowParams,
                 onSwitchToJoystick = {
@@ -146,9 +151,21 @@ class FloatingWindowManager(private val service: LocationService) {
                     switchToHistory()
                 },
                 onLocationSelected = { lat, lng ->
-                    // ✅ 修复：onPositionSelected 接口定义为 (wgsLng, wgsLat)，需要交换
                     listener?.onPositionSelected(lng, lat, 0.0)
-                }
+                },
+                getCurrentLocationGcj02 = {
+                    service.getCurrentLocationGcj02()
+                },
+                isSimulating = {
+                    LocationService.isSimulating()
+                },
+                onStopSimulation = {
+                    val intent = android.content.Intent(service, LocationService::class.java).apply {
+                        action = LocationService.ACTION_STOP
+                    }
+                    service.startService(intent)
+                },
+                serviceContext = service
             )
             mapController?.initialize()
             
