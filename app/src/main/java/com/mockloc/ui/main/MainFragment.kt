@@ -97,6 +97,12 @@ class MainFragment : Fragment() {
             updateClearButtonVisibility()
         }
     }
+    
+    // ✅ Phase 2: Delegate 成员变量
+    private lateinit var searchDelegate: com.mockloc.ui.main.delegate.SearchDelegate
+    private lateinit var simulationDelegate: com.mockloc.ui.main.delegate.SimulationDelegate
+    private lateinit var routeEditDelegate: com.mockloc.ui.main.delegate.RouteEditDelegate
+    private lateinit var themeDelegate: com.mockloc.ui.main.delegate.ThemeDelegate
 
     // 历史记录结果启动器
     private val historyLauncher = registerForActivityResult(
@@ -205,6 +211,20 @@ class MainFragment : Fragment() {
 
         // 初始化搜索
         viewModel.initSearch()
+        
+        // ✅ Phase 2: 初始化 Delegate
+        searchDelegate = com.mockloc.ui.main.delegate.SearchDelegate(this, viewModel, binding)
+        searchDelegate.init()
+        
+        simulationDelegate = com.mockloc.ui.main.delegate.SimulationDelegate(this, viewModel, binding)
+        simulationDelegate.onPermissionCheckNeeded = { checkPermissions() }
+        
+        routeEditDelegate = com.mockloc.ui.main.delegate.RouteEditDelegate(this, viewModel, binding)
+        routeEditDelegate.onGetAMap = { if (::aMap.isInitialized) aMap else null }
+        
+        themeDelegate = com.mockloc.ui.main.delegate.ThemeDelegate(this, binding)
+        themeDelegate.init()
+        
         initSearch()
 
         // 初始化BottomSheet
