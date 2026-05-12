@@ -214,7 +214,7 @@ class MainFragment : Fragment() {
         
         // ✅ Phase 2: 初始化 Delegate
         searchDelegate = com.mockloc.ui.main.delegate.SearchDelegate(this, viewModel, binding)
-        searchDelegate.init()
+        searchDelegate.init()  // SearchDelegate 已包含 initSearch 的逻辑
         
         simulationDelegate = com.mockloc.ui.main.delegate.SimulationDelegate(this, viewModel, binding)
         simulationDelegate.onPermissionCheckNeeded = { checkPermissions() }
@@ -224,8 +224,6 @@ class MainFragment : Fragment() {
         
         themeDelegate = com.mockloc.ui.main.delegate.ThemeDelegate(this, binding)
         themeDelegate.init()
-        
-        initSearch()
 
         // 初始化BottomSheet
         initBottomSheet()
