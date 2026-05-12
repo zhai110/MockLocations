@@ -53,10 +53,10 @@ import timber.log.Timber
 /**
  * 主界面Fragment
  * 
- * 职责：
+ * 职责�?
  * - 初始化地图（AMap、标记、相机）
- * - 管理搜索 UI（EditText、RecyclerView）
- * - 管理 BottomSheet（BottomSheetBehavior）
+ * - 管理搜索 UI（EditText、RecyclerView�?
+ * - 管理 BottomSheet（BottomSheetBehavior�?
  * - 管理 FAB 动画
  * - 观察 ViewModel 状态并更新 UI
  * - 响应用户交互（点击、拖拽、搜索）
@@ -74,22 +74,14 @@ class MainFragment : Fragment() {
     
     private var currentMarker: Marker? = null
     private var isSearchResultVisible = false
-    private var idlePulseAnimator: android.animation.ObjectAnimator? = null
     private var hasFirstLocation = false
     private var isMapDragging = false  // 标记是否正在拖动地图
     private var pendingPositionFromResult = false  // launcher 回调设置了新位置，onResume 不应覆盖
-    private var isNightMode = false  // ✅ 初始值会在 onViewCreated 中根据系统主题正确设置
-    private var isManualLayerSelected = false  // 标记用户是否手动选择了图层
-    private var routePolyline: Polyline? = null  // 路线折线
-    private var routePointMarkers: MutableList<Marker> = mutableListOf()  // 路线点标记
     
-    // 路线点编辑
-    private var selectedPointIndex: Int = -1  // 当前选中的路线点索引
-    
-    // ✅ 动态按钮切换状态
+    // �?动态按钮切换状�?
     private var currentTabMode: Int = 0  // 0=单点定位, 1=路线模拟
     
-    // ✅ 搜索框文本监听器（用于清除时临时移除）
+    // �?搜索框文本监听器（用于清除时临时移除�?
     private val searchTextWatcher = object : android.text.TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -98,13 +90,13 @@ class MainFragment : Fragment() {
         }
     }
     
-    // ✅ Phase 2: Delegate 成员变量
+    // �?Phase 2: Delegate 成员变量
     private lateinit var searchDelegate: com.mockloc.ui.main.delegate.SearchDelegate
     private lateinit var simulationDelegate: com.mockloc.ui.main.delegate.SimulationDelegate
     private lateinit var routeEditDelegate: com.mockloc.ui.main.delegate.RouteEditDelegate
     private lateinit var themeDelegate: com.mockloc.ui.main.delegate.ThemeDelegate
 
-    // 历史记录结果启动器
+    // 历史记录结果启动�?
     private val historyLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -123,7 +115,7 @@ class MainFragment : Fragment() {
         }
     }
 
-    // 收藏结果启动器
+    // 收藏结果启动�?
     private val favoriteLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -142,7 +134,7 @@ class MainFragment : Fragment() {
         }
     }
 
-    // 定位权限请求启动器
+    // 定位权限请求启动�?
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -150,14 +142,14 @@ class MainFragment : Fragment() {
             Timber.d("Location permission granted")
             viewModel.initLocation()
         } else {
-            // ✅ 权限被拒绝，检查是否需要显示解释
+            // �?权限被拒绝，检查是否需要显示解�?
             val shouldShowRationale = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)
             
             if (shouldShowRationale) {
-                // 用户之前拒绝过，但未选择“不再询问” → 显示解释对话框
+                // 用户之前拒绝过，但未选择“不再询问�?�?显示解释对话�?
                 showPermissionRationaleDialog()
             } else {
-                // 用户选择了“不再询问”或首次拒绝 → 引导去设置页面
+                // 用户选择了“不再询问”或首次拒绝 �?引导去设置页�?
                 showPermissionDeniedDialog()
             }
         }
@@ -175,9 +167,9 @@ class MainFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 设置沉浸式布局（需要在 Fragment 中通过 Activity 设置）
+        // 设置沉浸式布局（需要在 Fragment 中通过 Activity 设置�?
         try {
-            @Suppress("DEPRECATION")  // setDecorFitsSystemWindows 在 Android 15+ 已弃用，但当前实现仍然有效
+            @Suppress("DEPRECATION")  // setDecorFitsSystemWindows �?Android 15+ 已弃用，但当前实现仍然有�?
             requireActivity().window.setDecorFitsSystemWindows(false)
             requireActivity().window.insetsController?.let { controller ->
                 controller.show(android.view.WindowInsets.Type.statusBars())
@@ -200,22 +192,22 @@ class MainFragment : Fragment() {
             Timber.e(e, "Failed to adjust search card position")
         }
 
-        // 初始化地图
+        // 初始化地�?
         try {
             binding.mapView.onCreate(savedInstanceState)
             initMap()
         } catch (e: Exception) {
             Timber.e(e, "Failed to initialize map")
-            UIFeedbackHelper.showToast(requireContext(), "地图初始化失败")
+            UIFeedbackHelper.showToast(requireContext(), "地图初始化失�?)
         }
 
-        // 初始化搜索
+        // 初始化搜�?
         viewModel.initSearch()
         
-        // ✅ Phase 2: 初始化 Delegate
+        // �?Phase 2: 初始�?Delegate
         searchDelegate = com.mockloc.ui.main.delegate.SearchDelegate(this, viewModel, binding)
         searchDelegate.onGetSearchCenter = { if (::aMap.isInitialized) aMap.cameraPosition.target else null }
-        searchDelegate.init()  // SearchDelegate 已包含 initSearch 的逻辑
+        searchDelegate.init()  // SearchDelegate 已包�?initSearch 的逻辑
         
         simulationDelegate = com.mockloc.ui.main.delegate.SimulationDelegate(this, viewModel, binding)
         simulationDelegate.onPermissionCheckNeeded = { checkPermissions() }
@@ -232,29 +224,28 @@ class MainFragment : Fragment() {
         // 初始化Tab切换
         initPanelTabs()
 
-        // 初始化底部导航
+        // 初始化底部导�?
         initBottomNavigation()
 
         // 设置点击事件
         setupClickListeners()
 
-        // 检查权限
+        // 检查权�?
         checkPermissions()
 
-        // 初始化FAB图标 + 慢速脉冲动画
+        // 初始化FAB图标（脉冲动画由 SimulationDelegate 管理�?
         binding.fab.setImageResource(R.drawable.ic_position)
         binding.fab.imageTintList = null
-        idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
 
-        // 观察 ViewModel 状态
+        // 观察 ViewModel 状�?
         observeViewModel()
 
-        // 恢复地图状态
+        // 恢复地图状�?
         restoreMapState()
     }
 
     /**
-     * 更新夜间模式状态
+     * 更新夜间模式状�?
      */
     private fun updateNightModeStatus() {
         // 确保 View 已初始化
@@ -264,15 +255,9 @@ class MainFragment : Fragment() {
         }
         
         try {
-            val currentNightMode = (resources.configuration.uiMode 
-                and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-            
-            if (isNightMode != currentNightMode) {
-                isNightMode = currentNightMode
-                Timber.d("Night mode changed: $isNightMode")
-                
-                // 更新地图类型
-                updateMapTypeForNightMode()
+            val nightModeChanged = themeDelegate.updateNightModeStatus(resources.configuration)
+            if (nightModeChanged && ::aMap.isInitialized) {
+                themeDelegate.updateMapTypeForNightMode(aMap)
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to update night mode status")
@@ -280,63 +265,40 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 根据夜间模式更新地图类型
-     */
-    private fun updateMapTypeForNightMode() {
-        // 如果用户手动选择了图层，则不自动切换
-        if (isManualLayerSelected) {
-            Timber.d("User manually selected layer, skip auto-switch")
-            return
-        }
-        
-        // 根据夜间模式设置默认地图类型
-        val targetMapType = if (isNightMode) {
-            AMap.MAP_TYPE_NIGHT
-        } else {
-            AMap.MAP_TYPE_NORMAL
-        }
-        
-        if (aMap.mapType != targetMapType) {
-            aMap.mapType = targetMapType
-            Timber.d("Map type updated to: ${if (isNightMode) "NIGHT" else "NORMAL"}")
-        }
-    }
-
-    /**
-     * 观察 ViewModel 状态变化
+     * 观察 ViewModel 状态变�?
      */
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // 观察地图状态
+                // 观察地图状�?
                 launch {
                     viewModel.mapState.collect { state ->
                         updateMapUI(state)
                     }
                 }
 
-                // 观察搜索状态
+                // 观察搜索状�?
                 launch {
                     viewModel.searchState.collect { state ->
                         updateSearchUI(state)
                     }
                 }
 
-                // 观察模拟状态
+                // 观察模拟状�?
                 launch {
                     viewModel.simulationState.collect { state ->
-                        updateSimulationUI(state)
+                        simulationDelegate.updateSimulationUI(state, currentTabMode)
                     }
                 }
 
-                // 观察底部面板状态
+                // 观察底部面板状�?
                 launch {
                     viewModel.bottomSheetState.collect { state ->
                         updateBottomSheetUI(state)
                     }
                 }
 
-                // 观察路线状态
+                // 观察路线状�?
                 launch {
                     viewModel.routeState.collect { state ->
                         updateRouteUI(state)
@@ -370,10 +332,10 @@ class MainFragment : Fragment() {
             }
             MainViewModel.SimulationControlEvent.EventType.UPDATE_POSITION -> {
                 Timber.d("📍 Calling teleportToPosition (manual teleport)...")
-                // ✅ 修复：模拟中手动传送，坐标来自地图（GCJ-02），需要转换
+                // �?修复：模拟中手动传送，坐标来自地图（GCJ-02），需要转�?
                 teleportToPosition(event.latitude!!, event.longitude!!, event.altitude)
                 
-                // ✅ 修复：只有主动传送（Teleport）时才保存历史记录
+                // �?修复：只有主动传送（Teleport）时才保存历史记�?
                 saveToHistory(event.latitude, event.longitude)
             }
         }
@@ -384,7 +346,7 @@ class MainFragment : Fragment() {
      */
     private fun startSimulation(latitude: Double, longitude: Double, altitude: Float) {
         try {
-            // ✅ 保存到历史记录
+            // �?保存到历史记�?
             saveToHistory(latitude, longitude)
             
             Timber.d("🚀 Starting simulation: lat=$latitude, lng=$longitude (GCJ-02)")
@@ -394,7 +356,7 @@ class MainFragment : Fragment() {
                 putExtra(LocationService.EXTRA_LATITUDE, latitude)
                 putExtra(LocationService.EXTRA_LONGITUDE, longitude)
                 putExtra(LocationService.EXTRA_ALTITUDE, altitude.toDouble())
-                // ✅ 修复：所有传给Service的坐标都是GCJ-02，需要转换为WGS-84
+                // �?修复：所有传给Service的坐标都是GCJ-02，需要转换为WGS-84
                 putExtra(LocationService.EXTRA_COORD_GCJ02, true)
             }
             
@@ -404,11 +366,11 @@ class MainFragment : Fragment() {
                 requireContext().startService(intent)
             }
             
-            // 移动相机到目标位置（用户确认传送时）
+            // 移动相机到目标位置（用户确认传送时�?
             val targetLatLng = com.amap.api.maps.model.LatLng(latitude, longitude)
             updateMarker(targetLatLng, moveCamera = true)
             
-            // ✅ 调试：打印红色标记和蓝色蓝点的预期位置
+            // �?调试：打印红色标记和蓝色蓝点的预期位�?
             val wgs84 = com.mockloc.util.MapUtils.gcj02ToWgs84(longitude, latitude)
             Timber.d("📍 Red marker (GCJ-02): ($latitude, $longitude)")
             Timber.d("📍 Blue dot expected (WGS-84 injected): (${wgs84[1]}, ${wgs84[0]})")
@@ -422,7 +384,7 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 保存位置到历史记录 — ✅ Phase 1: 通过 ViewModel + Repository
+     * 保存位置到历史记�?�?�?Phase 1: 通过 ViewModel + Repository
      * 使用高德异步逆地理编码，避免原生 Geocoder 阻塞 IO 线程
      */
     private fun saveToHistory(latitude: Double, longitude: Double) {
@@ -430,14 +392,14 @@ class MainFragment : Fragment() {
         
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // ✅ Phase 1: 通过 ViewModel 使用 SearchRepository 的单例 PoiSearchHelper
+                // �?Phase 1: 通过 ViewModel 使用 SearchRepository 的单�?PoiSearchHelper
                 val (resolvedName, resolvedAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
                     viewModel.reverseGeocode(latitude, longitude) { name, fullAddress ->
                         if (cont.isActive) cont.resume(Pair(name, fullAddress)) {}
                     }
                 }
                 
-                // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态，防止回调悬空
+                // �?关键修复：检�?Fragment 是否仍处于活跃状态，防止回调悬空
                 if (!isAdded || view == null) return@launch
                 
                 val name = if (resolvedName.isNotEmpty()) {
@@ -450,7 +412,7 @@ class MainFragment : Fragment() {
                 
                 Timber.d("Saving to history via Repository: name='$name', address='$resolvedAddress'")
                 
-                // ✅ Phase 1: 通过 ViewModel → LocationRepository 保存
+                // �?Phase 1: 通过 ViewModel �?LocationRepository 保存
                 val result = viewModel.saveToHistory(name, resolvedAddress, latitude, longitude)
                 when (result) {
                     is com.mockloc.core.common.AppResult.Success ->
@@ -459,7 +421,7 @@ class MainFragment : Fragment() {
                         Timber.e(result.exception, "Failed to save to history")
                 }
             } catch (e: Exception) {
-                Timber.e(e, "❌ Failed to save to history")
+                Timber.e(e, "�?Failed to save to history")
             }
         }
     }
@@ -482,7 +444,7 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * 传送到新位置（手动传送，坐标来自地图GCJ-02）
+     * 传送到新位置（手动传送，坐标来自地图GCJ-02�?
      */
     private fun teleportToPosition(latitude: Double, longitude: Double, altitude: Float) {
         try {
@@ -491,7 +453,7 @@ class MainFragment : Fragment() {
                 putExtra(LocationService.EXTRA_LATITUDE, latitude)
                 putExtra(LocationService.EXTRA_LONGITUDE, longitude)
                 putExtra(LocationService.EXTRA_ALTITUDE, altitude.toDouble())
-                // ✅ 修复：手动传送的坐标是GCJ-02，需要转换为WGS-84
+                // �?修复：手动传送的坐标是GCJ-02，需要转换为WGS-84
                 putExtra(LocationService.EXTRA_COORD_GCJ02, true)
             }
             requireContext().startService(intent)
@@ -500,15 +462,15 @@ class MainFragment : Fragment() {
             val targetLatLng = com.amap.api.maps.model.LatLng(latitude, longitude)
             updateMarker(targetLatLng, moveCamera = true)
             
-            UIFeedbackHelper.showToast(requireContext(), "已传送到新位置")
+            UIFeedbackHelper.showToast(requireContext(), "已传送到新位�?)
         } catch (e: Exception) {
-            Timber.e(e, "传送位置失败")
-            UIFeedbackHelper.showToast(requireContext(), "传送失败: ${e.message}")
+            Timber.e(e, "传送位置失�?)
+            UIFeedbackHelper.showToast(requireContext(), "传送失�? ${e.message}")
         }
     }
 
     /**
-     * 更新位置（摇杆移动，坐标来自Service内部WGS-84）
+     * 更新位置（摇杆移动，坐标来自Service内部WGS-84�?
      */
     private fun updatePosition(latitude: Double, longitude: Double, altitude: Float) {
         try {
@@ -517,19 +479,19 @@ class MainFragment : Fragment() {
                 putExtra(LocationService.EXTRA_LATITUDE, latitude)
                 putExtra(LocationService.EXTRA_LONGITUDE, longitude)
                 putExtra(LocationService.EXTRA_ALTITUDE, altitude.toDouble())
-                // ✅ 修复：摇杆移动的坐标来自LocationService内部（已是WGS-84），不需要再转换
+                // �?修复：摇杆移动的坐标来自LocationService内部（已是WGS-84），不需要再转换
                 putExtra(LocationService.EXTRA_COORD_GCJ02, false)
             }
             requireContext().startService(intent)
             
-            // 移动相机到新位置（用户确认传送时）
+            // 移动相机到新位置（用户确认传送时�?
             val targetLatLng = com.amap.api.maps.model.LatLng(latitude, longitude)
             updateMarker(targetLatLng, moveCamera = true)
             
-            UIFeedbackHelper.showToast(requireContext(), "已传送到新位置")
+            UIFeedbackHelper.showToast(requireContext(), "已传送到新位�?)
         } catch (e: Exception) {
-            Timber.e(e, "传送位置失败")
-            UIFeedbackHelper.showToast(requireContext(), "传送失败: ${e.message}")
+            Timber.e(e, "传送位置失�?)
+            UIFeedbackHelper.showToast(requireContext(), "传送失�? ${e.message}")
         }
     }
 
@@ -539,10 +501,10 @@ class MainFragment : Fragment() {
     private fun updateMapUI(state: MainViewModel.MapState) {
         Timber.d("updateMapUI called: markedPosition=${state.markedPosition}, currentLocation=${state.currentLocation}, shouldMoveCamera=${state.shouldMoveCamera}, shouldMoveToCurrentLocation=${state.shouldMoveToCurrentLocation}")
         
-        // ✅ 处理自动定位后移动相机到当前位置
+        // �?处理自动定位后移动相机到当前位置
         if (state.shouldMoveToCurrentLocation && state.currentLocation != null) {
             Timber.d("Moving camera to current location: ${state.currentLocation}, zoom: ${state.zoom}")
-            // ✅ 使用 animateCamera 实现流畅的飞行动画
+            // �?使用 animateCamera 实现流畅的飞行动�?
             aMap.animateCamera(
                 com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(state.currentLocation, state.zoom)
             )
@@ -550,7 +512,7 @@ class MainFragment : Fragment() {
             viewModel.resetShouldMoveToCurrentLocation()
         }
         
-        // 更新标记（只在位置改变时更新，避免频繁 remove/add 导致地图跳动）
+        // 更新标记（只在位置改变时更新，避免频�?remove/add 导致地图跳动�?
         state.markedPosition?.let { position ->
             val positionChanged = currentMarker == null || currentMarker!!.position != position
             if (positionChanged) {
@@ -558,7 +520,7 @@ class MainFragment : Fragment() {
                 updateMarker(position, moveCamera = state.shouldMoveCamera)
                 viewModel.resetShouldMoveCamera()
             } else if (state.shouldMoveCamera) {
-                // 标记位置未变但需要移动相机（如从历史记录/收藏返回同一位置）
+                // 标记位置未变但需要移动相机（如从历史记录/收藏返回同一位置�?
                 Timber.d("updateMapUI: marker position unchanged, but moving camera to $position")
                 val currentZoom = aMap.cameraPosition.zoom
                 aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, currentZoom))
@@ -578,7 +540,7 @@ class MainFragment : Fragment() {
         if (!state.isPositionPending && !viewModel.simulationState.value.isSimulating) {
             binding.fab.setImageResource(R.drawable.ic_position)
             binding.fab.imageTintList = null
-            binding.statusText.text = "未模拟"
+            binding.statusText.text = "未模�?
         }
     }
 
@@ -586,7 +548,7 @@ class MainFragment : Fragment() {
      * 更新搜索 UI
      */
     private fun updateSearchUI(state: MainViewModel.SearchState) {
-        // 更新加载指示器
+        // 更新加载指示�?
         binding.searchProgress.visibility = if (state.isLoading) View.VISIBLE else View.GONE
         
         if (state.isVisible && state.results.isNotEmpty()) {
@@ -596,321 +558,41 @@ class MainFragment : Fragment() {
             hideSearchResults()
         }
         
-        // ✅ 更新清除按钮可见性
+        // �?更新清除按钮可见�?
         updateClearButtonVisibility()
     }
 
     /**
      * 更新模拟 UI
      */
-    private fun updateSimulationUI(state: MainViewModel.SimulationState) {
-        // ✅ 修复：只在单点模式下更新FAB图标，路线模式下由Tab控制
-        if (currentTabMode == 0) {
-            if (state.isSimulating) {
-                binding.fab.setImageResource(R.drawable.ic_fly)
-                binding.fab.imageTintList = null
-                // 停止脉冲动画
-                idlePulseAnimator?.cancel()
-                idlePulseAnimator = null
-                
-                // 更新状态徽章
-                binding.statusText.text = "模拟中"
-            } else {
-                binding.fab.setImageResource(R.drawable.ic_position)
-                binding.fab.imageTintList = null
-                // 重启脉冲动画
-                if (idlePulseAnimator == null) {
-                    idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
-                }
-                
-                // 更新状态徽章
-                binding.statusText.text = "未模拟"
-            }
-        }
-    }
-
     /**
      * 更新底部面板 UI
      */
     private fun updateBottomSheetUI(state: MainViewModel.BottomSheetState) {
-        // 可以在这里更新底部面板的展开/收起状态
+        // 可以在这里更新底部面板的展开/收起状�?
     }
 
-    private var lastRoutePointsHash: Int = 0
-
-    private fun updateRouteUI(state: MainViewModel.RouteState) {
-        if (!::aMap.isInitialized) return
-
-        val pointsHash = state.routePoints.hashCode()
-        if (pointsHash != lastRoutePointsHash) {
-            lastRoutePointsHash = pointsHash
-            routePolyline?.remove()
-            routePolyline = null
-            routePointMarkers.forEach { it.remove() }
-            routePointMarkers.clear()
-
-            if (state.routePoints.size >= 2) {
-                val points = state.routePoints.map { it.latLng }
-                routePolyline = aMap.addPolyline(PolylineOptions()
-                    .addAll(points)
-                    .width(8f)
-                    .color(ContextCompat.getColor(requireContext(), R.color.primary))
-                    .geodesic(true))
-            }
-
-            state.routePoints.forEachIndexed { index, point ->
-                val label = when {
-                    index == 0 -> "起"
-                    index == state.routePoints.size - 1 && state.routePoints.size > 1 -> "终"
-                    else -> "${index + 1}"
-                }
-                val bgColor = when {
-                    index == 0 -> ContextCompat.getColor(requireContext(), R.color.route_point_start)
-                    index == state.routePoints.size - 1 && state.routePoints.size > 1 -> ContextCompat.getColor(requireContext(), R.color.route_point_end)
-                    else -> ContextCompat.getColor(requireContext(), R.color.route_point_middle)
-                }
-                val marker = aMap.addMarker(MarkerOptions()
-                    .position(point.latLng)
-                    .icon(createRoutePointIcon(label, bgColor))
-                    .anchor(0.5f, 1.0f)
-                    .draggable(false))
-                
-                routePointMarkers.add(marker)
-            }
-            
-            // 设置全局 Marker 点击监听器（高德地图的正确方式）
-            aMap.setOnMarkerClickListener { clickedMarker ->
-                // 查找被点击的 marker 在列表中的索引
-                val clickedIndex = routePointMarkers.indexOf(clickedMarker)
-                if (clickedIndex >= 0) {
-                    // 显示编辑按钮
-                    showRoutePointEditButtons(clickedIndex)
-                    true // 消费事件
-                } else {
-                    false
-                }
-            }
-        }
-
-        if (state.playbackState.isPlaying && state.currentPlaybackPosition != null) {
-            // ✅ 更新位置信息卡片（实时显示当前位置）
-            updateLocationInfo(state.currentPlaybackPosition)
-            
-            // ✅ 关键修复：手动计算偏移后的目标点，避开右侧工具栏
-            val currentZoom = aMap.cameraPosition.zoom
-            val displayMetrics = resources.displayMetrics
-            val screenWidth = displayMetrics.widthPixels
-            
-            // 计算需要偏移的像素（右侧 15% 屏幕宽度）
-            val offsetFraction = 0.15
-            val projection = aMap.projection
-            val screenCenter = projection.toScreenLocation(state.currentPlaybackPosition)
-            val offsetX = (screenWidth * offsetFraction).toInt()
-            // ✅ 修正：让相机往右偏移，使蓝点显示在屏幕左侧可见区域中心
-            val targetScreenPoint = android.graphics.Point(screenCenter.x + offsetX, screenCenter.y)
-            val targetLatLng = projection.fromScreenLocation(targetScreenPoint)
-            
-            aMap.animateCamera(
-                CameraUpdateFactory.newLatLngZoom(targetLatLng, currentZoom),
-                300,
-                null
-            )
-        }
-
-        val pointCount = state.routePoints.size
-        binding.routePointCount.text = "$pointCount 个点"
-
-        val playback = state.playbackState
-        if (playback.isPlaying) {
-            // ✅ 更新地图上方的播放按钮
-            binding.routePlayFabBtn.setImageResource(R.drawable.ic_stop)
-            
-            // ✅ 更新状态徽章为“模拟中”
-            binding.statusText.text = "模拟中"
-            
-            binding.routeProgressSection.visibility = View.VISIBLE
-            binding.routeProgress.progress = (playback.progress * 100).toInt()
-        } else {
-            // ✅ 更新地图上方的播放按钮
-            binding.routePlayFabBtn.setImageResource(R.drawable.ic_play)
-            
-            // ✅ 更新状态徽章为“未模拟”
-            binding.statusText.text = "未模拟"
-            
-            // ✅ 路线模式下进度条始终显示（即使未选点）
-            binding.routeProgressSection.visibility = View.VISIBLE
-            binding.routeProgress.progress = (playback.progress * 100).toInt()
-        }
-
-        val loopColor = if (playback.isLooping) R.color.primary else R.color.text_hint
-        binding.routeLoopBtn.imageTintList = android.content.res.ColorStateList.valueOf(
-            ContextCompat.getColor(requireContext(), loopColor)
-        )
-
-        // ✅ 更新移动模式图标
-        val movementIconRes = when (state.movementMode) {
-            MainViewModel.MovementMode.WALK -> R.drawable.ic_walk
-            MainViewModel.MovementMode.RUN -> R.drawable.ic_run
-            MainViewModel.MovementMode.BIKE -> R.drawable.ic_bike
-        }
-        binding.routeMovementModeBtn.setImageResource(movementIconRes)
-
-        // ✅ 更新速度Chip
-        val selectedChip = when (playback.speedMultiplier) {
-            0.5f -> binding.speed05x
-            2f -> binding.speed2x
-            4f -> binding.speed4x
-            else -> binding.speed1x
-        }
-        updateSpeedChipSelection(selectedChip)
-        
-        // ✅ 更新 FAB 图标（路线模式下也需要切换，使用与单点模式一致的图标）
-        if (currentTabMode == 1) {
-            if (playback.isPlaying) {
-                binding.fab.setImageResource(R.drawable.ic_fly)
-            } else {
-                binding.fab.setImageResource(R.drawable.ic_position)
-            }
-        }
-    }
-
-    private fun updateSpeedChipSelection(selected: com.google.android.material.chip.Chip) {
-        listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach {
-            it.isChecked = (it == selected)
-        }
-    }
-    
-    /**
-     * 显示路线点编辑按钮
-     */
-    private fun showRoutePointEditButtons(index: Int) {
-        // 隐藏之前的按钮
-        hideRoutePointEditButtons()
-        
-        selectedPointIndex = index
-        
-        // 显示容器（包含两个按钮和间距）
-        binding.routePointEditContainer.visibility = View.VISIBLE
-        
-        // 添加弹出动画
-        AnimationHelper.slideUp(binding.routePointEditContainer, 200)
-    }
-    
-    /**
-     * 隐藏路线点编辑按钮
-     */
-    private fun hideRoutePointEditButtons() {
-        selectedPointIndex = -1
-        binding.routePointEditContainer.visibility = View.GONE
-    }
-    
-    /**
-     * 删除选中的路线点
-     */
-    private fun deleteSelectedRoutePoint() {
-        if (selectedPointIndex < 0) return
-        
-        val routeState = viewModel.routeState.value
-        val pointCount = routeState.routePoints.size
-        val pointLabel = when {
-            selectedPointIndex == 0 -> "起点"
-            selectedPointIndex == pointCount - 1 -> "终点"
-            else -> "第 ${selectedPointIndex + 1} 个点"
-        }
-        
-        // 直接删除，无需确认
-        viewModel.removeRoutePointAt(selectedPointIndex)
-        hideRoutePointEditButtons()
-        
-        // 使用 Toast 提示
-        com.mockloc.util.UIFeedbackHelper.showToast(requireContext(), "已删除 $pointLabel")
-    }
-
-    private fun createRoutePointIcon(label: String, bgColor: Int): com.amap.api.maps.model.BitmapDescriptor {
-        val dp = resources.displayMetrics.density
-        val circleR = 10f * dp
-        val tipH = 8f * dp
-        val pad = 2f * dp
-        val w = (circleR * 2 + pad * 2).toInt()
-        val h = (circleR * 2 + tipH + pad * 2).toInt()
-        val cx = w / 2f
-        val cy = circleR + pad
-        val tipY = cy + circleR + tipH
-
-        val dist = tipY - cy
-        val halfAngleRad = Math.asin((circleR / dist).toDouble())
-        val halfAngleDeg = Math.toDegrees(halfAngleRad).toFloat()
-        val rightX = cx + circleR * Math.sin(halfAngleRad).toFloat()
-        val rightY = cy + circleR * Math.cos(halfAngleRad).toFloat()
-        val leftX = cx - circleR * Math.sin(halfAngleRad).toFloat()
-        val leftY = rightY
-
-        val arcStart = 90f - halfAngleDeg
-        val arcSweep = -(360f - halfAngleDeg * 2)
-
-        val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-        val canvas = android.graphics.Canvas(bitmap)
-        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-
-        val shape = android.graphics.Path()
-        shape.moveTo(cx, tipY)
-        val ctrl1x = cx
-        val ctrl1y = tipY - (tipY - rightY) * 0.6f
-        val ctrl2x = rightX - (rightX - cx) * 0.15f
-        val ctrl2y = rightY + (rightY - cy) * 0.15f
-        shape.cubicTo(ctrl1x, ctrl1y, ctrl2x, ctrl2y, rightX, rightY)
-        shape.arcTo(android.graphics.RectF(cx - circleR, cy - circleR, cx + circleR, cy + circleR), arcStart, arcSweep)
-        val ctrl3x = leftX + (leftX - cx) * (-0.15f)
-        val ctrl3y = leftY + (leftY - cy) * 0.15f
-        val ctrl4x = cx
-        val ctrl4y = tipY - (tipY - leftY) * 0.6f
-        shape.cubicTo(ctrl3x, ctrl3y, ctrl4x, ctrl4y, cx, tipY)
-        shape.close()
-
-        paint.color = bgColor
-        canvas.drawPath(shape, paint)
-
-        paint.style = android.graphics.Paint.Style.STROKE
-        paint.strokeWidth = 1.5f * dp
-        paint.color = 0x33FFFFFF
-        canvas.drawPath(shape, paint)
-
-        paint.style = android.graphics.Paint.Style.FILL
-        paint.color = android.graphics.Color.WHITE
-        paint.textSize = 11f * dp
-        paint.textAlign = android.graphics.Paint.Align.CENTER
-        paint.isFakeBoldText = true
-        val fm = paint.fontMetrics
-        val textY = cy - (fm.ascent + fm.descent) / 2f
-        canvas.drawText(label, cx, textY, paint)
-
-        return com.amap.api.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap)
-    }
-
-    /**
-     * 初始化地图
+     * 初始化地�?
      */
     private fun initMap() {
-        // ✅ 防御性检查：确保 AMap 实例获取成功
+        // �?防御性检查：确保 AMap 实例获取成功
         aMap = binding.mapView.map
         if (aMap == null) {
-            Timber.e("❌ Failed to get AMap instance, map initialization failed")
-            Toast.makeText(requireContext(), "地图初始化失败，请重启应用", Toast.LENGTH_LONG).show()
+            Timber.e("�?Failed to get AMap instance, map initialization failed")
+            Toast.makeText(requireContext(), "地图初始化失败，请重启应�?, Toast.LENGTH_LONG).show()
             return
         }
-        Timber.d("✅ AMap instance obtained successfully")
+        Timber.d("�?AMap instance obtained successfully")
         
-        // ✅ 初始化夜间模式状态（确保地图类型正确）
-        isNightMode = (resources.configuration.uiMode 
-            and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        Timber.d("initMap: isNightMode=$isNightMode")
+        // 根据初始夜间模式状态设置地图类型（委托�?ThemeDelegate�?
+        themeDelegate.updateMapTypeForNightMode(aMap)
         
-        // 启用我的位置图层（使用 LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER）
-        // 显示蓝点+方向箭头，但不自动移动相机
+        // 启用我的位置图层（使�?LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER�?
+        // 显示蓝点+方向箭头，但不自动移动相�?
         aMap.myLocationStyle = com.amap.api.maps.model.MyLocationStyle().apply {
             myLocationType(com.amap.api.maps.model.MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER)
             showMyLocation(true)
-            // 设置精度圈颜色
+            // 设置精度圈颜�?
             strokeColor(com.mockloc.R.color.primary)
             radiusFillColor(ContextCompat.getColor(requireContext(), R.color.location_accuracy_fill))
             strokeWidth(2f)
@@ -939,7 +621,7 @@ class MainFragment : Fragment() {
             
             override fun onMarkerDragEnd(marker: Marker) {
                 val position = marker.position
-                // 拖拽标记结束时更新位置，不移动相机
+                // 拖拽标记结束时更新位置，不移动相�?
                 viewModel.selectPosition(position, moveCamera = false)
                 updateLocationInfo(position)
             }
@@ -948,20 +630,20 @@ class MainFragment : Fragment() {
         // 设置相机变化监听
         aMap.addOnCameraChangeListener(object : AMap.OnCameraChangeListener {
             override fun onCameraChange(cameraPosition: com.amap.api.maps.model.CameraPosition) {
-                // 相机变化中，标记为拖动状态
+                // 相机变化中，标记为拖动状�?
                 isMapDragging = true
                 Timber.d("onCameraChange: isMapDragging = true, target=${cameraPosition.target}")
             }
             
             override fun onCameraChangeFinish(cameraPosition: com.amap.api.maps.model.CameraPosition) {
-                // 相机变化完成，保存状态（包括最新的缩放级别）
+                // 相机变化完成，保存状态（包括最新的缩放级别�?
                 viewModel.saveMapState(
                     center = cameraPosition.target,
                     zoom = cameraPosition.zoom
                 )
                 
                 Timber.d("onCameraChangeFinish: target=${cameraPosition.target}, zoom=${cameraPosition.zoom}, will reset isMapDragging after 300ms")
-                // 延迟重置拖动标记，避免立即触发的点击事件（增加到 300ms）
+                // 延迟重置拖动标记，避免立即触发的点击事件（增加到 300ms�?
                 viewLifecycleOwner.lifecycleScope.launch {
                     kotlinx.coroutines.delay(300)
                     isMapDragging = false
@@ -972,7 +654,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 初始化搜索功能
+     * 初始化搜索功�?
      */
     private fun initSearch() {
         searchAdapter = SearchResultAdapter { poi ->
@@ -987,12 +669,12 @@ class MainFragment : Fragment() {
             adapter = searchAdapter
         }
         
-        // ✅ 初始化搜索清除按钮
+        // �?初始化搜索清除按�?
         binding.searchClearBtn.setOnClickListener {
             clearSearch()
         }
         
-        // 监听输入框变化，动态显示/隐藏清除按钮
+        // 监听输入框变化，动态显�?隐藏清除按钮
         binding.searchEdit.addTextChangedListener(searchTextWatcher)
     }
 
@@ -1029,7 +711,7 @@ class MainFragment : Fragment() {
     private fun applyBottomSheetParallax(slideOffset: Float) {
         val normalizedOffset = if (slideOffset < 0) 0f else slideOffset
         
-        // 位置信息卡片透明度
+        // 位置信息卡片透明�?
         binding.locationInfoCard?.alpha = 0.7f + normalizedOffset * 0.3f
     }
 
@@ -1037,10 +719,10 @@ class MainFragment : Fragment() {
      * 初始化面板Tab切换
      */
     private fun initPanelTabs() {
-        // ✅ 禁用 TabLayout 的所有动画（防止夜间模式闪烁）
+        // �?禁用 TabLayout 的所有动画（防止夜间模式闪烁�?
         binding.panelTabs.setScrollPosition(0, 0f, false)
         
-        // ✅ 设置每个 Tab 的背景为透明（禁用选中背景动画）
+        // �?设置每个 Tab 的背景为透明（禁用选中背景动画�?
         for (i in 0 until binding.panelTabs.tabCount) {
             val tab = binding.panelTabs.getTabAt(i)
             tab?.view?.setBackgroundResource(android.R.color.transparent)
@@ -1048,23 +730,23 @@ class MainFragment : Fragment() {
         
         binding.panelTabs.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
-                // ✅ 清除选中项的背景（防止夜间模式闪烁）
+                // �?清除选中项的背景（防止夜间模式闪烁）
                 tab?.view?.setBackgroundResource(android.R.color.transparent)
                 
                 when (tab?.position) {
                     0 -> {
                         showPointModeButtons()
-                        viewModel.setRouteMode(false)  // ✅ 切换到单点模式
+                        viewModel.setRouteMode(false)  // �?切换到单点模�?
                     }
                     1 -> {
                         showRouteModeButtons()
-                        viewModel.setRouteMode(true)   // ✅ 切换到路线模式
+                        viewModel.setRouteMode(true)   // �?切换到路线模�?
                     }
                 }
             }
 
             override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
-                // ✅ 清除未选中项的背景
+                // �?清除未选中项的背景
                 tab?.view?.setBackgroundResource(android.R.color.transparent)
             }
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
@@ -1081,10 +763,10 @@ class MainFragment : Fragment() {
         currentTabMode = 0
         binding.pointActionButtons.visibility = android.view.View.VISIBLE
         
-        // ✅ 隐藏地图上方的路线控制栏
+        // �?隐藏地图上方的路线控制栏
         binding.routeControlCard.visibility = android.view.View.GONE
         
-        // ✅ 隐藏 BottomSheet 内的路线控制面板
+        // �?隐藏 BottomSheet 内的路线控制面板
         binding.routePanel.visibility = android.view.View.GONE
         
         // FAB显示定位图标
@@ -1095,16 +777,16 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示路线模式控制面板（直接替换4个按钮位置）
+     * 显示路线模式控制面板（直接替�?个按钮位置）
      */
     private fun showRouteModeButtons() {
         currentTabMode = 1
         binding.pointActionButtons.visibility = android.view.View.GONE
         
-        // ✅ 显示地图上方的路线控制栏
+        // �?显示地图上方的路线控制栏
         binding.routeControlCard.visibility = android.view.View.VISIBLE
         
-        // ✅ 显示 BottomSheet 内的路线控制面板（与4个按钮同位置）
+        // �?显示 BottomSheet 内的路线控制面板（与4个按钮同位置�?
         binding.routePanel.visibility = android.view.View.VISIBLE
         
         // FAB保持定位图标
@@ -1117,14 +799,14 @@ class MainFragment : Fragment() {
 
 
     /**
-     * 初始化底部导航
+     * 初始化底部导�?
      */
     private fun initBottomNavigation() {
-        // ✅ 关键修复：使用与主题切换时相同的方式获取颜色
+        // �?关键修复：使用与主题切换时相同的方式获取颜色
         val resources = requireContext().resources
         val theme = requireContext().theme
         
-        // ✅ 初始化选中态背景色（使用 nav_item_selected_background 颜色）
+        // �?初始化选中态背景色（使�?nav_item_selected_background 颜色�?
         try {
             val containerColor = resources.getColor(R.color.nav_item_selected_background, theme)
             binding.bottomNav.setItemActiveIndicatorColor(android.content.res.ColorStateList.valueOf(containerColor))
@@ -1132,7 +814,7 @@ class MainFragment : Fragment() {
             Timber.e(e, "Failed to set active indicator color")
         }
         
-        // ✅ 初始化图标和文字颜色（确保首次加载时使用正确的颜色）
+        // �?初始化图标和文字颜色（确保首次加载时使用正确的颜色）
         try {
             val primaryColor = resources.getColor(R.color.primary, theme)
             val textSecondaryColor = resources.getColor(R.color.text_secondary, theme)
@@ -1150,7 +832,7 @@ class MainFragment : Fragment() {
             binding.bottomNav.itemIconTintList = navItemColorStateList
             binding.bottomNav.itemTextColor = navItemColorStateList
             
-            Timber.d("✅ BottomNavigationView initialized: primary=#${Integer.toHexString(primaryColor)}, text_secondary=#${Integer.toHexString(textSecondaryColor)}")
+            Timber.d("�?BottomNavigationView initialized: primary=#${Integer.toHexString(primaryColor)}, text_secondary=#${Integer.toHexString(textSecondaryColor)}")
         } catch (e: Exception) {
             Timber.e(e, "Failed to initialize BottomNavigationView colors")
         }
@@ -1158,7 +840,7 @@ class MainFragment : Fragment() {
         binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_map -> {
-                    // 已在地图页，不需要做任何事
+                    // 已在地图页，不需要做任何�?
                     true
                 }
                 R.id.nav_history -> {
@@ -1185,7 +867,7 @@ class MainFragment : Fragment() {
      * 设置点击事件
      */
     private fun setupClickListeners() {
-        // ✅ Phase 2: 搜索相关监听器已迁移到 SearchDelegate，此处不再重复设置
+        // �?Phase 2: 搜索相关监听器已迁移�?SearchDelegate，此处不再重复设�?
         
         // 地图控制按钮
         binding.zoomInBtn.setOnClickListener {
@@ -1196,18 +878,18 @@ class MainFragment : Fragment() {
             aMap.animateCamera(CameraUpdateFactory.zoomOut())
         }
         
-        // 路线点编辑按钮
+        // 路线点编辑按�?
         binding.btnDeleteRoutePoint.setOnClickListener {
-            deleteSelectedRoutePoint()
+            routeEditDelegate.deleteSelectedRoutePoint()
         }
         
         binding.btnCancelSelect.setOnClickListener {
-            hideRoutePointEditButtons()
+            routeEditDelegate.hideRoutePointEditButtons()
         }
 
         binding.locationBtn.setOnClickListener {
             viewModel.mapState.value.currentLocation?.let { loc ->
-                // ✅ 使用 animateCamera 实现流畅的飞行动画
+                // �?使用 animateCamera 实现流畅的飞行动�?
                 aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 15f))
             } ?: run {
                 viewModel.initLocation()
@@ -1232,33 +914,33 @@ class MainFragment : Fragment() {
         }
 
         binding.routeBtn.setOnClickListener {
-            // ✅ 切换到路线模式Tab
+            // �?切换到路线模式Tab
             binding.panelTabs.getTabAt(1)?.select()
         }
 
         // FAB按钮
         binding.fab.setOnClickListener {
-            // ✅ 修复：根据当前Tab模式执行不同操作
+            // �?修复：根据当前Tab模式执行不同操作
             if (currentTabMode == 0) {
-                // 单点模式：启动/停止模拟
+                // 单点模式：启�?停止模拟
                 toggleSimulation()
             } else {
-                // 路线模式：播放/暂停路线
+                // 路线模式：播�?暂停路线
                 toggleRoutePlaybackFromFab()
             }
         }
 
-        // ✅ 路线控制栏按钮（地图上方）
+        // �?路线控制栏按钮（地图上方�?
         binding.routePlayFabBtn.setOnClickListener {
             if (viewModel.routeState.value.routePoints.size < 2) {
-                UIFeedbackHelper.showToast(requireContext(), "至少需要2个路线点")
+                UIFeedbackHelper.showToast(requireContext(), "至少需�?个路线点")
                 return@setOnClickListener
             }
             viewModel.toggleRoutePlayback()
         }
 
         binding.routeSpeedFabBtn.setOnClickListener {
-            // 循环切换速度：1x -> 2x -> 4x -> 0.5x -> 1x
+            // 循环切换速度�?x -> 2x -> 4x -> 0.5x -> 1x
             val currentSpeed = viewModel.routeState.value.playbackState.speedMultiplier
             val nextSpeed = when (currentSpeed) {
                 1f -> 2f
@@ -1271,29 +953,29 @@ class MainFragment : Fragment() {
         }
 
         binding.routeStopFabBtn.setOnClickListener {
-            // ✅ 停止路线播放（重置进度和位置）
+            // �?停止路线播放（重置进度和位置�?
             viewModel.stopRoutePlayback()
         }
 
-        // ✅ 路线播放/暂停（由地图上方的 route_control_card 控制）
-        // 移除了 BottomSheet 内的播放按钮点击事件
+        // �?路线播放/暂停（由地图上方�?route_control_card 控制�?
+        // 移除�?BottomSheet 内的播放按钮点击事件
 
         // 速度选择
         binding.speed05x.setOnClickListener {
             viewModel.setRouteSpeedMultiplier(0.5f)
-            updateSpeedChipSelection(binding.speed05x)
+            simulationDelegate.updateSpeedChipSelection(binding.speed05x)
         }
         binding.speed1x.setOnClickListener {
             viewModel.setRouteSpeedMultiplier(1f)
-            updateSpeedChipSelection(binding.speed1x)
+            simulationDelegate.updateSpeedChipSelection(binding.speed1x)
         }
         binding.speed2x.setOnClickListener {
             viewModel.setRouteSpeedMultiplier(2f)
-            updateSpeedChipSelection(binding.speed2x)
+            simulationDelegate.updateSpeedChipSelection(binding.speed2x)
         }
         binding.speed4x.setOnClickListener {
             viewModel.setRouteSpeedMultiplier(4f)
-            updateSpeedChipSelection(binding.speed4x)
+            simulationDelegate.updateSpeedChipSelection(binding.speed4x)
         }
 
         // 循环
@@ -1302,7 +984,7 @@ class MainFragment : Fragment() {
             viewModel.setRouteLooping(isLooping)
         }
 
-        // ✅ 移动模式切换
+        // �?移动模式切换
         binding.routeMovementModeBtn.setOnClickListener {
             viewModel.toggleMovementMode()
         }
@@ -1322,8 +1004,8 @@ class MainFragment : Fragment() {
             return
         }
         
-        // 点击地图空白区域，隐藏编辑按钮
-        hideRoutePointEditButtons()
+        // 点击地图空白区域，隐藏编辑按�?
+        routeEditDelegate.hideRoutePointEditButtons()
         
         val routeState = viewModel.routeState.value
         if (routeState.isRouteMode && !routeState.playbackState.isPlaying) {
@@ -1350,7 +1032,7 @@ class MainFragment : Fragment() {
     /**
      * 更新地图标记
      * @param latLng 标记位置
-     * @param moveCamera 是否移动相机到标记位置
+     * @param moveCamera 是否移动相机到标记位�?
      */
     private fun updateMarker(latLng: LatLng, moveCamera: Boolean = false) {
         Timber.d("updateMarker called: latLng=$latLng, moveCamera=$moveCamera, currentCenter=${aMap.cameraPosition.target}")
@@ -1368,16 +1050,16 @@ class MainFragment : Fragment() {
                 .position(latLng)
                 .draggable(true)
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-                .anchor(0.5f, 1.0f)  // 锚点在底部中心
+                .anchor(0.5f, 1.0f)  // 锚点在底部中�?
             
             currentMarker = aMap.addMarker(markerOptions)
             Timber.d("Marker created at: $latLng")
         }
         
-        // 只有在需要时才移动相机（如点击 FAB 确认时）
+        // 只有在需要时才移动相机（如点�?FAB 确认时）
         if (moveCamera) {
             val currentZoom = aMap.cameraPosition.zoom
-            // ✅ 使用 animateCamera 实现流畅的相机移动动画
+            // �?使用 animateCamera 实现流畅的相机移动动�?
             aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, currentZoom))
             Timber.d("Camera animated to marker position, zoom=$currentZoom")
         } else {
@@ -1405,14 +1087,14 @@ class MainFragment : Fragment() {
         } else {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    // ✅ Phase 1: 通过 ViewModel 使用 SearchRepository 的单例 PoiSearchHelper
+                    // �?Phase 1: 通过 ViewModel 使用 SearchRepository 的单�?PoiSearchHelper
                     val (_, fullAddress) = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String, String>> { cont ->
                         viewModel.reverseGeocode(latLng.latitude, latLng.longitude) { name, addr ->
                             if (cont.isActive) cont.resume(Pair(name, addr)) {}
                         }
                     }
                     
-                    // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态
+                    // �?关键修复：检�?Fragment 是否仍处于活跃状�?
                     if (!isAdded || view == null) return@launch
                     
                     withContext(Dispatchers.Main) {
@@ -1422,7 +1104,7 @@ class MainFragment : Fragment() {
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.w(e, "逆地理编码失败")
+                    Timber.w(e, "逆地理编码失�?)
                 }
             }
         }
@@ -1437,7 +1119,7 @@ class MainFragment : Fragment() {
             binding.searchResultList.animate().cancel()
             AnimationHelper.fadeIn(binding.searchResultList, 250)
             isSearchResultVisible = true
-            // 为搜索结果列表添加底部圆角，与搜索框保持一致
+            // 为搜索结果列表添加底部圆角，与搜索框保持一�?
             val radius = 16f * resources.displayMetrics.density
             binding.searchResultList.background = android.graphics.drawable.GradientDrawable().apply {
                 setColor(ContextCompat.getColor(requireContext(), R.color.surface))
@@ -1460,41 +1142,41 @@ class MainFragment : Fragment() {
     }
     
     /**
-     * ✅ 清除搜索（清空输入框、隐藏结果、隐藏清除按钮）
+     * �?清除搜索（清空输入框、隐藏结果、隐藏清除按钮）
      */
     private fun clearSearch() {
-        // 先移除监听器，避免 setText 触发 TextWatcher
+        // 先移除监听器，避�?setText 触发 TextWatcher
         binding.searchEdit.removeTextChangedListener(searchTextWatcher)
         
         binding.searchEdit.setText("")
         binding.searchEdit.clearFocus()
         viewModel.hideSearchResults()
         
-        // 手动更新按钮状态
+        // 手动更新按钮状�?
         binding.searchClearBtn.visibility = View.GONE
         
-        // 重新添加监听器
+        // 重新添加监听�?
         binding.searchEdit.addTextChangedListener(searchTextWatcher)
         
-        UIFeedbackHelper.showToast(requireContext(), "已清除搜索")
+        UIFeedbackHelper.showToast(requireContext(), "已清除搜�?)
     }
     
     /**
-     * ✅ 更新清除按钮的可见性
+     * �?更新清除按钮的可见�?
      */
     private fun updateClearButtonVisibility() {
         val hasText = binding.searchEdit.text.isNotEmpty()
         val hasResults = isSearchResultVisible
         
-        // 当有输入内容或有搜索结果时显示清除按钮
+        // 当有输入内容或有搜索结果时显示清除按�?
         binding.searchClearBtn.visibility = if (hasText || hasResults) View.VISIBLE else View.GONE
     }
 
     /**
-     * 切换模拟状态
+     * 切换模拟状�?
      */
     private fun toggleSimulation() {
-        // 检查定位权限
+        // 检查定位权�?
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             checkPermissions()
             return
@@ -1509,36 +1191,36 @@ class MainFragment : Fragment() {
             return
         }
 
-        // 调用 ViewModel 确认模拟（事件处理器会显示 Toast，这里不需要再显示）
+        // 调用 ViewModel 确认模拟（事件处理器会显�?Toast，这里不需要再显示�?
         viewModel.confirmSimulation()
     }
 
     /**
-     * ✅ 从 FAB 按钮触发路线播放/暂停
+     * �?�?FAB 按钮触发路线播放/暂停
      */
     private fun toggleRoutePlaybackFromFab() {
         val routeState = viewModel.routeState.value
         
         if (routeState.routePoints.size < 2) {
-            UIFeedbackHelper.showToast(requireContext(), "至少需要2个路线点")
+            UIFeedbackHelper.showToast(requireContext(), "至少需�?个路线点")
             return
         }
         
-        // 调用 ViewModel 的 toggleRoutePlayback
+        // 调用 ViewModel �?toggleRoutePlayback
         viewModel.toggleRoutePlayback()
     }
 
     /**
-     * 添加到收藏 — ✅ Phase 1: 通过 ViewModel + Repository
+     * 添加到收�?�?�?Phase 1: 通过 ViewModel + Repository
      */
     private fun addToFavorite() {
         viewModel.mapState.value.markedPosition?.let { location ->
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    // ✅ Phase 1: 通过 ViewModel → LocationRepository 检查是否已收藏
+                    // �?Phase 1: 通过 ViewModel �?LocationRepository 检查是否已收藏
                     val exists = viewModel.isFavorite(location.latitude, location.longitude)
                     
-                    // ✅ 关键修复：检查 Fragment 是否仍处于活跃状态
+                    // �?关键修复：检�?Fragment 是否仍处于活跃状�?
                     if (!isAdded || view == null) return@launch
                     
                     if (exists) {
@@ -1548,13 +1230,13 @@ class MainFragment : Fragment() {
                             }
                         }
                     } else {
-                        // ✅ Phase 1: 通过 ViewModel 的 reverseGeocode 复用单例 PoiSearchHelper
+                        // �?Phase 1: 通过 ViewModel �?reverseGeocode 复用单例 PoiSearchHelper
                         val (name, fullAddress) = getAddressFromLocation(location)
                         
-                        // ✅ 再次检查，防止在等待逆地理编码期间 Fragment 被销毁
+                        // �?再次检查，防止在等待逆地理编码期�?Fragment 被销�?
                         if (!isAdded || view == null) return@launch
                         
-                        // ✅ Phase 1: 通过 ViewModel → LocationRepository 添加收藏
+                        // �?Phase 1: 通过 ViewModel �?LocationRepository 添加收藏
                         viewModel.addToFavorite(name, fullAddress, location.latitude, location.longitude)
                         
                         withContext(Dispatchers.Main) {
@@ -1573,7 +1255,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 获取地址名称（使用高德逆地理编码）— ✅ Phase 1: 通过 ViewModel + SearchRepository
+     * 获取地址名称（使用高德逆地理编码）�?�?Phase 1: 通过 ViewModel + SearchRepository
      */
     private suspend fun getAddressFromLocation(latLng: LatLng): Pair<String, String> {
         return try {
@@ -1586,14 +1268,14 @@ class MainFragment : Fragment() {
             val displayAddress = if (fullAddress.isNotEmpty()) fullAddress else displayName
             Pair(displayName, displayAddress)
         } catch (e: Exception) {
-            Timber.w(e, "逆地理编码失败")
+            Timber.w(e, "逆地理编码失�?)
             val fallback = String.format("%.4f, %.4f", latLng.latitude, latLng.longitude)
             Pair(fallback, fallback)
         }
     }
 
     /**
-     * 显示输入坐标对话框
+     * 显示输入坐标对话�?
      */
     private fun showInputCoordsDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_input_coords, null)
@@ -1601,7 +1283,7 @@ class MainFragment : Fragment() {
         val lngEdit = dialogView.findViewById<android.widget.EditText>(R.id.edit_longitude)
         val radioGroup = dialogView.findViewById<RadioGroup>(R.id.radio_group_coordinate_system)
         
-        // 使用 MaterialAlertDialogBuilder 自带圆角样式，去掉标题
+        // 使用 MaterialAlertDialogBuilder 自带圆角样式，去掉标�?
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setView(dialogView)
             .setPositiveButton("确定") { _, _ ->
@@ -1623,7 +1305,7 @@ class MainFragment : Fragment() {
                         else -> "GCJ02"
                     }
                     
-                    // 转换为 GCJ-02（高德地图坐标系）用于显示
+                    // 转换�?GCJ-02（高德地图坐标系）用于显�?
                     val gcjLatLng = when (selectedCoordType) {
                         "GCJ02" -> com.amap.api.maps.model.LatLng(lat, lng)
                         "WGS84" -> {
@@ -1637,7 +1319,7 @@ class MainFragment : Fragment() {
                         else -> com.amap.api.maps.model.LatLng(lat, lng)
                     }
                     
-                    // 手动输入坐标需要移动相机
+                    // 手动输入坐标需要移动相�?
                     viewModel.selectPosition(gcjLatLng, moveCamera = true)
                     updateLocationInfo(gcjLatLng)
                     
@@ -1652,7 +1334,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示地图图层对话框（带预览图）
+     * 显示地图图层对话框（带预览图�?
      */
     private fun showMapLayerDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_map_layers, null)
@@ -1668,14 +1350,14 @@ class MainFragment : Fragment() {
         val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(requireContext())
         dialog.setContentView(dialogView)
         
-        // 更新选中状态
+        // 更新选中状�?
         fun updateSelection(selected: String) {
             normalCheck.visibility = if (selected == "normal") android.view.View.VISIBLE else android.view.View.GONE
             satelliteCheck.visibility = if (selected == "satellite") android.view.View.VISIBLE else android.view.View.GONE
             nightCheck.visibility = if (selected == "night") android.view.View.VISIBLE else android.view.View.GONE
         }
         
-        // 初始选中状态
+        // 初始选中状�?
         updateSelection(when (aMap.mapType) {
             AMap.MAP_TYPE_NORMAL -> "normal"
             AMap.MAP_TYPE_SATELLITE -> "satellite"
@@ -1685,21 +1367,21 @@ class MainFragment : Fragment() {
         
         normalLayer.setOnClickListener {
             aMap.mapType = AMap.MAP_TYPE_NORMAL
-            isManualLayerSelected = true  // 标记为手动选择
+            themeDelegate.setManualLayerSelected(true)
             updateSelection("normal")
             dialog.dismiss()
         }
         
         satelliteLayer.setOnClickListener {
             aMap.mapType = AMap.MAP_TYPE_SATELLITE
-            isManualLayerSelected = true  // 标记为手动选择
+            themeDelegate.setManualLayerSelected(true)
             updateSelection("satellite")
             dialog.dismiss()
         }
         
         nightLayer.setOnClickListener {
             aMap.mapType = AMap.MAP_TYPE_NIGHT
-            isManualLayerSelected = true  // 标记为手动选择
+            themeDelegate.setManualLayerSelected(true)
             updateSelection("night")
             dialog.dismiss()
         }
@@ -1708,21 +1390,21 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 检查权限
+     * 检查权�?
      */
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         } else {
-            // ✅ 智能自动定位策略
+            // �?智能自动定位策略
             val lastLocation = viewModel.mapState.value.currentLocation
             
             if (lastLocation == null) {
-                // 首次启动或没有缓存位置 → 自动定位
+                // 首次启动或没有缓存位�?�?自动定位
                 Timber.d("First launch or no cached location, auto-location enabled")
                 viewModel.initLocation()
             } else {
-                // 已有缓存位置 → 不自动定位，直接使用缓存
+                // 已有缓存位置 �?不自动定位，直接使用缓存
                 Timber.d("Using cached location: $lastLocation")
             }
         }
@@ -1733,8 +1415,8 @@ class MainFragment : Fragment() {
      */
     private fun showPermissionRationaleDialog() {
         androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.RoundedDialogTheme)
-            .setTitle("需要定位权限")
-            .setMessage("虚拟定位功能需要访问您的位置信息。\n\n请允许定位权限以使用此功能。")
+            .setTitle("需要定位权�?)
+            .setMessage("虚拟定位功能需要访问您的位置信息。\n\n请允许定位权限以使用此功能�?)
             .setPositiveButton("授予权限") { _, _ ->
                 // 再次请求权限
                 locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -1748,9 +1430,9 @@ class MainFragment : Fragment() {
      */
     private fun showPermissionDeniedDialog() {
         androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.RoundedDialogTheme)
-            .setTitle("定位权限已拒绝")
-            .setMessage("您已拒绝定位权限，虚拟定位功能无法使用。\n\n请在系统设置中手动开启定位权限。")
-            .setPositiveButton("去设置") { _, _ ->
+            .setTitle("定位权限已拒�?)
+            .setMessage("您已拒绝定位权限，虚拟定位功能无法使用。\n\n请在系统设置中手动开启定位权限�?)
+            .setPositiveButton("去设�?) { _, _ ->
                 // 打开应用设置页面
                 PermissionHelper.openAppSettings(requireContext())
             }
@@ -1759,7 +1441,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 恢复地图状态
+     * 恢复地图状�?
      */
     private fun restoreMapState() {
         val center = viewModel.restoreMapState()
@@ -1796,8 +1478,8 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 应用 Activity 过渡动画（兼容 API 34+）
-     * API 34+ 废弃了 overridePendingTransition，改用 overrideActivityTransition
+     * 应用 Activity 过渡动画（兼�?API 34+�?
+     * API 34+ 废弃�?overridePendingTransition，改�?overrideActivityTransition
      */
     private fun applyActivityTransition() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -1821,8 +1503,8 @@ class MainFragment : Fragment() {
         if (_binding != null) {
             binding.mapView.onResume()
             
-            // ✅ 从 SP 恢复最新状态（可能来自悬浮窗的修改）
-            // 但如果 launcher 刚设置了新位置，跳过相机恢复，避免覆盖
+            // �?�?SP 恢复最新状态（可能来自悬浮窗的修改�?
+            // 但如�?launcher 刚设置了新位置，跳过相机恢复，避免覆�?
             if (!pendingPositionFromResult) {
                 val prefs = requireContext().getSharedPreferences(
                     com.mockloc.util.PrefsConfig.MAP_STATE, 
@@ -1832,26 +1514,26 @@ class MainFragment : Fragment() {
                 val lng = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_LONGITUDE, -1f)
                 val zoom = prefs.getFloat(com.mockloc.util.PrefsConfig.MapState.KEY_ZOOM, 15f)
                 
-                // 如果 SP 中有有效的中心点，直接恢复
+                // 如果 SP 中有有效的中心点，直接恢�?
                 if (lat > 0 && lng > 0) {
                     val center = com.amap.api.maps.model.LatLng(lat.toDouble(), lng.toDouble())
                     aMap.moveCamera(com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(center, zoom))
-                    Timber.d("onResume: 恢复地图状态 center=$center, zoom=$zoom")
+                    Timber.d("onResume: 恢复地图状�?center=$center, zoom=$zoom")
                 }
             }
             
             // 触发 ViewModel 状态更新（用于标记位置等）
             viewModel.restoreMapState()
             
-            // 如果 launcher 刚设置了新位置（来自历史/收藏），跳过恢复标记位置，避免覆盖
+            // 如果 launcher 刚设置了新位置（来自历史/收藏），跳过恢复标记位置，避免覆�?
             if (pendingPositionFromResult) {
                 pendingPositionFromResult = false
-                Timber.d("onResume: 跳过 restoreMarkedPosition（来自历史/收藏的新位置）")
+                Timber.d("onResume: 跳过 restoreMarkedPosition（来自历�?收藏的新位置�?)
             } else {
                 viewModel.restoreMarkedPosition()
             }
             
-            // 检测夜间模式变化
+            // 检测夜间模式变�?
             updateNightModeStatus()
         }
     }
@@ -1869,24 +1551,17 @@ class MainFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         
-        // 清除地图监听器
+        // 清除地图监听�?
         aMap.setOnMapClickListener(null)
         aMap.setOnMapLongClickListener(null)
         aMap.setOnMarkerDragListener(null)
         
-        routePolyline?.remove()
-        routePolyline = null
-        routePointMarkers.forEach { it.remove() }
-        routePointMarkers.clear()
-        lastRoutePointsHash = 0
-        
-        // 清理FAB脉冲动画
-        idlePulseAnimator?.cancel()
-        idlePulseAnimator = null
+        // 清理动画资源
+        simulationDelegate.cleanup()
         binding.fab.clearAnimation()
         
-        // mapView.onDestroy() 必须在 binding 置 null 之前调用
-        // 因为 onDestroy() 在 onDestroyView() 之后执行，此时 binding 已为 null
+        // mapView.onDestroy() 必须�?binding �?null 之前调用
+        // 因为 onDestroy() �?onDestroyView() 之后执行，此�?binding 已为 null
         binding.mapView.onDestroy()
         
         _binding = null
@@ -1894,8 +1569,8 @@ class MainFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // mapView 的 onDestroy 已在 onDestroyView 中调用
-        // 此处 _binding 已为 null，不再访问 binding
+        // mapView �?onDestroy 已在 onDestroyView 中调�?
+        // 此处 _binding 已为 null，不再访�?binding
     }
 
     /**
@@ -1911,262 +1586,18 @@ class MainFragment : Fragment() {
         // 更新夜间模式状态并切换地图类型
         updateNightModeStatus()
         
-        // ✅ 关键修复：使用 newConfig 创建新的 Context，确保 Resources 从正确的目录加载
-        // 原因：configChanges 阻止了 Activity 重建，requireContext() 返回的是旧 Context
-        // 必须用 newConfig 创建新 Context，Resources 才会使用新的 Configuration
+        // �?关键修复：使�?newConfig 创建新的 Context，确�?Resources 从正确的目录加载
+        // 原因：configChanges 阻止�?Activity 重建，requireContext() 返回的是�?Context
+        // 必须�?newConfig 创建�?Context，Resources 才会使用新的 Configuration
         val newConfigContext = requireContext().createConfigurationContext(newConfig)
         val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(newConfigContext).first
         
-        // ✅ 验证：打印新 Context 的夜间模式状态
-        val contextIsNight = (themedContext.resources.configuration.uiMode 
-            and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        Timber.d("✅ ThemedContext night mode: $contextIsNight (expected: $isNight)")
-        
-        // 手动更新视图背景颜色（从新的 Context 获取 Resources）
-        updateViewBackgrounds(themedContext)
+        // 手动更新视图背景颜色（委托给 ThemeDelegate）
+        themeDelegate.updateViewBackgrounds(themedContext)
     }
 
     /**
-     * 手动更新视图背景颜色以响应主题变化
-     * @param themedContext 使用 newConfig 创建的新 Context，确保 Resources 从正确的目录加载
-     */
-    private fun updateViewBackgrounds(themedContext: Context) {
-        if (_binding == null) return
-        
-        try {
-            // ✅ 关键修复：使用新的 themedContext 获取 Resources，确保从 color-night 加载资源
-            val resources = themedContext.resources
-            val theme = themedContext.theme
-            
-            // ✅ 更新夜间模式状态（确保后续逻辑使用最新状态）
-            isNightMode = (resources.configuration.uiMode 
-                and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-            
-            val surfaceColor = resources.getColor(R.color.surface, theme)
-            val backgroundColor = resources.getColor(R.color.background, theme)
-            val primaryColor = resources.getColor(R.color.primary, theme)
-            val surfaceVariantColor = resources.getColor(R.color.surface_variant, theme)
-            val dividerColor = resources.getColor(R.color.divider, theme)  // ✅ 搜索结果容器顶部分隔线
-            val dividerLightColor = resources.getColor(R.color.divider_light, theme)  // Item 分隔线
-            val textPrimaryColor = resources.getColor(R.color.text_primary, theme)
-            val textSecondaryColor = resources.getColor(R.color.text_secondary, theme)
-            val navIndicatorColor = resources.getColor(R.color.nav_item_selected_background, theme)
-            
-            // 更新 CoordinatorLayout 背景
-            binding.fragmentRoot.setBackgroundColor(backgroundColor)
-            
-            // 更新搜索卡片背景
-            binding.searchCard.setCardBackgroundColor(surfaceColor)
-            Timber.d("Search card background updated: surfaceColor=#${Integer.toHexString(surfaceColor)}")
-            
-            // 更新搜索结果列表背景
-            binding.searchResultList.setBackgroundColor(surfaceColor)
-            
-            // ✅ 优化：使用 ID 引用替代 getChildAt(0)，提高代码健壮性
-            binding.searchTopDivider.setBackgroundColor(dividerColor)
-            
-            // ✅ 更新 BottomSheet 背景（重新加载 drawable 以保留圆角）
-            // 关键修复：先清除背景，再重新设置，强制触发颜色重新解析
-            binding.bottomSheet.background = null
-            binding.bottomSheet.setBackgroundResource(R.drawable.bg_bottom_sheet)
-            Timber.d("BottomSheet background updated")
-            
-            // ✅ 更新 BottomSheet 拖拽手柄颜色（重新加载 drawable 以保留圆角）
-            binding.dragHandle.background = null
-            binding.dragHandle.setBackgroundResource(R.drawable.bg_drag_handle)
-            Timber.d("Drag handle background updated")
-            
-            // 更新位置信息卡片背景
-            binding.locationInfoCard.setCardBackgroundColor(primaryColor)
-            
-            // 更新底部导航栏背景（使用 backgroundColor 而非 surfaceColor）
-            binding.bottomNav.setBackgroundColor(backgroundColor)
-            
-            // 更新模式切换卡片背景（现在是路线控制栏）
-            binding.routeControlCard.setCardBackgroundColor(surfaceColor)
-            
-            // 更新路线面板背景
-            binding.routePanel.setCardBackgroundColor(surfaceColor)
-            Timber.d("Bottom nav background updated: backgroundColor=#${Integer.toHexString(backgroundColor)}")
-            
-            // ✅ 通知搜索结果列表刷新，让 Item 重新加载颜色资源
-            binding.searchResultList.adapter?.notifyDataSetChanged()
-            Timber.d("Search result list notified for theme change")
-            
-            // ✅ 额外修复：强制刷新 RecyclerView 的布局管理器（确保所有 Item 重新测量）
-            binding.searchResultList.layoutManager?.requestLayout()
-            
-            // ✅ 更新 BottomNavigationView 的图标和文字颜色（ColorStateList 需要手动刷新）
-            Timber.d("🎨 BottomNav colors: primary=#${Integer.toHexString(primaryColor)}, text_secondary=#${Integer.toHexString(textSecondaryColor)}")
-            
-            val navItemColorStateList = android.content.res.ColorStateList(
-                arrayOf(
-                    intArrayOf(android.R.attr.state_checked),
-                    intArrayOf(-android.R.attr.state_checked)
-                ),
-                intArrayOf(
-                    primaryColor,
-                    textSecondaryColor
-                )
-            )
-            binding.bottomNav.itemIconTintList = navItemColorStateList
-            binding.bottomNav.itemTextColor = navItemColorStateList
-            
-            // ✅ 强制刷新 BottomNavigationView 的状态（确保颜色立即生效）
-            binding.bottomNav.post {
-                binding.bottomNav.refreshDrawableState()
-            }
-            
-            Timber.d("BottomNavigationView colors updated: primary=#${Integer.toHexString(primaryColor)}, text_secondary=#${Integer.toHexString(textSecondaryColor)}")
-            
-            // ✅ 更新搜索框文字颜色（EditText 不会自动刷新）
-            binding.searchEdit.setTextColor(textPrimaryColor)
-            binding.searchEdit.setHintTextColor(resources.getColor(R.color.text_hint, theme))
-            
-            // ✅ 更新搜索图标的 tint 颜色（XML 静态绑定不会自动刷新）
-            binding.searchEdit.parent?.let { searchRow ->
-                val searchIcon = (searchRow as? android.widget.LinearLayout)?.getChildAt(0) as? android.widget.ImageView
-                searchIcon?.setColorFilter(resources.getColor(R.color.text_hint, theme))
-            }
-            
-            // ✅ 更新操作按钮组的图标和文字颜色
-            updateButtonIconTint(binding.inputCoordsBtn, primaryColor, textSecondaryColor)
-            updateButtonIconTint(binding.historyBtn, primaryColor, textSecondaryColor)
-            updateButtonIconTint(binding.favoriteBtn, primaryColor, textSecondaryColor)
-            updateButtonIconTint(binding.routeBtn, primaryColor, textSecondaryColor)
-            
-            // ✅ 更新路线控制栏按钮的图标颜色
-            binding.routePlayFabBtn.setColorFilter(primaryColor)
-            binding.routeSpeedFabBtn.setColorFilter(primaryColor)
-            binding.routeStopFabBtn.setColorFilter(resources.getColor(R.color.error, theme))
-            
-            // ✅ 更新 BottomSheet 内路线控制面板的图标颜色
-            binding.routeMovementModeBtn.setColorFilter(primaryColor)
-            binding.routeLoopBtn.setColorFilter(textSecondaryColor)
-            binding.routeClearBtn.setColorFilter(resources.getColor(R.color.error, theme))
-            
-            // 直接设置选中项指示器颜色（绕过 configChanges 导致的资源不刷新问题）
-            binding.bottomNav.setItemActiveIndicatorColor(
-                android.content.res.ColorStateList.valueOf(navIndicatorColor)
-            )
-            
-            // 更新右侧固定栏按钮背景（重要！）
-            // 普通按钮使用 surface 或 surface_variant
-            updateButtonBackground(binding.zoomInBtn, surfaceVariantColor)
-            updateButtonBackground(binding.zoomOutBtn, surfaceVariantColor)
-            updateButtonBackground(binding.layerBtn, surfaceVariantColor)
-            // 定位按钮使用主色调
-            updateButtonBackground(binding.locationBtn, primaryColor)
-
-            // ✅ 更新路线点编辑按钮的图标 tint 和背景
-            binding.btnCancelSelect?.let { btn ->
-                updateButtonBackground(btn, surfaceVariantColor)
-                btn.setColorFilter(textPrimaryColor)
-            }
-            binding.btnDeleteRoutePoint?.let { btn ->
-                updateButtonBackground(btn, surfaceVariantColor)
-                btn.setColorFilter(textPrimaryColor)
-            }
-            
-            // ✅ 更新右侧按钮的图标 tint 颜色
-            binding.zoomInBtn.setColorFilter(textPrimaryColor)
-            binding.zoomOutBtn.setColorFilter(textPrimaryColor)
-            binding.layerBtn.setColorFilter(textPrimaryColor)
-            // 定位按钮图标保持白色
-            binding.locationBtn.setColorFilter(android.graphics.Color.WHITE)
-            
-            // ✅ 更新 FAB 按钮的背景和图标颜色
-            binding.fab.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
-            binding.fab.setColorFilter(android.graphics.Color.WHITE)
-            
-            // ✅ 更新搜索加载指示器颜色（ProgressBar indeterminateTint 需要手动刷新）
-            binding.searchProgress.indeterminateTintList = android.content.res.ColorStateList.valueOf(primaryColor)
-            
-            // ✅ 更新状态徽章背景（重新加载 drawable 以应用夜间模式版本）
-            binding.statusBadge.setBackgroundResource(R.drawable.bg_status_badge)
-            
-            // ✅ 更新状态徽章文字颜色（白天白色，夜间深色）
-            // 注意：状态徽章在地图上，背景是半透明的
-            // 白天：白色文字 + 半透明白色背景
-            // 夜间：深色文字 + 半透明黑色背景
-            val statusTextColor = if (isNightMode) {
-                resources.getColor(R.color.text_primary, theme)  // 夜间：白色
-            } else {
-                android.graphics.Color.WHITE  // 白天：白色
-            }
-            binding.statusText.setTextColor(statusTextColor)
-            Timber.d("Status text color updated: isNightMode=$isNightMode")
-            
-            // ✅ 更新路线折线颜色(重新绘制)
-            updateRoutePolylineColor()
-            
-            // ✅ 更新 Chip 颜色(从新的 themedContext 获取 Resources)
-            updateChipColors(themedContext)
-                        
-            // ✅ 更新路线模拟进度条颜色（传入 themedContext 确保颜色从正确版本加载）
-            updateRouteProgressColors(themedContext)
-            
-            // ✅ 更新 TabLayout 颜色（夜间模式切换时刷新）
-            // 方法0：更新 TabLayout 背景色（从 surface 或 surface_variant 中选择）
-            binding.panelTabs.setBackgroundColor(surfaceColor)
-            
-            // ✅ 更新 TabLayout 底部边框颜色
-            binding.tabLayoutDivider.setBackgroundColor(dividerColor)
-            
-            // 方法1：设置 TabLayout 的颜色选择器
-            binding.panelTabs.setTabTextColors(
-                resources.getColor(R.color.text_secondary, theme),  // 未选中
-                primaryColor  // 选中
-            )
-            binding.panelTabs.setSelectedTabIndicatorColor(primaryColor)
-            
-            // 方法2：遍历并直接更新每个 Tab 的 TextView（确保立即生效）
-            val tabLayout = binding.panelTabs
-            for (i in 0 until tabLayout.tabCount) {
-                val tab = tabLayout.getTabAt(i)
-                val tabView = (tabLayout.getChildAt(0) as? android.view.ViewGroup)?.getChildAt(i)
-                if (tabView is android.view.ViewGroup) {
-                    for (j in 0 until tabView.childCount) {
-                        val child = tabView.getChildAt(j)
-                        if (child is android.widget.TextView) {
-                            // 根据 Tab 的选中状态设置颜色
-                            val color = if (tabLayout.selectedTabPosition == i) {
-                                primaryColor
-                            } else {
-                                resources.getColor(R.color.text_secondary, theme)
-                            }
-                            child.setTextColor(color)
-                        }
-                    }
-                }
-            }
-            
-            // 方法3：强制刷新指示器和状态
-            binding.panelTabs.post {
-                // 重新设置指示器颜色（确保指示器重绘）
-                binding.panelTabs.setSelectedTabIndicatorColor(primaryColor)
-                binding.panelTabs.refreshDrawableState()
-                // 强制请求布局（确保指示器重新绘制）
-                binding.panelTabs.requestLayout()
-            }
-            
-            Timber.d("TabLayout colors updated for theme change")
-            
-            // ✅ 更新位置信息卡片内的文字颜色
-            // 卡片背景是 primary（蓝绿色），所以文字保持白色
-            binding.latitudeText.setTextColor(android.graphics.Color.WHITE)
-            binding.longitudeText.setTextColor(android.graphics.Color.WHITE)
-            binding.addressText.setTextColor(android.graphics.Color.WHITE)
-            Timber.d("Location info card text colors updated")
-            
-            Timber.d("View backgrounds updated for theme change")
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to update view backgrounds")
-        }
-    }
-
-    /**
-     * 更新单个按钮的背景颜色
+     * 更新单个按钮的背景颜�?
      */
     private fun updateButtonBackground(button: android.widget.ImageButton, color: Int) {
         button.background = android.graphics.drawable.GradientDrawable().apply {
@@ -2177,7 +1608,7 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 更新操作按钮组的图标和文字颜色
+     * 更新操作按钮组的图标和文字颜�?
      */
     private fun updateButtonIconTint(
         buttonContainer: android.widget.LinearLayout,
@@ -2196,35 +1627,12 @@ class MainFragment : Fragment() {
             Timber.e(e, "Failed to update button icon tint")
         }
     }
-    
     /**
-     * 更新路线折线颜色
-     */
-    private fun updateRoutePolylineColor() {
-        val routeState = viewModel.routeState.value
-        if (routePolyline != null && routeState.routePoints.size >= 2) {
-            // 移除旧的折线
-            routePolyline?.remove()
-            
-            // 重新绘制折线（使用最新的颜色）
-            val points = routeState.routePoints.map { it.latLng }
-            routePolyline = aMap.addPolyline(
-                com.amap.api.maps.model.PolylineOptions()
-                    .addAll(points)
-                    .width(8f)
-                    .color(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary))
-                    .geodesic(true)
-            )
-            Timber.d("Route polyline color updated for theme change")
-        }
-    }
-    
-    /**
-     * 更新 Chip 颜色（手动重建 ColorStateList，强制从 themedContext 加载正确的夜间/白天颜色）
-     * @param themedContext 使用 newConfig 创建的新 Context，确保 Resources 从正确的目录加载
+     * 更新 Chip 颜色（手动重�?ColorStateList，强制从 themedContext 加载正确的夜�?白天颜色�?
+     * @param themedContext 使用 newConfig 创建的新 Context，确�?Resources 从正确的目录加载
      *
-     * 背景：configChanges="uiMode" 阻止了 Activity 重建，XML 样式中静态引用的颜色不会重新解析，
-     *       必须通过代码显式创建 ColorStateList 并赋值给 Chip。
+     * 背景：configChanges="uiMode" 阻止�?Activity 重建，XML 样式中静态引用的颜色不会重新解析�?
+     *       必须通过代码显式创建 ColorStateList 并赋值给 Chip�?
      */
     private fun updateChipColors(themedContext: Context) {
         val resources = themedContext.resources
@@ -2232,11 +1640,11 @@ class MainFragment : Fragment() {
 
         // ── 公共颜色 ────────────────────────────────────────────────
         val primaryColor       = resources.getColor(R.color.primary, theme)
-        // chip_mode_choice_text = 未选中文字（白天 #666666，夜间 #CCCCCC）
+        // chip_mode_choice_text = 未选中文字（白�?#666666，夜�?#CCCCCC�?
         val chipTextUnselected = resources.getColor(R.color.chip_mode_choice_text, theme)
-        // 未选中背景 = chip_mode_choice_bg（白天 #F0F0F0，夜间 #2A2A2A）── 不用透明，避免透出地图底色
+        // 未选中背景 = chip_mode_choice_bg（白�?#F0F0F0，夜�?#2A2A2A）── 不用透明，避免透出地图底色
         val chipBgUnselected = resources.getColor(R.color.chip_mode_choice_bg, theme)
-        // 选中态文字固定白色（与 chip_mode_choice_text_selector.xml 保持一致）
+        // 选中态文字固定白色（�?chip_mode_choice_text_selector.xml 保持一致）
         val chipTextSelected = android.graphics.Color.WHITE
 
         // ── 背景 ColorStateList（选中=primary，未选中=chip_mode_choice_bg）──
@@ -2257,13 +1665,13 @@ class MainFragment : Fragment() {
             intArrayOf(chipTextSelected, chipTextUnselected)
         )
 
-        // ✅ 只更新速度 Chip（模式 Chip 已移除）
+        // �?只更新速度 Chip（模�?Chip 已移除）
         listOf(binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x).forEach { chip ->
             chip.chipBackgroundColor = chipBgSelector
             chip.setTextColor(speedTextSelector)
         }
 
-        // ── 强制触发绘制刷新，确保选中态/未选中态即时呈现 ──────────
+        // ── 强制触发绘制刷新，确保选中�?未选中态即时呈�?──────────
         listOf(
             binding.speed05x, binding.speed1x, binding.speed2x, binding.speed4x
         ).forEach { chip ->
@@ -2275,7 +1683,7 @@ class MainFragment : Fragment() {
 
 
     /**
-     * 更新路线模拟进度条颜色
+     * 更新路线模拟进度条颜�?
      * @param themedContext 使用 newConfig 创建的新 Context，确保颜色从正确目录加载
      */
     private fun updateRouteProgressColors(themedContext: Context = requireContext()) {
@@ -2283,14 +1691,14 @@ class MainFragment : Fragment() {
             val resources = themedContext.resources
             val theme = themedContext.theme
             
-            // 获取最新的颜色（从正确的 themedContext 加载，避免旧 Context 返回白天模式颜色）
+            // 获取最新的颜色（从正确�?themedContext 加载，避免旧 Context 返回白天模式颜色�?
             val primaryColor = resources.getColor(R.color.primary, theme)
             val dividerColor = resources.getColor(R.color.divider, theme)
             
-            // 更新进度条前景色（progressTint）
+            // 更新进度条前景色（progressTint�?
             binding.routeProgress.progressTintList = android.content.res.ColorStateList.valueOf(primaryColor)
             
-            // 更新进度条背景色（progressBackgroundTint）
+            // 更新进度条背景色（progressBackgroundTint�?
             binding.routeProgress.progressBackgroundTintList = android.content.res.ColorStateList.valueOf(dividerColor)
             
             Timber.d("Route progress bar colors updated for theme change")

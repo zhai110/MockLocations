@@ -2,12 +2,15 @@ package com.mockloc.ui.main.delegate
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.view.View
+import android.animation.ObjectAnimator
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.google.android.material.chip.Chip
 import com.mockloc.R
 import com.mockloc.databinding.FragmentMainBinding
 import com.mockloc.ui.main.MainViewModel
+import com.mockloc.util.AnimationHelper
 import com.mockloc.util.UIFeedbackHelper
 import timber.log.Timber
 
@@ -17,7 +20,7 @@ import timber.log.Timber
  * 职责：
  * - 处理单点定位的启动/停止模拟
  * - 处理路线模式的播放/暂停/停止
- * - 更新速度选择 Chip 的状态
+ * - 更新模拟 UI（FAB 图标、脉冲动画、状态徽章）
  * - 权限检查和用户反馈
  */
 class SimulationDelegate(
@@ -25,6 +28,45 @@ class SimulationDelegate(
     private val viewModel: MainViewModel,
     private val binding: FragmentMainBinding
 ) {
+    
+    private var idlePulseAnimator: ObjectAnimator? = null
+    
+    /**
+     * 更新模拟 UI
+     * @param state 模拟状态
+     * @param currentTabMode 当前 Tab 模式（0=单点模式，1=路线模式）
+     */
+    fun updateSimulationUI(state: MainViewModel.SimulationState, currentTabMode: Int) {
+        if (currentTabMode == 0) {
+            if (state.isSimulating) {
+                binding.fab.setImageResource(R.drawable.ic_fly)
+                binding.fab.imageTintList = null
+                idlePulseAnimator?.cancel()
+                idlePulseAnimator = null
+                binding.statusText.text = "模拟中"
+            } else {
+                binding.fab.setImageResource(R.drawable.ic_position)
+                binding.fab.imageTintList = null
+                if (idlePulseAnimator == null) {
+                    idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
+                }
+                binding.statusText.text = "未模拟"
+            }
+        }
+    }
+    
+    /**
+     * 获取脉冲动画（供 MainFragment 在 onDestroyView 时清理）
+     */
+    fun getIdlePulseAnimator(): ObjectAnimator? = idlePulseAnimator
+    
+    /**
+     * 清理动画资源
+     */
+    fun cleanup() {
+        idlePulseAnimator?.cancel()
+        idlePulseAnimator = null
+    }
     
     /**
      * 切换模拟状态（单点模式）
@@ -78,4 +120,9 @@ class SimulationDelegate(
      * 权限检查回调（由 MainFragment 提供）
      */
     var onPermissionCheckNeeded: (() -> Unit)? = null
+    
+    /**
+     * 获取当前 Tab 模式（供 MainFragment 传递）
+     */
+    var currentTabMode: Int = 0
 }

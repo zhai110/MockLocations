@@ -198,9 +198,9 @@ class SearchDelegate(
     }
     
     /**
-     * 更新清除按钮的可见性
+     * 更新清除按钮的可见性（供 MainFragment 调用）
      */
-    private fun updateClearButtonVisibility() {
+    fun updateClearButtonVisibility() {
         val hasText = binding.searchEdit.text.isNotEmpty()
         val hasResults = isSearchResultVisible
         
