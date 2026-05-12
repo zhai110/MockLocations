@@ -18,7 +18,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.mockloc.R
 import com.mockloc.data.db.HistoryLocation
 import com.mockloc.data.repository.LocationRepository
-import com.mockloc.util.MapUtils
 import com.mockloc.util.UIFeedbackHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

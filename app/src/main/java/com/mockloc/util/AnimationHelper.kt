@@ -114,16 +114,6 @@ object AnimationHelper {
     }
 
     /**
-     * 弹跳进入动画（使用XML资源）
-     * @deprecated 使用 bounceIn(view, duration, onComplete) 获得更好的控制
-     */
-    @Deprecated("Use bounceIn with callback for better control", ReplaceWith("bounceIn(view, AnimationConfig.getBounceInDuration(), null)"))
-    fun bounceInXml(view: View) {
-        val animation = AnimationUtils.loadAnimation(view.context, R.anim.bounce_in)
-        view.startAnimation(animation)
-    }
-
-    /**
      * 按钮按压效果
      */
     fun buttonPress(view: View) {

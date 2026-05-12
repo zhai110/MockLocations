@@ -11,9 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -27,15 +25,12 @@ import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.model.Marker
 import com.amap.api.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.snackbar.Snackbar
 import com.mockloc.R
 import com.mockloc.databinding.FragmentMainBinding
 import com.mockloc.ui.favorite.FavoriteActivity
 import com.mockloc.ui.history.HistoryActivity
 import com.mockloc.ui.settings.SettingsActivity
-import com.mockloc.util.AnimationConfig
 import com.mockloc.util.AnimationHelper
-import com.mockloc.util.OnboardingManager
 import com.mockloc.util.PermissionHelper
 import com.mockloc.util.UIFeedbackHelper
 import kotlinx.coroutines.Dispatchers
@@ -121,7 +116,6 @@ class MainFragment : Fragment() {
         }
     }
 
-    // 路线点编辑
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -129,15 +123,10 @@ class MainFragment : Fragment() {
             Timber.d("Location permission granted")
             viewModel.initLocation()
         } else {
-                // 路线模式：播放/暂停路线
-            val shouldShowRationale = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)
-            
-            if (shouldShowRationale) {
-                // 用户之前拒绝过，但未选择"不再询问"→ 显示解释对话框
-
+            val showRationale = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (showRationale) {
                 showPermissionRationaleDialog()
             } else {
-            // ✅ 切换到路线模式Tab
                 showPermissionDeniedDialog()
             }
         }
@@ -181,10 +170,14 @@ class MainFragment : Fragment() {
 
         // 获取状态栏高度并调整搜索栏位置
         try {
-            val statusBarHeight = getStatusBarHeight()
+            var statusBarHeight = 0
+            val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+            if (resourceId > 0) {
+                statusBarHeight = resources.getDimensionPixelSize(resourceId)
+            }
             if (statusBarHeight > 0) {
                 (binding.searchCard.layoutParams as? androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)?.let { params ->
-                    params.topMargin = statusBarHeight + 16.dpToPx()
+                    params.topMargin = statusBarHeight + (16 * resources.displayMetrics.density + 0.5f).toInt()
                     binding.searchCard.layoutParams = params
                 }
             }
@@ -200,7 +193,7 @@ class MainFragment : Fragment() {
         simulationDelegate = com.mockloc.ui.main.delegate.SimulationDelegate(this, viewModel, binding)
         simulationDelegate.onPermissionCheckNeeded = { checkPermissions() }
         simulationDelegate.onUpdateMarker = { latLng, moveCamera -> updateMarker(latLng, moveCamera) }
-        simulationDelegate.onSaveToHistory = { lat, lng -> saveToHistory(lat, lng) }
+        simulationDelegate.onSaveToHistory = { lat, lng -> viewModel.saveToHistoryAsync(lat, lng) }
         
         routeEditDelegate = com.mockloc.ui.main.delegate.RouteEditDelegate(this, viewModel, binding)
         routeEditDelegate.onGetAMap = { if (::aMap.isInitialized) aMap else null }
@@ -242,21 +235,10 @@ class MainFragment : Fragment() {
         // 观察 ViewModel 状态
         observeViewModel()
 
-    // 路线点编辑
-        restoreMapState()
-    }
-
-    /**
-     * 更新夜间模式状态（委托给 ThemeDelegate）
-     * 检测日夜模式变化 → 更新地图类型 → 更新所有 View 颜色
-     */
-    private fun updateNightModeStatus() {
-        if (!::aMap.isInitialized) {
-            Timber.d("Map not initialized yet, skip night mode update")
-            return
+        // 恢复地图状态
+        viewModel.restoreMapState()?.let {
+            aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(it, viewModel.mapState.value.zoom))
         }
-        val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(requireContext()).first
-        themeDelegate.handleThemeUpdate(aMap, themedContext)
     }
 
     /**
@@ -266,7 +248,6 @@ class MainFragment : Fragment() {
      * - [MainViewModel.mapState] → [updateMapUI]
      * - [MainViewModel.searchState] → [updateSearchUI]
      * - [MainViewModel.simulationState] → [SimulationDelegate.updateSimulationUI]
-     * - [MainViewModel.bottomSheetState] → [updateBottomSheetUI]
      * - [MainViewModel.routeState] → [RouteEditDelegate.updateRouteUI]
      * - [MainViewModel.simulationControlEvents] → [handleSimulationControlEvent]
      */
@@ -294,12 +275,6 @@ class MainFragment : Fragment() {
                 }
 
                 launch {
-                    viewModel.bottomSheetState.collect { state ->
-                        updateBottomSheetUI(state)
-                    }
-                }
-
-                launch {
                     viewModel.routeState.collect { state ->
                         routeEditDelegate.updateRouteUI(state)
                     }
@@ -323,17 +298,6 @@ class MainFragment : Fragment() {
     
     
     
-    /**
-     * 保存位置到历史记录（委托给 ViewModel）
-     */
-    private fun saveToHistory(latitude: Double, longitude: Double) {
-        viewModel.saveToHistoryAsync(latitude, longitude)
-    }
-    
-    
-
-
-
     /**
      * 响应地图状态变化，更新标记和位置信息。
      *
@@ -405,13 +369,6 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 响应底部面板状态变化（预留扩展）。
-     */
-    private fun updateBottomSheetUI(state: MainViewModel.BottomSheetState) {
-        // 可以在这里更新底部面板的展开/收起状态
-    }
-
-    /**
      * 初始化高德地图。
      *
      * 设置以下监听：
@@ -423,16 +380,10 @@ class MainFragment : Fragment() {
      * 使用 [ThemeDelegate] 设置夜间模式地图类型。
      */
     private fun initMap() {
-        // ✅ 防御性检查：确保 AMap 实例获取成功
         aMap = binding.mapView.map
-        if (aMap == null) {
-            Timber.e("❌ Failed to get AMap instance, map initialization failed")
-            Toast.makeText(requireContext(), "地图初始化失败，请重启应用", Toast.LENGTH_LONG).show()
-            return
-        }
-        Timber.d("✅ AMap instance obtained successfully")
+        Timber.d("AMap instance obtained successfully")
         
-    // ✅ Phase 2: Delegate 成员变量
+        // ✅ Phase 2: Delegate 成员变量
         themeDelegate.updateMapTypeForNightMode(aMap)
         
         // 启用我的位置图层（使用 LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER）
@@ -458,7 +409,8 @@ class MainFragment : Fragment() {
         
         // 设置地图长按监听
         aMap.setOnMapLongClickListener { latLng ->
-            onMapLongClick(latLng)
+            Timber.d("Map long clicked: ${latLng.latitude}, ${latLng.longitude}")
+            onMapClick(latLng)
         }
         
         // 设置标记拖拽监听
@@ -517,106 +469,47 @@ class MainFragment : Fragment() {
                 }
 
                 override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                    applyBottomSheetParallax(slideOffset)
-                    
-                    // FAB跟随BottomSheet滑动
-                    val fabTranslation = resources.getDimension(R.dimen.fab_translation_y)
-                    val fabTranslationY = -fabTranslation * (1f - slideOffset.coerceIn(0f, 1f))
-                    binding.fab.translationY = fabTranslationY
-                }
+                // 底部面板视差效果
+                val normalizedOffset = if (slideOffset < 0) 0f else slideOffset
+                binding.locationInfoCard?.alpha = 0.7f + normalizedOffset * 0.3f
+                
+                // FAB跟随BottomSheet滑动
+                val fabTranslation = resources.getDimension(R.dimen.fab_translation_y)
+                val fabTranslationY = -fabTranslation * (1f - slideOffset.coerceIn(0f, 1f))
+                binding.fab.translationY = fabTranslationY
+            }
             })
         }
-    }
-
-    /**
-     * 底部面板视差效果，根据滑动偏移量调整位置信息卡片透明度。
-     */
-    private fun applyBottomSheetParallax(slideOffset: Float) {
-        val normalizedOffset = if (slideOffset < 0) 0f else slideOffset
-        
-    // 路线点编辑
-        binding.locationInfoCard?.alpha = 0.7f + normalizedOffset * 0.3f
     }
 
     /**
      * 初始化面板 Tab（单点/路线），切换时更新按钮和 ViewModel 状态。
      */
     private fun initPanelTabs() {
-        // ✅ 禁用 TabLayout 的所有动画（防止夜间模式闪烁）
         binding.panelTabs.setScrollPosition(0, 0f, false)
-        
-        // 初始化Tab切换
-        for (i in 0 until binding.panelTabs.tabCount) {
-            val tab = binding.panelTabs.getTabAt(i)
-            tab?.view?.setBackgroundResource(android.R.color.transparent)
-        }
-        
         binding.panelTabs.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
-                // ✅ 清除选中项的背景（防止夜间模式闪烁）
                 tab?.view?.setBackgroundResource(android.R.color.transparent)
-                
                 when (tab?.position) {
-                    0 -> {
-                        showPointModeButtons()
-                        viewModel.setRouteMode(false)  // ✅ 切换到单点模式
-                    }
-                    1 -> {
-                        showRouteModeButtons()
-                        viewModel.setRouteMode(true)   // ✅ 切换到路线模式
-                    }
+                    0 -> { setPanelMode(false); viewModel.setRouteMode(false) }
+                    1 -> { setPanelMode(true); viewModel.setRouteMode(true) }
                 }
             }
-
             override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
-                // ✅ 清除未选中项的背景
                 tab?.view?.setBackgroundResource(android.R.color.transparent)
             }
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
         })
-        
-        // 默认显示单点模式按钮
-        showPointModeButtons()
+        setPanelMode(false)
     }
 
-    /**
-     * 显示单点模式按钮，隐藏路线控制面板，FAB 显示定位图标。
-     */
-    private fun showPointModeButtons() {
-        currentTabMode = 0
-        binding.pointActionButtons.visibility = android.view.View.VISIBLE
-        
-    // 路线点编辑
-        binding.routeControlCard.visibility = android.view.View.GONE
-        
-        // 初始化BottomSheet
-        binding.routePanel.visibility = android.view.View.GONE
-        
-        // FAB显示定位图标
+    private fun setPanelMode(showRouteMode: Boolean) {
+        currentTabMode = if (showRouteMode) 1 else 0
+        binding.pointActionButtons.visibility = if (showRouteMode) View.GONE else View.VISIBLE
+        binding.routeControlCard.visibility = if (showRouteMode) View.VISIBLE else View.GONE
+        binding.routePanel.visibility = if (showRouteMode) View.VISIBLE else View.GONE
         binding.fab.setImageResource(R.drawable.ic_position)
         binding.fab.imageTintList = null
-        
-        Timber.d("Switched to point mode buttons")
-    }
-
-    /**
-     * 显示路线模式控制面板，隐藏单点按钮，FAB 保持定位图标。
-     */
-    private fun showRouteModeButtons() {
-        currentTabMode = 1
-        binding.pointActionButtons.visibility = android.view.View.GONE
-        
-    // 路线点编辑
-        binding.routeControlCard.visibility = android.view.View.VISIBLE
-        
-        // ✅ 显示 BottomSheet 内的路线控制面板（与4个按钮同位置）
-        binding.routePanel.visibility = android.view.View.VISIBLE
-        
-        // FAB保持定位图标
-        binding.fab.setImageResource(R.drawable.ic_position)
-        binding.fab.imageTintList = null
-        
-        Timber.d("Switched to route mode panel")
     }
 
 
@@ -625,119 +518,72 @@ class MainFragment : Fragment() {
      * 初始化底部导航栏，设置图标/文字颜色和页面跳转（地图/历史/收藏/设置）。
      */
     private fun initBottomNavigation() {
-        // ✅ 关键修复：使用与主题切换时相同的方式获取颜色
-        val resources = requireContext().resources
+        val res = requireContext().resources
         val theme = requireContext().theme
         
-        // ✅ 初始化选中态背景色（使用 nav_item_selected_background 颜色）
         try {
-            val containerColor = resources.getColor(R.color.nav_item_selected_background, theme)
-            binding.bottomNav.setItemActiveIndicatorColor(android.content.res.ColorStateList.valueOf(containerColor))
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to set active indicator color")
-        }
+            binding.bottomNav.setItemActiveIndicatorColor(android.content.res.ColorStateList.valueOf(res.getColor(R.color.nav_item_selected_background, theme)))
+        } catch (e: Exception) { Timber.e(e, "Failed to set active indicator color") }
         
-    // 路线点编辑
         try {
-            val primaryColor = resources.getColor(R.color.primary, theme)
-            val textSecondaryColor = resources.getColor(R.color.text_secondary, theme)
-            
-            val navItemColorStateList = android.content.res.ColorStateList(
-                arrayOf(
-                    intArrayOf(android.R.attr.state_checked),
-                    intArrayOf(-android.R.attr.state_checked)
-                ),
-                intArrayOf(
-                    primaryColor,
-                    textSecondaryColor
-                )
+            val primary = res.getColor(R.color.primary, theme)
+            val secondary = res.getColor(R.color.text_secondary, theme)
+            binding.bottomNav.itemIconTintList = android.content.res.ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf(-android.R.attr.state_checked)),
+                intArrayOf(primary, secondary)
             )
-            binding.bottomNav.itemIconTintList = navItemColorStateList
-            binding.bottomNav.itemTextColor = navItemColorStateList
-            
-            Timber.d("✅ BottomNavigationView initialized: primary=#${Integer.toHexString(primaryColor)}, text_secondary=#${Integer.toHexString(textSecondaryColor)}")
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to initialize BottomNavigationView colors")
-        }
+            binding.bottomNav.itemTextColor = binding.bottomNav.itemIconTintList
+        } catch (e: Exception) { Timber.e(e, "Failed to init nav colors") }
         
         binding.bottomNav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_map -> {
-                    // 已在地图页，不需要做任何事
-                    true
-                }
-                R.id.nav_history -> {
-                    historyLauncher.launch(Intent(requireContext(), HistoryActivity::class.java))
-                    applyActivityTransition()
-                    true
-                }
-                R.id.nav_favorite -> {
-                    favoriteLauncher.launch(Intent(requireContext(), FavoriteActivity::class.java))
-                    applyActivityTransition()
-                    true
-                }
-                R.id.nav_settings -> {
-                    startActivity(Intent(requireContext(), SettingsActivity::class.java))
-                    applyActivityTransition()
-                    true
-                }
-                else -> false
+            val cls = when (item.itemId) {
+                R.id.nav_history -> HistoryActivity::class.java
+                R.id.nav_favorite -> FavoriteActivity::class.java
+                R.id.nav_settings -> SettingsActivity::class.java
+                else -> null
             }
+            if (cls != null) {
+                val intent = Intent(requireContext(), cls)
+                if (item.itemId == R.id.nav_history || item.itemId == R.id.nav_favorite) {
+                    (historyLauncher.takeIf { item.itemId == R.id.nav_history } ?: favoriteLauncher).launch(intent)
+                } else {
+                    startActivity(intent)
+                }
+                applyNavTransition()
+            }
+            item.itemId == R.id.nav_map || cls != null
+        }
+    }
+    
+    private fun applyNavTransition() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            requireActivity().overrideActivityTransition(android.app.Activity.OVERRIDE_TRANSITION_OPEN, R.anim.slide_in_right, R.anim.slide_out_left)
+        } else {
+            @Suppress("DEPRECATION")
+            requireActivity().overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
     }
 
-    /**
-     * 设置所有按钮点击事件，作为事件路由表分发到各 Delegate。
-     *
-     * 包括：地图缩放、路线点编辑、定位、图层、坐标输入、历史、收藏、
-     * FAB 模拟切换、路线播放/速度/停止、速度芯片、循环、移动模式、清除路线。
-     */
     private fun setupClickListeners() {
-        // ✅ Phase 2: 搜索相关监听器已迁移到 SearchDelegate，此处不再重复设置
-        
-        // 地图控制按钮
-        binding.zoomInBtn.setOnClickListener {
-            aMap.animateCamera(CameraUpdateFactory.zoomIn())
-        }
-
-        binding.zoomOutBtn.setOnClickListener {
-            aMap.animateCamera(CameraUpdateFactory.zoomOut())
-        }
-
+        binding.zoomInBtn.setOnClickListener { aMap.animateCamera(CameraUpdateFactory.zoomIn()) }
+        binding.zoomOutBtn.setOnClickListener { aMap.animateCamera(CameraUpdateFactory.zoomOut()) }
         binding.locationBtn.setOnClickListener {
-            viewModel.mapState.value.currentLocation?.let { loc ->
-            // ✅ 使用 animateCamera 实现流畅的飞行动画
-                aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 15f))
-            } ?: run {
-                viewModel.initLocation()
-            }
+            viewModel.mapState.value.currentLocation?.let { aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(it, 15f)) }
+                ?: viewModel.initLocation()
         }
-
-        binding.layerBtn.setOnClickListener {
-            themeDelegate.showMapLayerDialog(aMap)
-        }
-
-        // 操作按钮
+        binding.layerBtn.setOnClickListener { themeDelegate.showMapLayerDialog(aMap) }
         binding.inputCoordsBtn.setOnClickListener {
             dialogDelegate.showInputCoordsDialog { gcjLatLng ->
                 viewModel.selectPosition(gcjLatLng, moveCamera = true)
                 updateLocationInfo(gcjLatLng)
             }
         }
-
-        binding.historyBtn.setOnClickListener {
-            historyLauncher.launch(Intent(requireContext(), HistoryActivity::class.java))
-        }
-
+        binding.historyBtn.setOnClickListener { historyLauncher.launch(Intent(requireContext(), HistoryActivity::class.java)) }
         binding.favoriteBtn.setOnClickListener {
-            addToFavorite()
+            viewModel.mapState.value.markedPosition?.let { viewModel.addToFavoriteAsync(it.latitude, it.longitude) }
+                ?: UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_please_select_location))
         }
-
-        binding.routeBtn.setOnClickListener {
-        // 初始化Tab切换
-            binding.panelTabs.getTabAt(1)?.select()
-        }
-
+        binding.routeBtn.setOnClickListener { binding.panelTabs.getTabAt(1)?.select() }
         simulationDelegate.setupClickListeners()
         routeEditDelegate.setupClickListeners()
     }
@@ -768,15 +614,6 @@ class MainFragment : Fragment() {
         viewModel.hideSearchResults()
         viewModel.selectPosition(latLng, moveCamera = false)
         updateLocationInfo(latLng)
-    }
-
-    /**
-     * 地图长按回调，选择位置并移动相机（委托给 [onMapClick]）。
-     */
-    private fun onMapLongClick(latLng: LatLng) {
-        Timber.d("Map long clicked: ${latLng.latitude}, ${latLng.longitude}")
-        // 长按也触发点击逻辑
-        onMapClick(latLng)
     }
 
     /**
@@ -858,28 +695,7 @@ class MainFragment : Fragment() {
         }
     }
 
-    /**
-     * 切换模拟状态（委托给 [SimulationDelegate]），检查权限和标记位置后调用 ViewModel 确认。
-     */
-    private fun toggleSimulation() {
-        simulationDelegate.toggleSimulation()
-    }
-
-    private fun toggleRoutePlaybackFromFab() {
-        simulationDelegate.toggleRoutePlaybackFromFab()
-    }
-
-    /**
-     * 添加到收藏（委托给 ViewModel）
-     */
-    private fun addToFavorite() {
-        viewModel.mapState.value.markedPosition?.let { location ->
-            viewModel.addToFavoriteAsync(location.latitude, location.longitude)
-        } ?: run {
-            UIFeedbackHelper.showToast(requireContext(), getString(R.string.toast_please_select_location))
-        }
-    }
-
+    
     /**
      * 检查定位权限，未授权时请求权限；已授权且无缓存位置时初始化定位。
      */
@@ -901,15 +717,16 @@ class MainFragment : Fragment() {
         }
     }
 
+    // ==================== 生命周期方法 ====================
+
     /**
-     * 显示权限解释对话框（用户之前拒绝过，但未选择“不再询问”）
+     * 显示权限解释对话框（用户之前拒绝过，但未选择"不再询问"）
      */
     private fun showPermissionRationaleDialog() {
         androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.RoundedDialogTheme)
             .setTitle("需要定位权限")
             .setMessage("虚拟定位功能需要访问您的位置信息。\n\n请允许定位权限以使用此功能。")
             .setPositiveButton("授予权限") { _, _ ->
-                // 再次请求权限
                 locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
             .setNegativeButton("取消", null)
@@ -917,75 +734,18 @@ class MainFragment : Fragment() {
     }
 
     /**
-     * 显示权限被拒绝对话框（用户选择了“不再询问”）
+     * 显示权限被拒绝对话框（用户选择了"不再询问"）
      */
     private fun showPermissionDeniedDialog() {
         androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.RoundedDialogTheme)
             .setTitle("需要定位权限")
             .setMessage("虚拟定位功能需要访问您的位置信息。\n\n请允许定位权限以使用此功能。")
             .setPositiveButton("确定") { _, _ ->
-                // 打开应用设置页面
                 PermissionHelper.openAppSettings(requireContext())
             }
             .setNegativeButton("取消", null)
             .show()
     }
-
-    /**
-     * 恢复地图状态（相机位置和缩放级别），从 ViewModel 获取持久化的中心点。
-     */
-    private fun restoreMapState() {
-        val center = viewModel.restoreMapState()
-        center?.let {
-            aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(it, viewModel.mapState.value.zoom))
-        }
-    }
-
-    /**
-     * 获取状态栏高度
-     */
-    private fun getStatusBarHeight(): Int {
-        var result = 0
-        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
-        if (resourceId > 0) {
-            result = resources.getDimensionPixelSize(resourceId)
-        }
-        return result
-    }
-
-    /**
-     * dp转px扩展函数
-     */
-    private fun Int.dpToPx(): Int {
-        return (this * resources.displayMetrics.density + 0.5f).toInt()
-    }
-
-    /**
-     * 隐藏键盘
-     */
-    private fun hideKeyboard() {
-        val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-        imm?.hideSoftInputFromWindow(binding.searchEdit.windowToken, 0)
-    }
-
-    /**
-     * 应用 Activity 过渡动画（兼容 API 34+）
-     * API 34+ 废弃了 overridePendingTransition，改用 overrideActivityTransition
-     */
-    private fun applyActivityTransition() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            requireActivity().overrideActivityTransition(
-                android.app.Activity.OVERRIDE_TRANSITION_OPEN,
-                R.anim.slide_in_right,
-                R.anim.slide_out_left
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            requireActivity().overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-        }
-    }
-
-    // ==================== 生命周期方法 ====================
 
     /**
      * 恢复地图生命周期、恢复标记位置、更新夜间模式。
@@ -1030,11 +790,13 @@ class MainFragment : Fragment() {
                 viewModel.restoreMarkedPosition()
             }
             
-    // 路线点编辑
-            updateNightModeStatus()
+            if (::aMap.isInitialized) {
+                val themedContext = com.mockloc.util.ThemeUtils.createThemedContext(requireContext()).first
+                themeDelegate.handleThemeUpdate(aMap, themedContext)
+            }
         }
     }
-
+    
     override fun onPause() {
         super.onPause()
         binding.mapView.onPause()

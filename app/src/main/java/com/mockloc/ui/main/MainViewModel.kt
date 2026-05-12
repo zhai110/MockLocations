@@ -21,7 +21,6 @@ import com.mockloc.repository.PoiSearchHelper
 import com.mockloc.service.LocationService
 import com.mockloc.service.RoutePlaybackState
 import com.mockloc.service.RoutePoint
-import com.mockloc.util.MapUtils
 import com.mockloc.util.PrefsConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -438,15 +437,6 @@ class MainViewModel(
     private fun sendSimulationControlEvent(event: SimulationControlEvent) {
         viewModelScope.launch {
             _simulationControlEvents.emit(event)
-        }
-    }
-    
-    /**
-     * 清除待移动相机标志（使用后重置）
-     */
-    fun clearMoveCameraFlag() {
-        _mapState.update { state ->
-            state.copy(shouldMoveCamera = false)
         }
     }
     
