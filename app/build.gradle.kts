@@ -47,8 +47,8 @@ android {
         applicationId = "com.mockloc"
         minSdk = 29
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.5.1"  // 修复悬浮窗位置模拟坐标问题
+        versionCode = 9
+        versionName = "1.6.0"  // 架构重构：Delegate模式 + ServiceConnector桥接层
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
