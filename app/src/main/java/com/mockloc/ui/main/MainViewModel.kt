@@ -184,6 +184,39 @@ class MainViewModel(
         // ✅ 使用 ProcessLifecycleOwner 监听应用级别的前后台状态
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
         Timber.d("Registered app lifecycle observer for route control window")
+
+        // ✅ 收集 Service 端的模拟状态，同步到本地 _simulationState
+        // 解决问题：Service 端模拟停止后，ViewModel 的 isSimulating 未更新，导致 UI 不刷新
+        // 注意：LocationService.SimulationState 与 MainViewModel.SimulationState 是不同的类，需要手动映射
+        viewModelScope.launch {
+            serviceConnector.simulationState.collect { serviceState ->
+                val localState = _simulationState.value
+                if (localState.isSimulating != serviceState.isSimulating ||
+                    localState.speedMode != serviceState.speedMode ||
+                    localState.currentSpeed != serviceState.currentSpeed) {
+                    Timber.d("Service simulationState 变化: isSimulating=${serviceState.isSimulating}, speedMode=${serviceState.speedMode}, currentSpeed=${serviceState.currentSpeed}, 同步到本地")
+                    _simulationState.update {
+                        it.copy(
+                            isSimulating = serviceState.isSimulating,
+                            speedMode = serviceState.speedMode,
+                            currentSpeed = serviceState.currentSpeed
+                        )
+                    }
+                }
+            }
+        }
+
+        // ✅ 收集 Service 端的路线播放状态，同步到本地 _routeState.playbackState
+        // 解决问题：路线播放/暂停/停止后，UI 按钮状态不实时更新
+        viewModelScope.launch {
+            serviceConnector.routePlaybackState.collect { servicePlayback ->
+                val localPlayback = _routeState.value.playbackState
+                if (localPlayback != servicePlayback) {
+                    Timber.d("Service routePlaybackState 变化: isPlaying=${servicePlayback.isPlaying}, progress=${servicePlayback.progress}, 同步到本地")
+                    _routeState.update { it.copy(playbackState = servicePlayback) }
+                }
+            }
+        }
     }
 
     // ==================== 初始化方法 ====================
