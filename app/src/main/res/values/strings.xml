@@ -91,8 +91,8 @@
     <string name="settings_auto_start">开机自启</string>
     <string name="settings_auto_start_desc">开机后自动恢复上次模拟位置</string>
     <string name="settings_about">关于应用</string>
-    <string name="settings_about_desc">版本 1.5.1</string>
-    <string name="about_message">虚拟定位应用 v1.5.1
+    <string name="settings_about_desc">版本 1.6.0</string>
+    <string name="about_message">虚拟定位应用 v1.6.0
 
 基于 Kotlin + 高德地图 SDK 开发
 无需 ROOT 权限即可修改设备位置
@@ -108,6 +108,20 @@
 • 悬浮窗快速切换
 • 两步确认模式（App内）/ 一步直达（悬浮窗）
 • 路线模拟与循环播放
+
+v1.6.0 更新：
+• 架构重构：Delegate模式拆分MainFragment（1157→735行，-36%）
+• 新增5个Delegate：Search/Simulation/RouteEdit/Theme/Dialog
+• ServiceConnector桥接层：flatMapLatest自动管理Service生命周期
+• MapDelegate地图逻辑复用：消除重复代码
+• 路线控制浮动窗和路线播放引擎
+• SavedRoute数据层完整实现
+• 状态同步链：Service→Connector→ViewModel→Fragment/Delegate
+• 相机移动节流（500ms）和逆地理编码节流（3秒）
+• 修复路线模拟FAB状态、BottomSheet位置、相机跟踪等问题
+• 删除921行未使用工具类，Kotlin源文件67→62个
+• LocationService优化：~600→478行（-20%）
+• 新增单元测试：MapUtilsTest、PrefsConfigTest、DataEntityTest
 
 v1.5.1 更新：
 • 修复悬浮窗地图选点位置模拟不生效问题
