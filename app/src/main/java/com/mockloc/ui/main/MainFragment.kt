@@ -194,6 +194,7 @@ class MainFragment : Fragment() {
         simulationDelegate.onPermissionCheckNeeded = { checkPermissions() }
         simulationDelegate.onUpdateMarker = { latLng, moveCamera -> updateMarker(latLng, moveCamera) }
         simulationDelegate.onSaveToHistory = { lat, lng -> viewModel.saveToHistoryAsync(lat, lng) }
+        simulationDelegate.currentTabMode = currentTabMode
         
         routeEditDelegate = com.mockloc.ui.main.delegate.RouteEditDelegate(this, viewModel, binding)
         routeEditDelegate.onGetAMap = { if (::aMap.isInitialized) aMap else null }
@@ -505,11 +506,12 @@ class MainFragment : Fragment() {
 
     private fun setPanelMode(showRouteMode: Boolean) {
         currentTabMode = if (showRouteMode) 1 else 0
+        simulationDelegate.currentTabMode = currentTabMode
         binding.pointActionButtons.visibility = if (showRouteMode) View.GONE else View.VISIBLE
         binding.routeControlCard.visibility = if (showRouteMode) View.VISIBLE else View.GONE
         binding.routePanel.visibility = if (showRouteMode) View.VISIBLE else View.GONE
-        binding.fab.setImageResource(R.drawable.ic_position)
-        binding.fab.imageTintList = null
+        // 根据当前模拟状态更新 FAB 图标（而非硬编码 ic_position）
+        simulationDelegate.updateSimulationUI(viewModel.simulationState.value, currentTabMode)
     }
 
 

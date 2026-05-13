@@ -261,6 +261,7 @@ class SimulationDelegate(
      */
     fun updateSimulationUI(state: MainViewModel.SimulationState, currentTabMode: Int) {
         if (currentTabMode == 0) {
+            // 单点定位模式：FAB = 确认传送 / 停止模拟
             if (state.isSimulating) {
                 binding.fab.setImageResource(R.drawable.ic_fly)
                 binding.fab.imageTintList = null
@@ -273,6 +274,19 @@ class SimulationDelegate(
                 if (idlePulseAnimator == null) {
                     idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
                 }
+                binding.statusText.text = "未模拟"
+            }
+        } else {
+            // 路线模式：FAB 与播放按钮同步，显示开始模拟/停止模拟
+            idlePulseAnimator?.cancel()
+            idlePulseAnimator = null
+            if (state.isSimulating) {
+                binding.fab.setImageResource(R.drawable.ic_stop)
+                binding.fab.imageTintList = null
+                binding.statusText.text = "模拟中"
+            } else {
+                binding.fab.setImageResource(R.drawable.ic_play)
+                binding.fab.imageTintList = null
                 binding.statusText.text = "未模拟"
             }
         }
