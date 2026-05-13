@@ -144,6 +144,9 @@ class MainViewModel(
     /** Service 路线播放状态（响应式，替代 startRouteStateSync 轮询） */
     val serviceRoutePlaybackState = serviceConnector.routePlaybackState
 
+    /** Service 共享地图状态（悬浮窗与主界面同步，替代 SP） */
+    val sharedMapState = serviceConnector.sharedMapState
+
     private var locationClient: AMapLocationClient? = null
     private val prefs: SharedPreferences = getApplication<Application>().getSharedPreferences(PrefsConfig.MAP_STATE, Application.MODE_PRIVATE)
     private val settingsPrefs: SharedPreferences = getApplication<Application>().getSharedPreferences(PrefsConfig.SETTINGS, Application.MODE_PRIVATE)
@@ -284,6 +287,19 @@ class MainViewModel(
             )
         }
         
+        // 同步到 Service 供悬浮窗使用
+        val markedPos = currentState.markedPosition
+        serviceConnector.execute {
+            updateSharedMapState(
+                centerLat = centerToSave?.latitude ?: 0.0,
+                centerLng = centerToSave?.longitude ?: 0.0,
+                zoom = zoomToSave,
+                markedLat = markedPos?.latitude,
+                markedLng = markedPos?.longitude
+            )
+        }
+        
+        // 同时保存到 SharedPreferences 用于持久化
         prefs.edit().apply {
             centerToSave?.let {
                 putFloat(PrefsConfig.MapState.KEY_LATITUDE, it.latitude.toFloat())
@@ -291,7 +307,7 @@ class MainViewModel(
             }
             putFloat(PrefsConfig.MapState.KEY_ZOOM, zoomToSave)
             
-            // ✅ 保存标记位置
+            // 保存标记位置
             currentState.markedPosition?.let {
                 putFloat(PrefsConfig.MapState.KEY_MARKED_LAT, it.latitude.toFloat())
                 putFloat(PrefsConfig.MapState.KEY_MARKED_LNG, it.longitude.toFloat())
@@ -365,6 +381,25 @@ class MainViewModel(
                 address = if (clearAddress) "" else state.address
             )
         }
+        
+        // 同步标记位置到 Service 供悬浮窗使用
+        serviceConnector.execute {
+            updateSharedMapState(
+                centerLat = _mapState.value.center?.latitude ?: 0.0,
+                centerLng = _mapState.value.center?.longitude ?: 0.0,
+                zoom = _mapState.value.zoom,
+                markedLat = latLng.latitude,
+                markedLng = latLng.longitude
+            )
+        }
+        
+        // 保存到 SP 持久化
+        prefs.edit().apply {
+            putFloat(PrefsConfig.MapState.KEY_MARKED_LAT, latLng.latitude.toFloat())
+            putFloat(PrefsConfig.MapState.KEY_MARKED_LNG, latLng.longitude.toFloat())
+            apply()
+        }
+        
         Timber.d("selectPosition: markedPosition updated to $latLng")
     }
 

@@ -57,7 +57,8 @@ class MapWindowController(
     private val getCurrentLocationGcj02: () -> Pair<Double, Double>,
     private val isSimulating: () -> Boolean,
     private val onStopSimulation: () -> Unit,
-    private val serviceContext: Context
+    private val serviceContext: Context,
+    private val getSharedMapState: () -> com.mockloc.service.LocationService.SharedMapState
 ) : WindowController {
 
     override var rootView: View? = null
@@ -569,26 +570,21 @@ class MapWindowController(
     }
 
     /**
-     * 恢复地图状态
+     * 恢复地图状态（从共享状态读取）
      */
     private fun restoreMapState() {
         try {
             if (aMap == null) return
             
-            val prefs = context.getSharedPreferences(PrefsConfig.MAP_STATE, Context.MODE_PRIVATE)
-            val lat = prefs.getFloat(PrefsConfig.MapState.KEY_LATITUDE, -1f)
-            val lng = prefs.getFloat(PrefsConfig.MapState.KEY_LONGITUDE, -1f)
-            val zoom = prefs.getFloat(PrefsConfig.MapState.KEY_ZOOM, 15f)
+            val sharedState = getSharedMapState()
             
-            if (lat > 0 && lng > 0) {
-                val target = LatLng(lat.toDouble(), lng.toDouble())
-                mapDelegate?.moveCamera(target, zoom)
+            if (sharedState.centerLat > 0 && sharedState.centerLng > 0) {
+                val target = LatLng(sharedState.centerLat, sharedState.centerLng)
+                mapDelegate?.moveCamera(target, sharedState.zoom)
             }
             
-            val markedLat = prefs.getFloat(PrefsConfig.MapState.KEY_MARKED_LAT, -1f)
-            val markedLng = prefs.getFloat(PrefsConfig.MapState.KEY_MARKED_LNG, -1f)
-            if (markedLat > 0 && markedLng > 0) {
-                val markedPos = LatLng(markedLat.toDouble(), markedLng.toDouble())
+            if (sharedState.hasMarkedPosition) {
+                val markedPos = LatLng(sharedState.markedLat, sharedState.markedLng)
                 markMapPoint(markedPos)
             }
             
@@ -596,6 +592,13 @@ class MapWindowController(
         } catch (e: Exception) {
             Timber.e(e, "恢复地图状态失败")
         }
+    }
+
+    /**
+     * 刷新地图状态（从共享状态更新，供 FloatingWindowManager 调用）
+     */
+    fun refreshMapState() {
+        restoreMapState()
     }
 
     /**

@@ -71,6 +71,18 @@ class LocationServiceConnector(private val context: Context) {
             }
         }.stateIn(connectorScope, SharingStarted.Eagerly, RoutePlaybackState())
 
+    /**
+     * 地图共享状态：从 LocationService.sharedMapState 透传
+     * Service 断开时自动回退默认值
+     */
+    val sharedMapState: StateFlow<com.mockloc.service.LocationService.SharedMapState> = _connectionState
+        .flatMapLatest { state ->
+            when (state) {
+                is ConnectionState.Connected -> state.service.sharedMapState
+                else -> flowOf(com.mockloc.service.LocationService.SharedMapState())
+            }
+        }.stateIn(connectorScope, SharingStarted.Eagerly, com.mockloc.service.LocationService.SharedMapState())
+
     // ==================== 安全执行 Service 操作 ====================
 
     /**

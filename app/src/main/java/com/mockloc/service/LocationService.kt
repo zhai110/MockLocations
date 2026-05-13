@@ -44,12 +44,39 @@ class LocationService : Service() {
     val routePlaybackState: StateFlow<RoutePlaybackState>
         get() = routePlaybackEngine?.state ?: MutableStateFlow(RoutePlaybackState()).asStateFlow()
 
+    /** 地图状态（悬浮窗与主界面共享） */
+    data class SharedMapState(
+        val centerLat: Double = 0.0,
+        val centerLng: Double = 0.0,
+        val zoom: Float = 15f,
+        val markedLat: Double = 0.0,
+        val markedLng: Double = 0.0,
+        val hasMarkedPosition: Boolean = false
+    )
+    private val _sharedMapState = MutableStateFlow(SharedMapState())
+    val sharedMapState: StateFlow<SharedMapState> = _sharedMapState.asStateFlow()
+
     data class SimulationState(
         val isSimulating: Boolean = false,
         val isAutoMoving: Boolean = false,
         val speedMode: String = "walk",
         val currentSpeed: Float = 1.4f
     )
+
+    // ── 更新共享地图状态 ──
+    fun updateSharedMapState(centerLat: Double, centerLng: Double, zoom: Float, 
+                            markedLat: Double? = null, markedLng: Double? = null) {
+        _sharedMapState.update { state ->
+            state.copy(
+                centerLat = centerLat,
+                centerLng = centerLng,
+                zoom = zoom,
+                markedLat = markedLat ?: state.markedLat,
+                markedLng = markedLng ?: state.markedLng,
+                hasMarkedPosition = if (markedLat != null && markedLng != null) true else state.hasMarkedPosition
+            )
+        }
+    }
 
     companion object {
         const val ACTION_START = "com.mockloc.action.START"
