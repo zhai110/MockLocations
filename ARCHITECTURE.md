@@ -19,39 +19,54 @@
 
 ### 整体架构
 
-项目采用 **分层架构 + MVVM 模式**：
+项目采用 **分层架构 + MVVM 模式**，包含 Delegate 层和 ServiceConnector 桥接层：
 
 ```
-┌─────────────────────────────────────────────┐
-│              Presentation Layer             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
-│  │ Activity │  │ Fragment │  │   View   │ │
-│  └──────────┘  └──────────┘  └──────────┘ │
-└──────────────────┬──────────────────────────┘
-                   │ StateFlow 观察
-┌──────────────────▼──────────────────────────┐
-│              ViewModel Layer                │
-│  ┌──────────────────────────────────────┐  │
-│  │         MainViewModel                │  │
-│  │  - StateFlow 状态管理                │  │
-│  │  - 业务逻辑处理                      │  │
-│  │  - 数据转换                          │  │
-│  └──────────────────────────────────────┘  │
-└──────────────────┬──────────────────────────┘
-                   │ Service 引用注入
-┌──────────────────▼──────────────────────────┐
-│               Domain Layer                  │
-│  ┌────────────────┐  ┌──────────────────┐  │
-│  │ LocationService│  │FloatingWindowMgr │  │
-│  └────────────────┘  └──────────────────┘  │
-└──────────────────┬──────────────────────────┘
-                   │ Room Database
-┌──────────────────▼──────────────────────────┐
-│                Data Layer                   │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
-│  │  Room    │  │Repository│  │  Helper  │ │
-│  └──────────┘  └──────────┘  └──────────┘ │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                 Presentation Layer                   │
+│  ┌──────────┐  ┌──────────────────────────────────┐│
+│  │ Activity │  │ Fragment + Delegates              ││
+│  │          │  │  ┌──────────┐ ┌───────────────┐  ││
+│  │          │  │  │SearchDel.│ │SimulationDel. │  ││
+│  │          │  │  ├──────────┤ ├───────────────┤  ││
+│  │          │  │  │RouteEdit │ │ ThemeDelegate │  ││
+│  │          │  │  ├──────────┤ ├───────────────┤  ││
+│  │          │  │  │DialogDel.│ │               │  ││
+│  │          │  │  └──────────┘ └───────────────┘  ││
+│  └──────────┘  └──────────────────────────────────┘│
+└──────────────────────┬──────────────────────────────┘
+                       │ StateFlow 观察
+┌──────────────────────▼──────────────────────────────┐
+│                  ViewModel Layer                     │
+│  ┌──────────────────────────────────────────────┐  │
+│  │           MainViewModel                      │  │
+│  │  - StateFlow 状态管理                        │  │
+│  │  - 业务逻辑处理                              │  │
+│  │  - 数据转换                                  │  │
+│  └──────────────────────────────────────────────┘  │
+└──────────────────────┬──────────────────────────────┘
+                       │ ServiceConnector 桥接
+┌──────────────────────▼──────────────────────────────┐
+│               Core Layer (ServiceConnector)          │
+│  ┌──────────────────────────────────────────────┐  │
+│  │       LocationServiceConnector               │  │
+│  │  - flatMapLatest 自动管理 Service 生命周期   │  │
+│  │  - 暴露 simulationState / routePlaybackState │  │
+│  │  - 暴露 sharedMapState                       │  │
+│  └──────────────────────────────────────────────┘  │
+└──────────────────────┬──────────────────────────────┘
+                       │ StateFlow / SharedFlow
+┌──────────────────────▼──────────────────────────────┐
+│             Service + Data Layer                     │
+│  ┌────────────────┐  ┌──────────────────────────┐  │
+│  │ LocationService│  │ FloatingWindowManager    │  │
+│  │ RoutePlayback  │  │ RouteControlWindowCtrl   │  │
+│  │ Engine         │  │                          │  │
+│  └────────────────┘  └──────────────────────────┘  │
+│  ┌──────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │  Room    │  │LocationRepo  │  │  MapDelegate │ │
+│  └──────────┘  └──────────────┘  └──────────────┘ │
+└─────────────────────────────────────────────────────┘
 ```
 
 ### 设计原则
@@ -113,10 +128,10 @@
 
 #### 为什么选择 MVVM？
 
-✅ **生命周期安全**: ViewModel 在配置变化时存活  
-✅ **可测试性**: ViewModel 不依赖 Android 框架  
-✅ **关注点分离**: UI 逻辑与业务逻辑解耦  
-✅ **数据驱动**: StateFlow 自动更新 UI  
+✅ **生命周期安全**: ViewModel 在配置变化时存活
+✅ **可测试性**: ViewModel 不依赖 Android 框架
+✅ **关注点分离**: UI 逻辑与业务逻辑解耦
+✅ **数据驱动**: StateFlow 自动更新 UI
 
 #### 实现示例
 
@@ -125,7 +140,7 @@
 class MainViewModel : ViewModel() {
     private val _mapState = MutableStateFlow(MapState())
     val mapState: StateFlow<MapState> = _mapState.asStateFlow()
-    
+
     fun selectPosition(latLng: LatLng) {
         _mapState.update { it.copy(markedPosition = latLng) }
     }
@@ -134,11 +149,11 @@ class MainViewModel : ViewModel() {
 // Fragment: 观察状态
 class MainFragment : Fragment() {
     private val viewModel: MainViewModel by activityViewModels()
-    
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.mapState.collect { state ->
-                updateMapUI(state)  // 自动响应状态变化
+                updateMapUI(state)
             }
         }
     }
@@ -147,7 +162,141 @@ class MainFragment : Fragment() {
 
 ---
 
-### 2. Manager + Controller 模式
+### 2. Delegate 模式
+
+#### 应用场景：Fragment 功能拆分
+
+**问题**: MainFragment 职责过重，代码行数膨胀至 1157 行，难以维护和测试
+
+**解决方案**: 将 Fragment 按功能领域拆分为独立 Delegate，每个 Delegate 职责单一
+
+```
+MainFragment (735行)
+├── SearchDelegate (223行)      # 搜索功能
+├── SimulationDelegate (297行)  # 模拟控制（单点+路线）
+├── RouteEditDelegate (301行)   # 路线编辑
+├── ThemeDelegate (321行)       # 主题切换
+└── DialogDelegate (72行)       # 对话框（坐标输入、速度选择）
+```
+
+#### 核心规则
+
+1. **Delegate 间不直接引用**：通过 ViewModel StateFlow 中转通信，避免耦合
+2. **Delegate 不持有 AMap/MapView 引用**：通过回调获取（`onGetAMap` / `onGetSearchCenter`），避免地图对象生命周期问题
+3. **Delegate 初始化必须在 `initMap()` 之前**：确保回调可用时 Delegate 已就绪
+
+#### 实现示例
+
+```kotlin
+// Delegate 基本结构
+class SearchDelegate(
+    private val viewModel: MainViewModel,
+    private val onGetAMap: () -> AMap?,
+    private val onGetSearchCenter: () -> LatLng?
+) {
+    fun onMapReady() { /* 搜索相关地图初始化 */ }
+    fun performSearch(query: String) { /* 执行搜索 */ }
+}
+
+// MainFragment 中初始化
+class MainFragment : Fragment() {
+    private val searchDelegate = SearchDelegate(
+        viewModel = viewModel,
+        onGetAMap = { aMap },
+        onGetSearchCenter = { searchCenter }
+    )
+
+    override fun onViewCreated(...) {
+        // Delegate 初始化在 initMap() 之前
+        searchDelegate.onMapReady()
+        initMap()
+    }
+}
+```
+
+**优势**:
+- ✅ 代码量降低：MainFragment 从 1157 行降至 735 行
+- ✅ 职责单一：每个 Delegate 可独立理解和修改
+- ✅ 可独立测试：Delegate 不依赖 Fragment 生命周期
+- ✅ 解耦通信：Delegate 间通过 ViewModel StateFlow 解耦
+
+---
+
+### 3. ServiceConnector 桥接模式
+
+#### 应用场景：Service ↔ ViewModel 通信
+
+**问题**: ViewModel 直接依赖 Service 类型，Service 绑定/解绑生命周期管理复杂
+
+**解决方案**: 引入 LocationServiceConnector 桥接层，使用 `flatMapLatest` 自动管理 Service 生命周期
+
+```
+LocationService (Service端)
+    ↓ StateFlow/SharedFlow
+LocationServiceConnector (桥接层, flatMapLatest)
+    ↓ StateFlow
+MainViewModel (ViewModel端)
+    ↓ StateFlow
+MainFragment + Delegates (UI端)
+```
+
+#### 核心机制
+
+- **flatMapLatest 自动管理**: Service 绑定时自动开始收集状态，解绑时自动停止
+- **暴露三个核心状态**: `simulationState`、`routePlaybackState`、`sharedMapState`
+- **ViewModel init 中 collect**: 在 ViewModel 初始化时同步 Connector 状态到本地 StateFlow
+
+#### 实现示例
+
+```kotlin
+// Connector: 桥接层
+class LocationServiceConnector(
+    private val serviceFlow: StateFlow<LocationService?>
+) {
+    val simulationState: StateFlow<SimulationState> = serviceFlow
+        .flatMapLatest { service ->
+            service?.simulationState ?: flowOf(SimulationState.IDLE)
+        }
+        .stateIn(scope, SharingStarted.Eagerly, SimulationState.IDLE)
+
+    val routePlaybackState: StateFlow<RoutePlaybackState> = serviceFlow
+        .flatMapLatest { service ->
+            service?.routePlaybackState ?: flowOf(RoutePlaybackState.Idle)
+        }
+        .stateIn(scope, SharingStarted.Eagerly, RoutePlaybackState.Idle)
+
+    val sharedMapState: StateFlow<SharedMapState> = serviceFlow
+        .flatMapLatest { service ->
+            service?.sharedMapState ?: flowOf(SharedMapState())
+        }
+        .stateIn(scope, SharingStarted.Eagerly, SharedMapState())
+}
+
+// ViewModel: 收集 Connector 状态
+class MainViewModel : ViewModel() {
+    init {
+        viewModelScope.launch {
+            connector.simulationState.collect { state ->
+                _simulationState.update { state }
+            }
+        }
+        viewModelScope.launch {
+            connector.routePlaybackState.collect { state ->
+                _routeState.update { state }
+            }
+        }
+    }
+}
+```
+
+**优势**:
+- ✅ ViewModel 不直接依赖 Service 类型
+- ✅ flatMapLatest 自动处理 Service 绑定/解绑
+- ✅ Service 端 StateFlow 变化自动传播到 ViewModel
+
+---
+
+### 4. Manager + Controller 模式
 
 #### 应用场景：悬浮窗系统
 
@@ -163,11 +312,12 @@ class FloatingWindowManager {
     private var joystickController: JoystickWindowController? = null
     private var mapController: MapWindowController? = null
     private var historyController: HistoryWindowController? = null
-    
+    private var routeControlController: RouteControlWindowController? = null
+
     fun switchToMap() {
-        hide()  // 隐藏当前窗口
+        hide()
         currentWindowType = WINDOW_TYPE_MAP
-        show()  // 显示新窗口
+        show()
     }
 }
 
@@ -188,54 +338,112 @@ class MapWindowController : WindowController {
 
 ---
 
-### 3. Repository 模式
+### 5. MapDelegate 地图逻辑复用
+
+#### 应用场景：消除地图逻辑重复
+
+**问题**: MainFragment 和 MapWindowController 之间存在大量地图逻辑重复（标记管理、相机移动、蓝点更新等）
+
+**解决方案**: 提取通用地图操作到 `MapDelegate` 工具类
+
+```kotlin
+// MapDelegate: 通用地图操作
+object MapDelegate {
+    fun addMarker(aMap: AMap, position: LatLng): Marker { /* 添加标记 */ }
+    fun moveCamera(aMap: AMap, position: LatLng, zoom: Float) { /* 移动相机 */ }
+    fun updateBlueDot(aMap: AMap, position: LatLng) { /* 更新蓝点 */ }
+    fun clearMarkers(aMap: AMap) { /* 清除标记 */ }
+}
+```
+
+**优势**:
+- ✅ 消除重复：MainFragment 和 MapWindowController 共享同一套地图逻辑
+- ✅ 一致性：确保两端行为完全一致
+- ✅ 可维护性：修改地图逻辑只需改一处
+
+---
+
+### 6. Repository 模式
 
 #### 应用场景：数据访问
 
 ```kotlin
 // Repository: 数据访问抽象
-class PoiSearchHelper(private val context: Context) {
-    fun searchPlace(keyword: String, callback: (List<PlaceItem>) -> Unit) {
-        // 封装高德 POI 搜索 API
-        // 提供统一的回调接口
+class LocationRepository(
+    private val historyDao: HistoryLocationDao,
+    private val favoriteDao: FavoriteLocationDao
+) {
+    suspend fun saveToHistory(name: String, address: String, latitude: Double, longitude: Double): AppResult<Int> {
+        return safeCall {
+            // 去重逻辑 + 清理过期记录
+            historyDao.insert(historyLocation)
+            historyDao.keepRecentRecords(100)
+            historyDao.getAll().size
+        }
+    }
+
+    suspend fun addToFavorite(name: String, address: String, latitude: Double, longitude: Double): AppResult<Boolean> {
+        return safeCall {
+            val exists = favoriteDao.exists(latitude, longitude)
+            if (!exists) { favoriteDao.insert(favorite) }
+            !exists
+        }
     }
 }
 
 // ViewModel: 使用 Repository
 class MainViewModel : ViewModel() {
-    private var poiSearchHelper: PoiSearchHelper? = null
-    
-    fun searchPlaces(query: String) {
-        poiSearchHelper?.searchPlace(query) { results ->
-            _searchState.update { it.copy(results = results) }
+    private val repository: LocationRepository
+
+    fun saveCurrentPosition() {
+        viewModelScope.launch {
+            repository.saveToHistory(name, address, lat, lng)
         }
     }
 }
 ```
 
 **优势**:
-- ✅ 解耦：ViewModel 不直接依赖高德 SDK
+- ✅ 解耦：ViewModel 不直接依赖 DAO
 - ✅ 可测试：可以 mock Repository
 - ✅ 灵活性：可以轻松切换数据源
+- ✅ 统一错误处理：通过 AppResult 封装
 
 ---
 
 ## 模块职责
 
+### Core Layer (core/)
+
+| 模块 | 职责 | 关键文件 |
+|------|------|---------|
+| **core/service** | Service↔ViewModel 桥接 | LocationServiceConnector |
+| **core/common** | 通用类型封装 | AppResult |
+| **core/utils** | 跨模块工具 | MapDelegate |
+
+**原则**:
+- ✅ 不依赖 UI 层
+- ✅ 不依赖具体 Service 实现（通过 StateFlow 抽象）
+- ✅ 可被多个模块复用
+
+---
+
 ### UI Layer (ui/)
 
 | 模块 | 职责 | 关键文件 |
 |------|------|---------|
-| **main** | 主界面 UI，用户交互 | MainActivity, MainFragment |
+| **main** | 主界面 UI | MainActivity (81行), MainFragment (735行) |
+| **delegate** | 功能模块拆分 | SearchDelegate, SimulationDelegate, RouteEditDelegate, ThemeDelegate, DialogDelegate |
 | **history** | 历史记录列表 | HistoryActivity, HistoryAdapter |
 | **favorite** | 收藏位置管理 | FavoriteActivity |
 | **settings** | 应用设置 | SettingsActivity |
 | **search** | 搜索结果展示 | SearchResultAdapter |
 
-**原则**: 
+**原则**:
 - ❌ 不包含业务逻辑
 - ✅ 只负责 UI 展示和用户交互
 - ✅ 观察 ViewModel 的 StateFlow
+- ✅ Delegate 间通过 ViewModel StateFlow 通信
 
 ---
 
@@ -245,11 +453,12 @@ class MainViewModel : ViewModel() {
 - ✅ 管理所有 UI 状态（StateFlow）
 - ✅ 处理业务逻辑（位置传送、搜索）
 - ✅ 数据转换（坐标转换、格式化）
-- ✅ 与 Service 交互
+- ✅ 通过 ServiceConnector 与 Service 交互
 
 **不包含**:
 - ❌ UI 引用（View、Context）
 - ❌ Android 框架类（除了 Application）
+- ❌ 直接依赖 Service 类型
 
 ---
 
@@ -257,17 +466,19 @@ class MainViewModel : ViewModel() {
 
 | 服务 | 职责 |
 |------|------|
-| **LocationService** | TestProvider 模拟定位，摇杆移动控制 |
+| **LocationService** | TestProvider 模拟定位，摇杆移动控制，路线播放调度 |
+| **RoutePlaybackEngine** | 路线播放引擎，计算插值位置，管理播放状态 |
 | **FloatingWindowManager** | 悬浮窗管理，窗口切换，主题同步 |
+| **RouteControlWindowController** | 路线控制悬浮窗，播放/暂停/停止控制 |
 
 **特点**:
 - ✅ 前台服务，保持后台运行
-- ✅ Binder 通信，向 Activity/Fragment 暴露接口
+- ✅ StateFlow/SharedFlow 通信，向 ViewModel 暴露状态
 - ✅ 生命周期独立于 UI
 
 ---
 
-### Data Layer (data/db/)
+### Data Layer (data/)
 
 **Room 数据库**:
 - `AppDatabase`: 数据库实例
@@ -275,10 +486,15 @@ class MainViewModel : ViewModel() {
 - `FavoriteLocation`: 收藏位置实体
 - DAO: 数据访问对象
 
+**Repository**:
+- `LocationRepository`: 统一管理历史记录和收藏位置的数据访问
+- `FavoriteRepository`: 收藏位置专用仓库
+
 **特点**:
 - ✅ 编译时 SQL 检查
 - ✅ 协程支持（suspend 函数）
 - ✅ 迁移支持（版本升级）
+- ✅ AppResult 统一错误处理
 
 ---
 
@@ -313,11 +529,11 @@ updateMarker(position, moveCamera = state.shouldMoveCamera)
 ```
 用户点击 FAB
     ↓
-MainFragment.onFabClick()
+SimulationDelegate.onFabClick()
     ↓
 viewModel.startSimulation()
     ↓
-locationService?.startSimulation()
+LocationServiceConnector → LocationService.startSimulation()
     ↓
 LocationService.addTestProviders()
     ↓
@@ -330,7 +546,41 @@ TestProvider 开始推送模拟位置
 
 ---
 
-### 3. 夜间模式切换
+### 3. 路线模拟播放数据流
+
+```
+RoutePlaybackEngine.state (播放状态)
+    ↓ SharedFlow
+LocationService._routePlaybackState
+    ↓ StateFlow
+LocationServiceConnector.routePlaybackState (flatMapLatest)
+    ↓ StateFlow
+MainViewModel collect → _routeState.update
+    ↓ StateFlow
+RouteEditDelegate.updatePlaybackUI()
+SimulationDelegate.updateSimulationUI()
+```
+
+---
+
+### 4. 路线位置实时更新数据流
+
+```
+RoutePlaybackEngine 位置更新
+    ↓
+LocationService.updatePlaybackPosition() → _sharedMapState.update
+    ↓ StateFlow
+LocationServiceConnector.sharedMapState
+    ↓ StateFlow
+MainViewModel collect → _mapState.update(currentLocation, shouldMoveToCurrentLocation=true)
+    ↓ StateFlow
+MainFragment.updateMapUI() → animateCamera (500ms节流)
+MainFragment.updateLocationInfo() → 逆地理编码 (3s节流)
+```
+
+---
+
+### 5. 夜间模式切换
 
 ```
 用户切换系统主题
@@ -339,7 +589,7 @@ Android 发送配置变化事件
     ↓
 MainActivity.onConfigurationChanged() (configChanges 阻止重建)
     ↓
-MainFragment.onConfigurationChanged() 自动调用
+ThemeDelegate.onConfigurationChanged()
     ↓
 updateNightModeStatus()  // 检测主题变化
     ↓
@@ -382,9 +632,68 @@ val data: StateFlow<String> = _data.asStateFlow()
 
 ---
 
-### 决策 2: 为什么 MainActivity 这么精简？
+### 决策 2: 为什么使用 Delegate 模式拆分 Fragment？
 
-**选择**: MainActivity 仅 93 行
+**选择**: 将 MainFragment 拆分为 5 个 Delegate
+
+**理由**:
+1. ✅ **代码量降低**: MainFragment 从 1157 行降至 735 行
+2. ✅ **职责单一**: 每个 Delegate 只负责一个功能领域，可独立理解和修改
+3. ✅ **可独立测试**: Delegate 不依赖 Fragment 生命周期，可单独测试
+4. ✅ **解耦通信**: Delegate 间通过 ViewModel StateFlow 中转，不直接引用
+
+**替代方案对比**:
+```kotlin
+// 方案 A: 单个大 Fragment (❌ 复杂度高)
+class MainFragment : Fragment() {
+    // 搜索逻辑 + 模拟控制 + 路线编辑 + 主题切换 + 对话框
+    // 所有代码混在一起，难以维护
+}
+
+// 方案 B: Delegate 拆分 (✅ 推荐)
+class MainFragment : Fragment() {
+    private val searchDelegate = SearchDelegate(...)
+    private val simulationDelegate = SimulationDelegate(...)
+    private val routeEditDelegate = RouteEditDelegate(...)
+    private val themeDelegate = ThemeDelegate(...)
+    private val dialogDelegate = DialogDelegate(...)
+}
+```
+
+---
+
+### 决策 3: 为什么引入 ServiceConnector 桥接层？
+
+**选择**: LocationServiceConnector 作为 Service ↔ ViewModel 桥接
+
+**理由**:
+1. ✅ **解耦**: ViewModel 不直接依赖 Service 类型，只依赖 StateFlow
+2. ✅ **自动生命周期管理**: `flatMapLatest` 自动处理 Service 绑定/解绑时的状态切换
+3. ✅ **自动传播**: Service 端 StateFlow 变化自动传播到 ViewModel，无需手动监听
+4. ✅ **默认值处理**: Service 未绑定时自动提供默认状态（IDLE / Idle）
+
+**替代方案对比**:
+```kotlin
+// 方案 A: ViewModel 直接持有 Service 引用 (❌ 耦合高)
+class MainViewModel : ViewModel() {
+    private var locationService: LocationService? = null
+    // 需要手动管理绑定/解绑
+    // Service 断开时需要手动清理状态
+}
+
+// 方案 B: ServiceConnector 桥接 (✅ 推荐)
+class MainViewModel : ViewModel() {
+    private val connector = LocationServiceConnector(serviceFlow)
+    // flatMapLatest 自动管理生命周期
+    // Service 断开时自动回退到默认状态
+}
+```
+
+---
+
+### 决策 4: 为什么 MainActivity 这么精简？
+
+**选择**: MainActivity 仅 81 行
 
 **理由**:
 1. ✅ **单一职责**: Activity 只负责生命周期和 Service 绑定
@@ -403,7 +712,7 @@ class MainActivity : AppCompatActivity() {
     // ... 所有代码都在这里
 }
 
-// 现代做法：Activity 作为容器 (93 行)
+// 现代做法：Activity 作为容器 (81 行)
 class MainActivity : AppCompatActivity() {
     // 只负责 Service 绑定
     // Fragment 管理
@@ -412,7 +721,7 @@ class MainActivity : AppCompatActivity() {
 
 ---
 
-### 决策 3: 为什么使用 configChanges 处理夜间模式？
+### 决策 5: 为什么使用 configChanges 处理夜间模式？
 
 **选择**: `android:configChanges="uiMode"`
 
@@ -429,16 +738,15 @@ class MainActivity : AppCompatActivity() {
 ```kotlin
 override fun onConfigurationChanged(newConfig: Configuration) {
     super.onConfigurationChanged(newConfig)
-    updateNightModeStatus()     // 更新地图类型
-    updateViewBackgrounds()     // 手动刷新 UI 颜色
+    themeDelegate.onConfigurationChanged(newConfig)
 }
 ```
 
 ---
 
-### 决策 4: 为什么悬浮窗使用 Manager + Controller？
+### 决策 6: 为什么悬浮窗使用 Manager + Controller？
 
-**选择**: FloatingWindowManager + 三个 Controller
+**选择**: FloatingWindowManager + 多个 Controller
 
 **理由**:
 1. ✅ **职责清晰**: Manager 管理切换，Controller 管理窗口
@@ -459,12 +767,13 @@ class FloatingWindowManager {
     private var joystickController: JoystickWindowController
     private var mapController: MapWindowController
     private var historyController: HistoryWindowController
+    private var routeControlController: RouteControlWindowController
 }
 ```
 
 ---
 
-### 决策 5: 为什么最低 SDK 设为 API 29？
+### 决策 7: 为什么最低 SDK 设为 API 29？
 
 **选择**: minSdk = 29 (Android 10)
 
@@ -527,6 +836,7 @@ class FloatingWindowManager {
 
 - ✅ **ViewModel**: 不依赖 Android 框架，可直接测试
 - ✅ **Repository**: 可以 mock 数据源
+- ✅ **Delegate**: 不依赖 Fragment 生命周期，可独立测试
 - ⚠️ **覆盖率**: 目标 70%+（待实现）
 
 ### UI 测试
@@ -565,7 +875,7 @@ class FloatingWindowManager {
 
 <div align="center">
 
-**最后更新**: 2024-XX-XX
+**最后更新**: 2026-05-13
 
 [📖 返回 README](README.md) · [📝 更新日志](CHANGELOG.md)
 

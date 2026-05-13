@@ -7,6 +7,61 @@
 
 ---
 
+## [v1.6.0] - 2026-05-13
+
+### Changed - 变更
+- **架构重构：Delegate 模式拆分 MainFragment**：
+  - MainFragment 从 1157 行精简至 735 行
+  - 新增 5 个 Delegate：SearchDelegate、SimulationDelegate、RouteEditDelegate、ThemeDelegate、DialogDelegate
+  - Delegate 间通过 ViewModel StateFlow 解耦，不直接引用
+  - Delegate 不持有 AMap/MapView 引用，通过回调获取
+- **新增 ServiceConnector 桥接层**：
+  - LocationServiceConnector 使用 flatMapLatest 自动管理 Service 生命周期
+  - ViewModel 不再直接依赖 LocationService 类型
+  - 暴露 simulationState、routePlaybackState、sharedMapState 三个 StateFlow
+- **新增 MapDelegate 地图逻辑复用**：
+  - 消除 MainFragment 和 MapWindowController 之间的地图逻辑重复
+  - 提供标记管理、相机移动、蓝点更新等通用方法
+- **新增 AppResult 统一结果封装**：
+  - 替代原有的 Result.kt，提供 Success/Error 密封类
+  - 所有 Repository 统一使用 safeCall 包装
+
+### Added - 新增
+- **路线控制浮动窗**：RouteControlWindowController，支持路线播放控制
+- **路线播放引擎**：RoutePlaybackEngine，支持多点路线自动循环播放
+- **SavedRoute 数据层**：SavedRoute 实体 + SavedRouteDao + RouteRepository
+- **状态同步链**：Service → Connector → ViewModel → Fragment/Delegate 完整数据流
+- **相机移动节流**：路线模拟时 500ms 节流避免画面抖动
+- **逆地理编码节流**：3 秒节流减少网络请求
+- **单元测试**：MapUtilsTest、PrefsConfigTest、DataEntityTest
+
+### Fixed - 修复
+- **路线模拟 FAB 状态不同步**：FAB 在路线模式下与播放按钮状态同步（ic_fly/ic_position + 脉冲动画）
+- **路线模拟 BottomSheet 位置不更新**：通过 sharedMapState 链路实时更新位置信息
+- **路线模拟相机不跟踪**：shouldMoveToCurrentLocation 在路线播放时正确设置
+- **Service 模拟状态不同步**：playRoute/pauseRoute/stopRoute 正确更新 _simulationState
+- **FAB 状态冲突**：移除 updateMapUI 中直接操作 FAB 的代码，统一由 SimulationDelegate 管理
+- **statusText 冲突**：移除 RouteEditDelegate 中的 statusText 设置，统一由 SimulationDelegate 管理
+
+### Removed - 移除
+- **清理未使用工具类**（921 行）：
+  - SpringAnimationHelper.kt（弹簧动画，无引用）
+  - OnboardingManager.kt（引导管理，无引用）
+  - LoadingManager.kt（加载管理，无引用）
+  - ProgressivePermissionManager.kt（渐进式权限，无引用）
+  - NetworkLocationHelper.kt（网络定位，无引用）
+
+### Technical Details - 技术细节
+- **MainFragment**: 1157 → 735 行（-36%）
+- **MainViewModel**: 440 → 946 行（+115%，状态同步链集中管理）
+- **LocationService**: ~600 → 478 行（-20%）
+- **MapWindowController**: ~900 → 815 行（-9%）
+- **Kotlin 源文件**: 67 → 62 个（清理 5 个未使用文件）
+- **新增核心文件**: LocationServiceConnector、MapDelegate、AppResult、RoutePlaybackEngine、RouteControlWindowController、4 个 Repository、5 个 Delegate
+- **状态同步架构**: Service → Connector(flatMapLatest) → ViewModel(collect) → Fragment/Delegate
+
+---
+
 ## [v1.5.1] - 2026-05-04
 
 ### Fixed - 修复

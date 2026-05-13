@@ -1,18 +1,19 @@
 # 虚拟定位应用 (MockLoc)
 
-> **最新版本**: v1.5.1 | [下载 APK](https://gitee.com/eizmme/MockLocations/releases)
+> **最新版本**: v1.6.0 | [下载 APK](https://gitee.com/eizmme/MockLocations/releases)
 
 基于 **Kotlin + MVVM + Android 10+** 实现的现代化虚拟定位应用，采用 **Material Design 3** 设计规范，无需 ROOT 权限即可修改设备位置。
 
 ## ✨ 项目亮点
 
-- 🏗️ **现代架构**: MVVM + StateFlow + Fragment，代码清晰易维护
+- 🏗️ **现代架构**: MVVM + Delegate + StateFlow + Fragment，代码清晰易维护
 - 🎨 **Material Design 3**: 完整的 MD3 色彩系统，支持深色模式
 - 🌙 **完美夜间模式**: 手动适配所有 UI 元素，切换流畅无闪烁
 - 🎮 **悬浮窗控制**: Manager + Controller 架构，窗口切换带动画
 - 🚀 **性能优化**: 协程异步处理、LeakCanary 内存检测、地址缓存
-- 📱 **用户体验**: 丰富的弹簧动画、渐进式权限请求、新手引导
-- 🔄 **自动更新**: 启动时静默检查新版本，一键下载安装
+- 📱 **用户体验**: 丰富的弹簧动画
+- 🔗 **Delegate 模式拆分**: ViewModel 逻辑按功能域拆分为独立 Delegate
+- 🌉 **ServiceConnector 桥接层**: Service↔ViewModel 解耦通信
 
 ## 📱 核心功能
 
@@ -66,66 +67,88 @@
 
 ```
 app/src/main/java/com/mockloc/
-├── 📱 VirtualLocationApp.kt          # Application 初始化
+├── 📱 VirtualLocationApp.kt          # Application 初始化 (151行)
 │
 ├── 🎨 ui/                             # UI 层
-│   ├── main/                          # 主界面 (MVVM)
-│   │   ├── MainActivity.kt (93行)     # 轻量容器，Service 绑定
-│   │   ├── MainFragment.kt (1157行)   # UI 展示、用户交互
-│   │   └── MainViewModel.kt (440行)   # 业务逻辑、StateFlow 状态管理
+│   ├── main/                          # 主界面 (MVVM + Delegate)
+│   │   ├── MainActivity.kt (81行)     # 轻量容器，Service 绑定
+│   │   ├── MainFragment.kt (735行)    # UI 展示、用户交互
+│   │   ├── MainViewModel.kt (946行)   # 业务逻辑、StateFlow 状态管理
+│   │   └── delegate/                  # 🆕 Delegate 模式拆分
+│   │       ├── SearchDelegate.kt (223行)      # 搜索功能
+│   │       ├── SimulationDelegate.kt (297行)  # 模拟控制
+│   │       ├── RouteEditDelegate.kt (301行)   # 路线编辑
+│   │       ├── ThemeDelegate.kt (321行)       # 主题切换
+│   │       └── DialogDelegate.kt (72行)       # 对话框
 │   ├── history/                       # 历史记录界面
 │   ├── favorite/                      # 收藏功能界面
 │   ├── settings/                      # 设置界面
 │   ├── search/                        # 搜索结果适配器
 │   ├── permission/                    # 权限引导界面
-│   └── splash/                        # 启动页
+│   ├── splash/                        # 启动页
+│   └── update/                        # 更新对话框
 │
 ├── ⚙️ service/                        # 服务层
-│   ├── LocationService.kt             # 🔑 核心定位服务 (TestProvider)
-│   ├── FloatingWindowManager.kt       # 🔑 悬浮窗管理器
-│   ├── JoystickWindowController.kt    # 摇杆窗口控制器
-│   ├── MapWindowController.kt         # 地图窗口控制器
-│   ├── HistoryWindowController.kt     # 历史窗口控制器
-│   ├── WindowController.kt            # 窗口控制器接口
-│   ├── DragLinearLayout.kt            # 可拖动布局容器
-│   ├── DragHelper.kt                  # 拖动辅助类
-│   └── FloatingHistoryAdapter.kt      # 悬浮窗历史适配器
+│   ├── LocationService.kt (478行)     # 🔑 核心定位服务 (TestProvider)
+│   ├── FloatingWindowManager.kt (725行) # 🔑 悬浮窗管理器
+│   ├── JoystickWindowController.kt (323行) # 摇杆窗口控制器
+│   ├── MapWindowController.kt (815行) # 地图窗口控制器
+│   ├── HistoryWindowController.kt (344行) # 历史窗口控制器
+│   ├── RouteControlWindowController.kt (249行) # 🆕 路线控制窗口
+│   ├── RoutePlaybackEngine.kt (207行) # 🆕 路线播放引擎
+│   ├── PositionInjector.kt (221行)    # 位置注入器
+│   ├── MovementController.kt (165行)  # 移动控制器
+│   ├── WindowController.kt (79行)     # 窗口控制器接口
+│   ├── DragLinearLayout.kt (48行)     # 可拖动布局容器
+│   ├── DragHelper.kt (86行)           # 拖动辅助类
+│   └── FloatingHistoryAdapter.kt (69行) # 悬浮窗历史适配器
 │
-├── 💾 data/db/                        # 数据层
-│   ├── AppDatabase.kt                 # Room 数据库
-│   ├── FavoriteLocation.kt + Dao      # 收藏位置
-│   └── HistoryLocation.kt + Dao       # 历史位置
+├── 🔗 core/                           # 🆕 核心桥接层
+│   ├── service/
+│   │   └── LocationServiceConnector.kt (145行) # Service↔ViewModel 桥接
+│   ├── common/
+│   │   └── AppResult.kt (50行)        # 统一结果封装
+│   └── utils/
+│       └── MapDelegate.kt (181行)     # 地图逻辑复用
 │
-├── 🔄 repository/                     # Repository 层
-│   └── PoiSearchHelper.kt             # POI 搜索封装
+├── 💾 data/                           # 数据层
+│   ├── db/                            # Room 数据库
+│   │   ├── AppDatabase.kt (238行)     # 数据库实例
+│   │   ├── FavoriteLocation.kt + Dao  # 收藏位置
+│   │   ├── HistoryLocation.kt + Dao   # 历史位置
+│   │   ├── SearchHistory.kt + Dao     # 搜索历史
+│   │   └── SavedRoute.kt + Dao        # 🆕 路线数据
+│   └── repository/                    # Repository 层
+│       ├── LocationRepository.kt (137行) # 位置数据仓库
+│       ├── SearchRepository.kt (99行)    # 搜索数据仓库
+│       ├── FavoriteRepository.kt (53行)  # 收藏数据仓库
+│       └── RouteRepository.kt (76行)     # 🆕 路线数据仓库
 │
-├── 🛠️ util/                           # 工具层 (15个文件)
-│   ├── 动画相关 (4个)
-│   │   ├── AnimationHelper.kt         # 基础动画
-│   │   ├── AdvancedAnimationHelper.kt # 高级动画
-│   │   ├── SpringAnimationHelper.kt   # 弹簧动画
-│   │   └── AnimationConfig.kt         # 动画配置
+├── 🔄 repository/                     # 外部服务封装
+│   └── PoiSearchHelper.kt (193行)     # POI 搜索封装 (高德SDK)
+│
+├── 🛠️ util/                           # 工具层 (10个文件)
+│   ├── 动画相关 (2个)
+│   │   ├── AnimationHelper.kt (519行) # 基础+高级动画
+│   │   └── AnimationConfig.kt (202行) # 动画配置
 │   ├── 地图相关 (2个)
-│   │   ├── MapUtils.kt                # 坐标转换 (GCJ02 ↔ WGS84)
-│   │   └── NetworkLocationHelper.kt   # 网络定位辅助
-│   ├── 权限相关 (2个)
-│   │   ├── PermissionHelper.kt        # 权限检查
-│   │   └── ProgressivePermissionManager.kt # 渐进式权限管理
-│   └── 其他工具 (7个)
-│       ├── AddressCache.kt            # 地址缓存 (LRU)
-│       ├── UIFeedbackHelper.kt        # Toast/Snackbar 封装
-│       ├── LoadingManager.kt          # 加载状态管理
-│       ├── OnboardingManager.kt       # 新手引导
-│       ├── CrashHandler.kt            # 崩溃处理
-│       ├── AppConstants.kt            # 常量定义
-│       └── Result.kt                  # 结果封装
+│   │   ├── MapUtils.kt (129行)        # 坐标转换 (GCJ02 ↔ WGS84 ↔ BD09)
+│   │   └── ThemeUtils.kt (20行)       # 主题上下文创建
+│   ├── 权限相关 (1个)
+│   │   └── PermissionHelper.kt (105行) # 权限检查
+│   └── 其他工具 (5个)
+│       ├── AddressCache.kt (242行)    # 地址缓存 (LRU)
+│       ├── UIFeedbackHelper.kt (117行) # Toast/Snackbar 封装
+│       ├── CrashHandler.kt (191行)    # 崩溃处理
+│       ├── PrefsConfig.kt (92行)      # 偏好配置常量
+│       └── UpdateChecker.kt (249行)   # 更新检查
 │
 ├── 🎮 widget/                         # 自定义控件
-│   ├── JoystickView.kt                # 圆形摇杆
-│   └── ButtonView.kt                  # 八方向按钮
+│   ├── JoystickView.kt (266行)        # 圆形摇杆
+│   └── ButtonView.kt (148行)          # 八方向按钮
 │
 └── 📡 receiver/                       # 广播接收器
-    └── BootReceiver.kt                # 开机自启
+    └── BootReceiver.kt (84行)         # 开机自启
 ```
 
 ## 🚀 快速开始
@@ -236,46 +259,84 @@ cd demo
 
 ## 🔧 架构设计
 
-### MVVM 架构
+### MVVM + Delegate 架构
 
-项目采用 **MVVM (Model-View-ViewModel)** 架构模式，实现了清晰的职责分离：
+项目采用 **MVVM + Delegate** 架构模式，通过 Delegate 拆分和 ServiceConnector 桥接层实现清晰的职责分离：
 
 ```
-┌─────────────────────────────────────────┐
-│           UI Layer (Fragment)           │
-│  - 地图初始化、用户交互、动画控制       │
-│  - 观察 ViewModel 的 StateFlow          │
-└──────────────┬──────────────────────────┘
-               │ StateFlow 收集
-┌──────────────▼──────────────────────────┐
-│         ViewModel Layer                 │
-│  - 业务逻辑处理                         │
-│  - 状态管理 (StateFlow)                 │
-│  - 数据转换                             │
-└──────────────┬──────────────────────────┘
-               │ Service 引用注入
-┌──────────────▼──────────────────────────┐
-│         Service Layer                   │
-│  - LocationService (TestProvider)       │
-│  - FloatingWindowManager                │
-└──────────────┬──────────────────────────┘
-               │ Room Database
-┌──────────────▼──────────────────────────┐
-│         Data Layer                      │
-│  - Room Database                        │
-│  - Repository (PoiSearchHelper)         │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│              UI Layer (Fragment)                 │
+│  - 地图初始化、用户交互、动画控制                │
+│  - 观察 ViewModel 的 StateFlow                   │
+└──────────────────┬──────────────────────────────┘
+                   │ StateFlow 收集
+┌──────────────────▼──────────────────────────────┐
+│           ViewModel Layer + Delegate             │
+│  - MainViewModel: 状态管理、Delegate 调度        │
+│  - SearchDelegate: 搜索功能                      │
+│  - SimulationDelegate: 模拟控制                  │
+│  - RouteEditDelegate: 路线编辑                   │
+│  - ThemeDelegate: 主题切换                       │
+│  - DialogDelegate: 对话框                        │
+└──────────────────┬──────────────────────────────┘
+                   │ ServiceConnector 桥接
+┌──────────────────▼──────────────────────────────┐
+│         Service Layer (via Connector)            │
+│  - LocationServiceConnector: Service↔VM 解耦    │
+│  - LocationService (TestProvider)                │
+│  - FloatingWindowManager                         │
+└──────────────────┬──────────────────────────────┘
+                   │ Room Database / Repository
+┌──────────────────▼──────────────────────────────┐
+│              Data Layer                          │
+│  - Room Database (4 个 Entity + Dao)             │
+│  - Repository (Location, Search, Favorite, Route)│
+│  - PoiSearchHelper (高德 SDK)                    │
+└─────────────────────────────────────────────────┘
 ```
 
 ### 关键设计模式
 
-#### 1. Manager + Controller 模式 (悬浮窗)
+#### 1. Delegate 模式 (ViewModel 拆分)
+
+```kotlin
+class MainViewModel : ViewModel() {
+    val searchDelegate = SearchDelegate(this)       // 搜索功能
+    val simulationDelegate = SimulationDelegate(this) // 模拟控制
+    val routeEditDelegate = RouteEditDelegate(this)   // 路线编辑
+    val themeDelegate = ThemeDelegate(this)           // 主题切换
+    val dialogDelegate = DialogDelegate(this)         // 对话框
+}
+```
+
+**优势**:
+- ✅ 单一职责：每个 Delegate 只负责一个功能域
+- ✅ 降低复杂度：ViewModel 从 440 行拆分为 946 行主类 + 5 个 Delegate
+- ✅ 易于测试：每个 Delegate 可独立测试
+- ✅ 易于扩展：新增功能只需添加 Delegate
+
+#### 2. ServiceConnector 桥接层
+
+```kotlin
+LocationServiceConnector    // Service↔ViewModel 桥接
+├── 封装 Service 绑定/解绑生命周期
+├── 提供 Flow-based 的 Service 状态观察
+└── 解耦 ViewModel 与 Service 直接依赖
+```
+
+**优势**:
+- ✅ 生命周期安全：自动处理 Service 绑定状态
+- ✅ 解耦通信：ViewModel 不直接持有 Service 引用
+- ✅ 可测试性：可替换为 Mock Connector
+
+#### 3. Manager + Controller 模式 (悬浮窗)
 
 ```kotlin
 FloatingWindowManager          // 管理器：统一调度
 ├── JoystickWindowController   // 控制器：摇杆窗口
 ├── MapWindowController        // 控制器：地图窗口
-└── HistoryWindowController    // 控制器：历史窗口
+├── HistoryWindowController    // 控制器：历史窗口
+└── RouteControlWindowController // 控制器：路线控制窗口
 ```
 
 **优势**:
@@ -283,7 +344,7 @@ FloatingWindowManager          // 管理器：统一调度
 - ✅ 易于扩展：添加新窗口只需新增 Controller
 - ✅ 统一管理：Manager 处理窗口切换、主题同步
 
-#### 2. StateFlow 状态管理
+#### 4. StateFlow 状态管理
 
 ```kotlin
 class MainViewModel : ViewModel() {
@@ -301,15 +362,6 @@ class MainViewModel : ViewModel() {
 - ✅ 生命周期安全：自动跟随 Lifecycle
 - ✅ 线程安全：协程调度
 - ✅ 配置变化安全：ViewModel 存活
-
-#### 3. 渐进式权限请求
-
-```kotlin
-ProgressivePermissionManager
-├── 首次启动：仅请求必要权限
-├── 功能触发：按需请求额外权限
-└── 友好引导：解释权限用途
-```
 
 ---
 
@@ -342,9 +394,7 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 
 项目提供了完整的动画工具库：
 
-- **AnimationHelper**: 淡入淡出、数字滚动
-- **AdvancedAnimationHelper**: 脉冲动画、弹跳效果
-- **SpringAnimationHelper**: 弹簧物理动画
+- **AnimationHelper**: 淡入淡出、数字滚动、脉冲动画、弹跳效果
 - **AnimationConfig**: 统一的时长和插值器配置
 
 ---
@@ -424,9 +474,9 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 - [ ] Release 版本禁用混淆（高德地图死锁问题）
 
 ### 中优先级 🟡
-- [ ] 添加单元测试覆盖核心逻辑
+- [x] 添加单元测试覆盖核心逻辑 — 已有 MapUtilsTest、PrefsConfigTest、DataEntityTest
 - [x] Tertiary 颜色重新设计（已完成主题色重构）
-- [ ] 摇杆颜色主题化（目前硬编码）
+- [x] 摇杆颜色主题化（已完成，ThemeDelegate）
 
 ### 低优先级 🟢
 - [ ] 支持用户自定义主题色
@@ -436,6 +486,18 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 ---
 
 ## 📝 版本历史
+
+### v1.6.0 (2026-05-13)
+🏗️ **架构重构：Delegate 模式 + ServiceConnector 桥接层**
+- 🆕 ViewModel 拆分为 5 个 Delegate (Search/Simulation/RouteEdit/Theme/Dialog)
+- 🆕 新增 LocationServiceConnector 桥接层，解耦 Service↔ViewModel
+- 🆕 新增 RouteControlWindowController、RoutePlaybackEngine
+- 🆕 新增 core 桥接层 (AppResult、MapDelegate)
+- 🆕 数据层新增 Repository 拆分和 SavedRoute 实体
+- 🧹 移除 ProgressivePermissionManager、OnboardingManager 等已废弃模块
+- 🧹 合并动画工具为 AnimationHelper + AnimationConfig
+- ✅ 摇杆颜色主题化 (ThemeDelegate)
+- ✅ 添加单元测试 (MapUtilsTest、PrefsConfigTest、DataEntityTest)
 
 ### v1.5.0 (2026-05-02)
 🎯 **路线模拟与循环播放功能**
