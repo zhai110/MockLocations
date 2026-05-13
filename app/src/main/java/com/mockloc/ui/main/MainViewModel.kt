@@ -228,7 +228,7 @@ class MainViewModel(
                     // 只在路线模拟播放中且位置确实变化时更新，避免覆盖单点模式的地址信息
                     if (_simulationState.value.isSimulating &&
                         (localLocation == null || localLocation.latitude != sharedLatLng.latitude || localLocation.longitude != sharedLatLng.longitude)) {
-                        _mapState.update { it.copy(currentLocation = sharedLatLng, address = "") }
+                        _mapState.update { it.copy(currentLocation = sharedLatLng, address = "", shouldMoveToCurrentLocation = true) }
                     }
                 }
             }
