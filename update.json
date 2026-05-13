@@ -5,7 +5,7 @@
   "releaseNotes": "🎯 v1.6.0 架构重构\n\n🏗️ 架构升级\n• Delegate模式拆分MainFragment：从1157行精简至735行（-36%）\n• 新增5个Delegate：Search/Simulation/RouteEdit/Theme/Dialog\n• ServiceConnector桥接层：flatMapLatest自动管理Service生命周期\n• MapDelegate地图逻辑复用：消除重复代码\n• AppResult统一结果封装：所有Repository使用safeCall\n\n✨ 新增功能\n• 路线控制浮动窗：RouteControlWindowController\n• 路线播放引擎：RoutePlaybackEngine支持多点循环播放\n• SavedRoute数据层：实体+DAO+Repository完整实现\n• 状态同步链：Service→Connector→ViewModel→Fragment/Delegate\n• 相机移动节流：路线模拟时500ms节流避免抖动\n• 逆地理编码节流：3秒节流减少网络请求\n• 单元测试：MapUtilsTest、PrefsConfigTest、DataEntityTest\n\n🐛 Bug修复\n• 路线模拟FAB状态不同步：与播放按钮状态同步\n• 路线模拟BottomSheet位置不更新：通过sharedMapState实时更新\n• 路线模拟相机不跟踪：shouldMoveToCurrentLocation正确设置\n• Service模拟状态不同步：play/pause/stop正确更新状态\n• FAB状态冲突：移除updateMapUI中直接操作FAB的代码\n• statusText冲突：统一由SimulationDelegate管理\n\n🗑️ 代码清理\n• 删除921行未使用工具类：SpringAnimationHelper/OnboardingManager/LoadingManager等\n• Kotlin源文件：67→62个\n• LocationService优化：~600→478行（-20%）\n\n⚡ 性能提升\n• MainFragment：1157→735行（-36%）\n• 架构更清晰：Delegate间通过ViewModel StateFlow解耦\n• 内存安全：无泄漏风险，资源清理完善",
   "forceUpdate": false,
   "minVersionCode": 1,
-  "fileSize": 0,
-  "md5": "",
+  "fileSize": 72508845,
+  "md5": "00B98AE9B1248D98514CDDD6531F584A",
   "publishTime": "2026-05-13T00:00:00Z"
 }
