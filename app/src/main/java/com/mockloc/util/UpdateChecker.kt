@@ -102,17 +102,18 @@ class UpdateChecker(private val context: Context) {
                             if (currentVersionCode >= cachedUpdateInfo.versionCode) {
                                 Timber.d("✅ Version upgraded, clearing cached update info")
                                 prefs.edit().remove(KEY_LAST_CHECK_RESULT).apply()
-                                return@withContext Result.success(null)
+                                // ✅ 修复：清除缓存后继续执行网络检查，而不是直接返回 null
+                            } else {
+                                // 否则返回缓存结果
+                                return@withContext Result.success(cachedUpdateInfo)
                             }
-                            
-                            // 否则返回缓存结果
-                            return@withContext Result.success(cachedUpdateInfo)
                         } catch (e: Exception) {
-                            Timber.w(e, "Failed to parse cached update info")
+                            Timber.w(e, "Failed to parse cached update info, clearing cache")
                             prefs.edit().remove(KEY_LAST_CHECK_RESULT).apply()
+                            // ✅ 修复：清除损坏的缓存后继续执行网络检查
                         }
                     }
-                    return@withContext Result.success(null)
+                    // ✅ 修复：缓存失效或不存在时，继续执行网络检查
                 }
             }
             
@@ -248,6 +249,20 @@ class UpdateChecker(private val context: Context) {
             Timber.i("APK downloaded successfully: ${apkFile.absolutePath}")
             Timber.d("Expected size: ${updateInfo.fileSize}, Actual size: $actualSize")
             
+            // ✅ 新增：MD5 完整性校验
+            if (updateInfo.md5.isNotEmpty()) {
+                val actualMd5 = calculateMD5(apkFile)
+                if (actualMd5.equals(updateInfo.md5, ignoreCase = true)) {
+                    Timber.i("✅ MD5 verification passed: $actualMd5")
+                } else {
+                    Timber.e("❌ MD5 mismatch! Expected: ${updateInfo.md5}, Actual: $actualMd5")
+                    apkFile.delete()
+                    return@withContext Result.failure(SecurityException("APK integrity check failed"))
+                }
+            } else {
+                Timber.w("⚠️ No MD5 hash provided, skipping integrity check")
+            }
+            
             Result.success(apkFile)
             
         } catch (e: Exception) {
@@ -262,5 +277,20 @@ class UpdateChecker(private val context: Context) {
     fun cancelDownload() {
         client.dispatcher.cancelAll()
         Timber.d("Download cancelled")
+    }
+    
+    /**
+     * ✅ 新增：计算文件的 MD5 哈希值
+     */
+    private fun calculateMD5(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("MD5")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(8192)
+            var bytesRead: Int
+            while (input.read(buffer).also { bytesRead = it } != -1) {
+                digest.update(buffer, 0, bytesRead)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }.uppercase()
     }
 }
