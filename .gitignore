@@ -86,6 +86,7 @@ lint/reports/
 .workbuddy/
 .arts/
 .trae/
+.vscode/
 AGENTS.md
 
 # OS generated files
