@@ -140,12 +140,10 @@ class RouteEditDelegate(
         
         if (playback.isPlaying) {
             binding.routePlayFabBtn.setImageResource(R.drawable.ic_stop)
-            binding.statusText.text = "模拟中"
             binding.routeProgressSection.visibility = View.VISIBLE
             binding.routeProgress.progress = (playback.progress * 100).toInt()
         } else {
             binding.routePlayFabBtn.setImageResource(R.drawable.ic_play)
-            binding.statusText.text = "未模拟"
             binding.routeProgressSection.visibility = View.VISIBLE
             binding.routeProgress.progress = (playback.progress * 100).toInt()
         }

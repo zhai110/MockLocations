@@ -260,35 +260,20 @@ class SimulationDelegate(
      * @param currentTabMode 当前 Tab 模式（0=单点模式，1=路线模式）
      */
     fun updateSimulationUI(state: MainViewModel.SimulationState, currentTabMode: Int) {
-        if (currentTabMode == 0) {
-            // 单点定位模式：FAB = 确认传送 / 停止模拟
-            if (state.isSimulating) {
-                binding.fab.setImageResource(R.drawable.ic_fly)
-                binding.fab.imageTintList = null
-                idlePulseAnimator?.cancel()
-                idlePulseAnimator = null
-                binding.statusText.text = "模拟中"
-            } else {
-                binding.fab.setImageResource(R.drawable.ic_position)
-                binding.fab.imageTintList = null
-                if (idlePulseAnimator == null) {
-                    idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
-                }
-                binding.statusText.text = "未模拟"
-            }
-        } else {
-            // 路线模式：FAB 与播放按钮同步，显示开始模拟/停止模拟
+        // 单点/路线模式统一风格：模拟中 → ic_fly，未模拟 → ic_position + 脉冲动画
+        if (state.isSimulating) {
+            binding.fab.setImageResource(R.drawable.ic_fly)
+            binding.fab.imageTintList = null
             idlePulseAnimator?.cancel()
             idlePulseAnimator = null
-            if (state.isSimulating) {
-                binding.fab.setImageResource(R.drawable.ic_stop)
-                binding.fab.imageTintList = null
-                binding.statusText.text = "模拟中"
-            } else {
-                binding.fab.setImageResource(R.drawable.ic_play)
-                binding.fab.imageTintList = null
-                binding.statusText.text = "未模拟"
+            binding.statusText.text = "模拟中"
+        } else {
+            binding.fab.setImageResource(R.drawable.ic_position)
+            binding.fab.imageTintList = null
+            if (idlePulseAnimator == null) {
+                idlePulseAnimator = AnimationHelper.pulseInfinite(binding.fab, 2000)
             }
+            binding.statusText.text = "未模拟"
         }
     }
     

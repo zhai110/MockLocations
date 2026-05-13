@@ -144,9 +144,20 @@ class LocationService : Service() {
     fun removeRoutePointAt(index: Int): RoutePoint? = routePlaybackEngine?.removePointAt(index)
     fun insertRoutePointAt(index: Int, point: RoutePoint) = routePlaybackEngine?.insertPointAt(index, point) ?: Unit
     fun clearRoute() = routePlaybackEngine?.clearRoute() ?: Unit
-    fun playRoute() = routePlaybackEngine?.play() ?: Unit
-    fun pauseRoute() = routePlaybackEngine?.pause() ?: Unit
-    fun stopRoute() = routePlaybackEngine?.stop() ?: Unit
+    fun playRoute() {
+        routePlaybackEngine?.play() ?: return
+        _simulationState.update { it.copy(isSimulating = true) }
+    }
+
+    fun pauseRoute() {
+        routePlaybackEngine?.pause() ?: return
+        _simulationState.update { it.copy(isSimulating = false) }
+    }
+
+    fun stopRoute() {
+        routePlaybackEngine?.stop() ?: return
+        _simulationState.update { it.copy(isSimulating = false) }
+    }
     fun setRouteLooping(loop: Boolean) = routePlaybackEngine?.setLooping(loop) ?: Unit
     fun setRouteSpeedMultiplier(multiplier: Float) = routePlaybackEngine?.setSpeedMultiplier(multiplier) ?: Unit
     fun getRoutePoints(): List<RoutePoint> = routePlaybackEngine?.getPoints() ?: emptyList()
@@ -224,6 +235,8 @@ class LocationService : Service() {
         serviceScope.launch {
             routePlaybackEngine?.state?.collect { state ->
                 notifyRouteControlStateChanged(state.isPlaying)
+                // 路线播放状态变化时同步更新模拟状态（自然结束/取消时 isPlaying 变 false）
+                _simulationState.update { it.copy(isSimulating = state.isPlaying) }
             }
         }
     }

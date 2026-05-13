@@ -345,13 +345,6 @@ class MainFragment : Fragment() {
             Timber.d("updateMapUI: currentLocation updated to ${state.currentLocation}, but NOT moving camera")
             updateLocationInfo(state.currentLocation!!, state.address)
         }
-
-        // 清除待传送标记后更新 FAB
-        if (!state.isPositionPending && !viewModel.simulationState.value.isSimulating) {
-            binding.fab.setImageResource(R.drawable.ic_position)
-            binding.fab.imageTintList = null
-            binding.statusText.text = "未模拟"
-        }
     }
 
     /**
