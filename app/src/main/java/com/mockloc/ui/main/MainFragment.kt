@@ -70,6 +70,8 @@ class MainFragment : Fragment() {
     private var pendingPositionFromResult = false  // launcher 回调设置了新位置，onResume 不应覆盖
     
     private var currentTabMode: Int = 0  // 0=单点定位, 1=路线模拟
+    private var lastCameraMoveTime = 0L
+    private val CAMERA_MOVE_THROTTLE_MS = 500L
     
     // ✅ Phase 2: Delegate 成员变量
     private lateinit var searchDelegate: com.mockloc.ui.main.delegate.SearchDelegate
@@ -313,12 +315,16 @@ class MainFragment : Fragment() {
         
     // 路线点编辑
         if (state.shouldMoveToCurrentLocation && state.currentLocation != null) {
-            Timber.d("Moving camera to current location: ${state.currentLocation}, zoom: ${state.zoom}")
-            // ✅ 使用 animateCamera 实现流畅的飞行动画
-            aMap.animateCamera(
-                com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(state.currentLocation, state.zoom)
-            )
-            // 重置标志
+            val now = System.currentTimeMillis()
+            if (now - lastCameraMoveTime >= CAMERA_MOVE_THROTTLE_MS) {
+                Timber.d("Moving camera to current location: ${state.currentLocation}, zoom: ${state.zoom}")
+                // ✅ 使用 animateCamera 实现流畅的飞行动画
+                aMap.animateCamera(
+                    com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(state.currentLocation, state.zoom)
+                )
+                lastCameraMoveTime = now
+            }
+            // 重置标志（即使这次没移动，也要重置避免下次重复触发）
             viewModel.resetShouldMoveToCurrentLocation()
         }
         
