@@ -92,7 +92,7 @@
     <string name="settings_auto_start_desc">开机后自动恢复上次模拟位置</string>
     <string name="settings_about">关于应用</string>
     <string name="settings_about_desc">版本 1.6.0</string>
-    <string name="about_message">虚拟定位应用 v1.6.0
+    <string name="about_message" formatted="false">虚拟定位应用 v1.6.0
 
 基于 Kotlin + 高德地图 SDK 开发
 无需 ROOT 权限即可修改设备位置
