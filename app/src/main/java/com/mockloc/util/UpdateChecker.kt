@@ -91,13 +91,28 @@ class UpdateChecker(private val context: Context) {
                     val remainingMinutes = (CHECK_INTERVAL - timeSinceLastCheck) / 1000 / 60
                     Timber.d("⏭️ Skip update check (last checked ${remainingMinutes} minutes ago)")
                     
-                    // 返回上次缓存的结果
+                    // ✅ 修复：返回缓存结果前，验证当前版本是否已更新
                     val cachedResult = prefs.getString(KEY_LAST_CHECK_RESULT, null)
-                    return@withContext if (cachedResult != null) {
-                        Result.success(gson.fromJson(cachedResult, UpdateInfo::class.java))
-                    } else {
-                        Result.success(null)
+                    if (cachedResult != null) {
+                        try {
+                            val cachedUpdateInfo = gson.fromJson(cachedResult, UpdateInfo::class.java)
+                            val (currentVersionCode, _) = getCurrentVersionInfo()
+                            
+                            // 如果当前版本 >= 缓存中的最新版本，说明已升级，清除缓存
+                            if (currentVersionCode >= cachedUpdateInfo.versionCode) {
+                                Timber.d("✅ Version upgraded, clearing cached update info")
+                                prefs.edit().remove(KEY_LAST_CHECK_RESULT).apply()
+                                return@withContext Result.success(null)
+                            }
+                            
+                            // 否则返回缓存结果
+                            return@withContext Result.success(cachedUpdateInfo)
+                        } catch (e: Exception) {
+                            Timber.w(e, "Failed to parse cached update info")
+                            prefs.edit().remove(KEY_LAST_CHECK_RESULT).apply()
+                        }
                     }
+                    return@withContext Result.success(null)
                 }
             }
             
