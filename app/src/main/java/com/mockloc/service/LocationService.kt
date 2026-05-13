@@ -442,6 +442,8 @@ class LocationService : Service() {
 
     /** 更新路线播放位置（GCJ-02 → WGS-84 转换后更新坐标，注入由循环统一执行） */
     fun updatePlaybackPosition(gcjLng: Double, gcjLat: Double, alt: Double, bearing: Float) {
+        // 同步更新 sharedMapState，使主界面 BottomSheet 能实时显示路线模拟位置
+        _sharedMapState.update { it.copy(centerLat = gcjLat, centerLng = gcjLng) }
         serviceScope.launch(Dispatchers.IO) {
             val wgs = MapUtils.gcj02ToWgs84(gcjLng, gcjLat)
             if (kotlin.math.abs(wgs[1]) > 90 || kotlin.math.abs(wgs[0]) > 180) return@launch

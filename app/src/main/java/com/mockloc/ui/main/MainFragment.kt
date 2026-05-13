@@ -341,7 +341,7 @@ class MainFragment : Fragment() {
         }
 
         // 更新位置信息（但不移动相机）
-        if (state.currentLocation != null && state.address.isNotEmpty()) {
+        if (state.currentLocation != null) {
             Timber.d("updateMapUI: currentLocation updated to ${state.currentLocation}, but NOT moving camera")
             updateLocationInfo(state.currentLocation!!, state.address)
         }
@@ -657,6 +657,9 @@ class MainFragment : Fragment() {
      *
      * 有地址时直接显示，无地址时通过 ViewModel 异步逆地理编码获取。
      */
+    private var lastGeocodeTime = 0L
+    private val GEOCODE_THROTTLE_MS = 3000L
+
     private fun updateLocationInfo(latLng: LatLng, address: String = "") {
         AnimationHelper.animateNumberChange(
             binding.latitudeText,
@@ -671,6 +674,9 @@ class MainFragment : Fragment() {
             AnimationHelper.fadeIn(binding.addressText, 200)
             binding.addressText.text = address
         } else {
+            val now = System.currentTimeMillis()
+            if (now - lastGeocodeTime < GEOCODE_THROTTLE_MS) return
+            lastGeocodeTime = now
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val (_, fullAddress) = viewModel.getAddressFromLocation(latLng.latitude, latLng.longitude)

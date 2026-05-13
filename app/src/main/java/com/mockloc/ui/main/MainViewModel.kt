@@ -217,6 +217,22 @@ class MainViewModel(
                 }
             }
         }
+
+        // ✅ 收集 Service 端的 sharedMapState，路线模拟时实时更新主界面位置信息
+        // 解决问题：路线模拟播放时 BottomSheet 位置信息不实时更新
+        viewModelScope.launch {
+            serviceConnector.sharedMapState.collect { sharedState ->
+                if (sharedState.centerLat > 0 && sharedState.centerLng > 0) {
+                    val sharedLatLng = LatLng(sharedState.centerLat, sharedState.centerLng)
+                    val localLocation = _mapState.value.currentLocation
+                    // 只在路线模拟播放中且位置确实变化时更新，避免覆盖单点模式的地址信息
+                    if (_simulationState.value.isSimulating &&
+                        (localLocation == null || localLocation.latitude != sharedLatLng.latitude || localLocation.longitude != sharedLatLng.longitude)) {
+                        _mapState.update { it.copy(currentLocation = sharedLatLng, address = "") }
+                    }
+                }
+            }
+        }
     }
 
     // ==================== 初始化方法 ====================
