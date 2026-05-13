@@ -47,8 +47,8 @@ android {
         applicationId = "com.mockloc"
         minSdk = 29
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.6.0"  // 架构重构：Delegate模式 + ServiceConnector桥接层
+        versionCode = 10
+        versionName = "1.6.1"  // 修复升级后仍弹出更新提示的问题
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

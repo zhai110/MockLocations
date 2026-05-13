@@ -91,8 +91,8 @@
     <string name="settings_auto_start">开机自启</string>
     <string name="settings_auto_start_desc">开机后自动恢复上次模拟位置</string>
     <string name="settings_about">关于应用</string>
-    <string name="settings_about_desc">版本 1.6.0</string>
-    <string name="about_message" formatted="false">虚拟定位应用 v1.6.0
+    <string name="settings_about_desc">版本 1.6.1</string>
+    <string name="about_message" formatted="false">虚拟定位应用 v1.6.1
 
 基于 Kotlin + 高德地图 SDK 开发
 无需 ROOT 权限即可修改设备位置
@@ -108,6 +108,12 @@
 • 悬浮窗快速切换
 • 两步确认模式（App内）/ 一步直达（悬浮窗）
 • 路线模拟与循环播放
+
+v1.6.1 更新：
+• 修复从旧版本升级后仍弹出更新提示的问题
+• 优化 UpdateChecker 缓存机制，增加版本验证
+• 避免升级后在冷却期内重复显示更新对话框
+• 智能清理过期缓存，提升用户体验
 
 v1.6.0 更新：
 • 架构重构：Delegate模式拆分MainFragment（1157→735行，-36%）
