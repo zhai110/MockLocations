@@ -5,7 +5,7 @@
   "releaseNotes": "🎯 v1.6.1 修复更新\n\n🐛 Bug 修复\n• 修复从旧版本升级后仍弹出更新提示的问题\n• 优化 UpdateChecker 缓存机制，增加版本验证\n• 避免升级后在冷却期内重复显示更新对话框\n\n✨ 体验优化\n• 智能清理过期缓存，提升用户体验\n• 缓存解析失败时自动恢复，增强稳定性\n• 保持 1 小时检查频率控制，减少网络请求\n\n⚡ 技术改进\n• UpdateChecker 增加版本号对比逻辑\n• SharedPreferences 缓存管理更完善\n• 异常处理更健壮，避免崩溃风险",
   "forceUpdate": false,
   "minVersionCode": 1,
-  "fileSize": 0,
-  "md5": "",
+  "fileSize": 72509497,
+  "md5": "39ADC672BB08CBF173DD5F9ABE29BA63",
   "publishTime": "2026-05-13T00:00:00Z"
 }
