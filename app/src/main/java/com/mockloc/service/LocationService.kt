@@ -14,6 +14,8 @@ import android.os.IBinder
 import android.provider.Settings
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.mockloc.R
@@ -99,6 +101,7 @@ class LocationService : Service() {
 
     private lateinit var locationManager: LocationManager
     @Volatile private var isRunning = false
+    private val positionLock = Mutex()  // ✅ 修复：保护位置更新的互斥锁
     private lateinit var positionInjector: PositionInjector
     private lateinit var movementController: MovementController
     private var locationUpdateInterval = DEFAULT_LOCATION_UPDATE_INTERVAL_MS
@@ -375,27 +378,40 @@ class LocationService : Service() {
     // ── 模拟控制 ────────────────────────────────────────────────
 
     private fun startSimulation(latitude: Double, longitude: Double) {
-        if (isRunning) { updateTargetLocation(latitude, longitude); return }
-        positionInjector.updatePosition(latitude, longitude)
-        isRunning = true
-        staticIsRunning = true
-        _simulationState.update { it.copy(isSimulating = true) }
-        positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-        positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-        if (moveJob?.isActive != true) initLocationUpdateLoop()
-        saveLastLocation()
+        // ✅ 修复：使用 Mutex 保护 isRunning 检查和位置更新，防止 TOCTOU 竞态
+        serviceScope.launch(Dispatchers.IO) {
+            positionLock.withLock {
+                if (isRunning) { 
+                    updateTargetLocation(latitude, longitude)
+                    return@withLock 
+                }
+                positionInjector.updatePosition(latitude, longitude)
+                isRunning = true
+                staticIsRunning = true
+                _simulationState.update { it.copy(isSimulating = true) }
+                positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                if (moveJob?.isActive != true) initLocationUpdateLoop()
+                saveLastLocation()
+            }
+        }
     }
 
     private fun stopSimulation() {
-        if (!isRunning) return
-        isRunning = false
-        staticIsRunning = false
-        _simulationState.update { it.copy(isSimulating = false, isAutoMoving = false) }
-        moveJob?.cancel()
-        movementController.cancelAutoMove()
-        floatingWindowManager?.hide()
-        isJoystickVisible = false
-        stopSelf()
+        // ✅ 修复：使用 Mutex 保护 isRunning 检查和状态修改
+        serviceScope.launch(Dispatchers.IO) {
+            positionLock.withLock {
+                if (!isRunning) return@withLock
+                isRunning = false
+                staticIsRunning = false
+                _simulationState.update { it.copy(isSimulating = false, isAutoMoving = false) }
+                moveJob?.cancel()
+                movementController.cancelAutoMove()
+                floatingWindowManager?.hide()
+                isJoystickVisible = false
+                stopSelf()
+            }
+        }
     }
 
     /** 保存最后位置到 SP（用于开机自启恢复），坐标系 GCJ-02 */
@@ -430,19 +446,22 @@ class LocationService : Service() {
     /** 设置模拟位置（WGS-84 坐标系），未启动时自动启动 */
     fun setPositionWgs84(lat: Double, lng: Double, alt: Double) {
         serviceScope.launch(Dispatchers.IO) {
-            if (!isRunning) {
-                positionInjector.updatePosition(lat, lng, alt)
-                isRunning = true
-                staticIsRunning = true
-                _simulationState.update { it.copy(isSimulating = true) }
-                positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-                positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
-                if (moveJob?.isActive != true) initLocationUpdateLoop()
-                saveLastLocation()
-            } else {
-                positionInjector.updatePosition(lat, lng, alt)
-                positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
-                positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+            // ✅ 修复：使用 Mutex 保护 isRunning 检查和位置更新，防止 TOCTOU 竞态
+            positionLock.withLock {
+                if (!isRunning) {
+                    positionInjector.updatePosition(lat, lng, alt)
+                    isRunning = true
+                    staticIsRunning = true
+                    _simulationState.update { it.copy(isSimulating = true) }
+                    positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                    positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                    if (moveJob?.isActive != true) initLocationUpdateLoop()
+                    saveLastLocation()
+                } else {
+                    positionInjector.updatePosition(lat, lng, alt)
+                    positionInjector.setLocation(LocationManager.NETWORK_PROVIDER, Criteria.ACCURACY_COARSE)
+                    positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
+                }
             }
         }
     }
