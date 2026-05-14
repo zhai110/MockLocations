@@ -1,6 +1,7 @@
 package com.mockloc.util
 
 import android.content.Context
+import com.mockloc.R
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import com.google.gson.Gson
@@ -129,12 +130,12 @@ class UpdateChecker(private val context: Context) {
             
             if (!response.isSuccessful) {
                 Timber.w("Update check failed: HTTP ${response.code}")
-                return@withContext Result.failure(Exception("检查更新失败：HTTP ${response.code}"))
+                return@withContext Result.failure(Exception(context.getString(R.string.update_check_failed, response.code)))
             }
             
             val json = response.body?.string()
             if (json.isNullOrEmpty()) {
-                return@withContext Result.failure(Exception("更新信息为空"))
+                return@withContext Result.failure(Exception(context.getString(R.string.update_info_empty)))
             }
             
             Timber.d("Update info received: $json")
@@ -144,7 +145,7 @@ class UpdateChecker(private val context: Context) {
             
             // 3. 验证数据完整性
             if (!updateInfo.isValid()) {
-                return@withContext Result.failure(Exception("更新信息不完整"))
+                return@withContext Result.failure(Exception(context.getString(R.string.update_info_incomplete)))
             }
             
             // 4. 获取当前版本
@@ -218,10 +219,10 @@ class UpdateChecker(private val context: Context) {
             val response = client.newCall(request).execute()
             
             if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("下载失败：HTTP ${response.code}"))
+                return@withContext Result.failure(Exception(context.getString(R.string.update_download_failed, response.code)))
             }
             
-            val body = response.body ?: return@withContext Result.failure(Exception("响应体为空"))
+            val body = response.body ?: return@withContext Result.failure(Exception(context.getString(R.string.update_response_empty)))
             val totalBytes = body.contentLength()
             var downloadedBytes = 0L
             

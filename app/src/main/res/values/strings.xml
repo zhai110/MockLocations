@@ -209,4 +209,32 @@ v1.5.0 更新：
     <!-- BottomSheet Tab -->
     <string name="tab_single_point">单点定位</string>
     <string name="tab_route_simulation">路线模拟</string>
+
+    <!-- PoiSearchHelper 错误消息 -->
+    <string name="poi_error_invalid_key">API Key无效，请联系开发者</string>
+    <string name="poi_error_too_frequent">访问过于频繁，请稍后再试</string>
+    <string name="poi_error_service_error">服务错误，请稍后重试</string>
+    <string name="poi_error_key_expired">API Key无效或过期</string>
+    <string name="poi_error_service_unavailable">服务不可用</string>
+    <string name="poi_error_request_too_frequent">请求过于频繁</string>
+    <string name="poi_error_network_failed">网络连接失败</string>
+    <string name="poi_error_timeout">超时，请检查网络</string>
+    <string name="poi_error_default">请求失败 (错误码: %d)</string>
+
+    <!-- CrashHandler 用户友好消息 -->
+    <string name="crash_connect_failed">网络连接失败，请检查网络设置</string>
+    <string name="crash_timeout">请求超时，请稍后重试</string>
+    <string name="crash_io_error">数据读取失败，请重试</string>
+    <string name="crash_permission_denied">权限不足，请在设置中授予相关权限</string>
+    <string name="crash_out_of_memory">内存不足，请关闭其他应用后重试</string>
+    <string name="crash_illegal_state">操作失败，请重启应用</string>
+    <string name="crash_unknown_error">应用遇到意外错误，即将重启</string>
+    <string name="crash_default_error">操作失败</string>
+
+    <!-- UpdateChecker 错误消息 -->
+    <string name="update_check_failed">检查更新失败：HTTP %d</string>
+    <string name="update_info_empty">更新信息为空</string>
+    <string name="update_info_incomplete">更新信息不完整</string>
+    <string name="update_download_failed">下载失败：HTTP %d</string>
+    <string name="update_response_empty">响应体为空</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.mockloc.util
 
 import android.content.Context
+import com.mockloc.R
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
@@ -139,14 +140,15 @@ object CrashHandler {
      * 根据异常类型返回用户友好的消息
      */
     private fun getUserFriendlyMessage(throwable: Throwable): String {
+        val ctx = appContext ?: return "应用遇到意外错误，即将重启"
         return when (throwable) {
-            is java.net.ConnectException -> "网络连接失败，请检查网络设置"
-            is java.net.SocketTimeoutException -> "请求超时，请稍后重试"
-            is java.io.IOException -> "数据读取失败，请重试"
-            is SecurityException -> "权限不足，请在设置中授予相关权限"
-            is OutOfMemoryError -> "内存不足，请关闭其他应用后重试"
-            is IllegalStateException -> "操作失败，请重启应用"
-            else -> "应用遇到意外错误，即将重启"
+            is java.net.ConnectException -> ctx.getString(R.string.crash_connect_failed)
+            is java.net.SocketTimeoutException -> ctx.getString(R.string.crash_timeout)
+            is java.io.IOException -> ctx.getString(R.string.crash_io_error)
+            is SecurityException -> ctx.getString(R.string.crash_permission_denied)
+            is OutOfMemoryError -> ctx.getString(R.string.crash_out_of_memory)
+            is IllegalStateException -> ctx.getString(R.string.crash_illegal_state)
+            else -> ctx.getString(R.string.crash_unknown_error)
         }
     }
     
@@ -161,18 +163,19 @@ object CrashHandler {
      */
     fun <T> safeExecute(
         tag: String = "SafeExecute",
-        errorMessage: String = "操作失败",
+        errorMessage: String = "",
         showToast: Boolean = false,
         block: () -> T
     ): T? {
         return try {
             block()
         } catch (e: Exception) {
-            Timber.e(e, "$tag: $errorMessage")
+            val msg = errorMessage.ifEmpty { appContext?.getString(R.string.crash_default_error) ?: "操作失败" }
+            Timber.e(e, "$tag: $msg")
             if (showToast) {
                 appContext?.let {
                     try {
-                        Toast.makeText(it, errorMessage, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(it, msg, Toast.LENGTH_SHORT).show()
                     } catch (ex: Exception) {
                         Timber.w(ex, "Failed to show safeExecute Toast")
                     }
@@ -187,18 +190,19 @@ object CrashHandler {
      */
     suspend fun <T> safeExecuteSuspend(
         tag: String = "SafeExecute",
-        errorMessage: String = "操作失败",
+        errorMessage: String = "",
         showToast: Boolean = false,
         block: suspend () -> T
     ): T? {
         return try {
             block()
         } catch (e: Exception) {
-            Timber.e(e, "$tag: $errorMessage")
+            val msg = errorMessage.ifEmpty { appContext?.getString(R.string.crash_default_error) ?: "操作失败" }
+            Timber.e(e, "$tag: $msg")
             if (showToast) {
                 appContext?.let {
                     try {
-                        Toast.makeText(it, errorMessage, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(it, msg, Toast.LENGTH_SHORT).show()
                     } catch (ex: Exception) {
                         Timber.w(ex, "Failed to show safeExecuteSuspend Toast")
                     }

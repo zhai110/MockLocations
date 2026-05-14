@@ -403,6 +403,14 @@ class LocationService : Service() {
                 positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
                 if (moveJob?.isActive != true) initLocationUpdateLoop()
                 saveLastLocation()
+                
+                // ✅ 修复：启动模拟后，如果不是路线播放模式，自动显示悬浮窗
+                val isRoutePlaying = routePlaybackEngine?.state?.value?.isPlaying == true
+                if (!isRoutePlaying && Settings.canDrawOverlays(this@LocationService)) {
+                    floatingWindowManager?.show()
+                    isJoystickVisible = true
+                    Timber.d("🪟 Auto-showing floating window after startSimulation")
+                }
             }
         }
     }

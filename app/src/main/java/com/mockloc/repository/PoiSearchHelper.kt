@@ -1,6 +1,7 @@
 package com.mockloc.repository
 
 import android.content.Context
+import com.mockloc.R
 import com.amap.api.services.core.AMapException
 import com.amap.api.services.core.LatLonPoint
 import com.amap.api.services.geocoder.GeocodeQuery
@@ -197,15 +198,15 @@ class PoiSearchHelper(private val context: Context) {
      */
     private fun getErrorMessage(errorCode: Int): String {
         return when (errorCode) {
-            AMapException.CODE_AMAP_INVALID_USER_KEY -> "API Key无效，请联系开发者"
-            AMapException.CODE_AMAP_ACCESS_TOO_FREQUENT -> "访问过于频繁，请稍后再试"
-            1001 -> "服务错误，请稍后重试"
-            1002 -> "API Key无效或过期"
-            1003 -> "服务不可用"
-            1004 -> "请求过于频繁"
-            1005 -> "网络连接失败"
-            1006 -> "超时，请检查网络"
-            else -> "请求失败 (错误码: $errorCode)"
+            AMapException.CODE_AMAP_INVALID_USER_KEY -> context.getString(R.string.poi_error_invalid_key)
+            AMapException.CODE_AMAP_ACCESS_TOO_FREQUENT -> context.getString(R.string.poi_error_too_frequent)
+            1001 -> context.getString(R.string.poi_error_service_error)
+            1002 -> context.getString(R.string.poi_error_key_expired)
+            1003 -> context.getString(R.string.poi_error_service_unavailable)
+            1004 -> context.getString(R.string.poi_error_request_too_frequent)
+            1005 -> context.getString(R.string.poi_error_network_failed)
+            1006 -> context.getString(R.string.poi_error_timeout)
+            else -> context.getString(R.string.poi_error_default, errorCode)
         }
     }
 }
