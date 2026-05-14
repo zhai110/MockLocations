@@ -128,6 +128,7 @@ class SimulationDelegate(
      */
     fun startSimulation(latitude: Double, longitude: Double, altitude: Float) {
         try {
+            Timber.d("🚀 startSimulation called: lat=$latitude, lng=$longitude, alt=$altitude")
             onSaveToHistory?.invoke(latitude, longitude)
 
             Timber.d("Starting simulation: lat=$latitude, lng=$longitude (GCJ-02)")

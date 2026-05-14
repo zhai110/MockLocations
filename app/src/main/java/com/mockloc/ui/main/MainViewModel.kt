@@ -776,11 +776,12 @@ class MainViewModel(
      * ✅ 停止路线播放（重置进度和模拟状态）
      */
     fun stopRoutePlayback() {
+        Timber.d("🛑 stopRoutePlayback called")
         serviceConnector.execute { stopRoutePlayback() }
         _simulationState.update { it.copy(isSimulating = false) }
         // ✅ 修复：停止路线播放后，重置路线模式，允许后续单点定位正常显示悬浮窗
         _routeState.update { it.copy(isRouteMode = false) }
-        Timber.d("Route playback stopped, simulation state and route mode reset")
+        Timber.d("✅ Route playback stopped: isRouteMode=false, isSimulating=false")
     }
     
     /**
@@ -808,9 +809,15 @@ class MainViewModel(
      */
     private fun showJoystickIfNeeded() {
         // 只在单点模式且正在模拟时显示
-        if (!_routeState.value.isRouteMode && _simulationState.value.isSimulating) {
+        val isRouteMode = _routeState.value.isRouteMode
+        val isSimulating = _simulationState.value.isSimulating
+        Timber.d("🔍 showJoystickIfNeeded: isRouteMode=$isRouteMode, isSimulating=$isSimulating")
+        
+        if (!isRouteMode && isSimulating) {
             serviceConnector.execute { showFloatingWindow() }
-            Timber.d("Showing joystick window for background control (single-point mode)")
+            Timber.d("✅ Showing joystick window for background control (single-point mode)")
+        } else {
+            Timber.w("❌ Not showing joystick: isRouteMode=$isRouteMode, isSimulating=$isSimulating")
         }
     }
     
