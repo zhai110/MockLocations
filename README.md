@@ -487,6 +487,13 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 
 ## 📝 版本历史
 
+### v1.6.3 (2026-05-13)
+🐛 **修复悬浮窗内存泄漏风险**
+- 🐛 修复 Service 被系统强杀时的资源泄漏问题
+- 🔧 FloatingWindowManager 使用 serviceScope，统一生命周期管理
+- ⚡ onTaskRemoved 调用 destroy() 彻底清理资源
+- 🛡️ 防止后台资源泄漏，提升系统稳定性
+
 ### v1.6.2 (2026-05-13)
 🐛 **修复路线播放状态竞争风险**
 - 🐛 修复路线播放启动瞬间的状态不一致问题

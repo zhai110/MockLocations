@@ -853,6 +853,18 @@ class FloatingWindowManager {
 
 ## 版本历史
 
+### v1.6.3 (2026-05-13)
+
+**Bug 修复**
+- 修复 FloatingWindowManager 内存泄漏风险
+- Service 被系统强杀时的资源泄漏问题
+
+**技术改进**
+- FloatingWindowManager 使用 serviceScope，统一协程生命周期管理
+- onTaskRemoved 调用 destroy() 彻底清理资源
+- 添加 routeControlController 的完整清理逻辑
+- 防止后台资源泄漏，提升系统稳定性
+
 ### v1.6.2 (2026-05-13)
 
 **Bug 修复**
