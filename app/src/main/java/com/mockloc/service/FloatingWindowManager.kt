@@ -30,7 +30,10 @@ import timber.log.Timber
  * - 窗口切换（show/hide）
  * - 主题同步
  */
-class FloatingWindowManager(private val service: LocationService) {
+class FloatingWindowManager(
+    private val service: LocationService,
+    private val serviceScope: kotlinx.coroutines.CoroutineScope  // ✅ 修复：使用 Service 的 scope
+) {
 
     companion object {
         private const val WINDOW_TYPE_JOYSTICK = 0
@@ -70,8 +73,8 @@ class FloatingWindowManager(private val service: LocationService) {
 
     private var currentWindowType = WINDOW_TYPE_JOYSTICK
 
-    /** 统一的协程作用域，用于管理异步任务，防止内存泄漏 */
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    /** ✅ 修复：不再创建独立的 scope，直接使用 serviceScope，确保生命周期一致 */
+    // private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())  // ❌ 已移除
 
     // 窗口控制器
     private var joystickController: JoystickWindowController? = null
@@ -233,7 +236,7 @@ class FloatingWindowManager(private val service: LocationService) {
      */
     private fun startSharedMapStateListener() {
         sharedMapStateJob?.cancel()
-        sharedMapStateJob = scope.launch {
+        sharedMapStateJob = serviceScope.launch {
             service.sharedMapState.collect {
                 Timber.d("sharedMapState 变化: $it")
                 mapController?.takeIf { it.isVisible }?.refreshMapState()
@@ -560,29 +563,33 @@ class FloatingWindowManager(private val service: LocationService) {
     fun destroy() {
         Timber.d("FloatingWindowManager.destroy() called")
         
-        // 1. 取消所有协程，防止内存泄漏
-        scope.cancel()
+        // ✅ 修复：不再取消独立的 scope，由 serviceScope 统一管理
+        // scope.cancel()  // ❌ 已移除
         
         // 2. 销毁所有控制器
         joystickController?.destroy()
         mapController?.destroy()
         historyController?.destroy()
+        routeControlController?.destroy()  // ✅ 添加路线控制控制器销毁
         
         // 3. 使用 immediate 版本立即移除所有窗口，防止泄漏
         joystickController?.rootView?.let { removeViewSafeImmediate(it) }
         mapController?.rootView?.let { removeViewSafeImmediate(it) }
         historyController?.rootView?.let { removeViewSafeImmediate(it) }
+        routeControlController?.rootView?.let { removeViewSafeImmediate(it) }  // ✅ 添加路线控制窗口移除
         
         // 4. 重置所有显示标志（防止状态不一致）
         isJoystickViewShown = false
         isMapViewShown = false
         isHistoryViewShown = false
+        isRouteControlViewShown = false  // ✅ 重置路线控制显示状态
         currentWindowType = WINDOW_TYPE_JOYSTICK
         
         // 5. 彻底清理所有引用，防止内存泄漏
         joystickController = null
         mapController = null
         historyController = null
+        routeControlController = null  // ✅ 添加路线控制控制器清理
         listener = null
         
         Timber.d("FloatingWindowManager destroyed successfully")

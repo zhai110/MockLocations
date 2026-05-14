@@ -146,17 +146,17 @@ class LocationService : Service() {
     fun clearRoute() = routePlaybackEngine?.clearRoute() ?: Unit
     fun playRoute() {
         routePlaybackEngine?.play() ?: return
-        _simulationState.update { it.copy(isSimulating = true) }
+        // isSimulating 由 routePlaybackEngine.state.collect 自然同步，无需手动设置
     }
 
     fun pauseRoute() {
         routePlaybackEngine?.pause() ?: return
-        _simulationState.update { it.copy(isSimulating = false) }
+        // isSimulating 由 routePlaybackEngine.state.collect 自然同步
     }
 
     fun stopRoute() {
         routePlaybackEngine?.stop() ?: return
-        _simulationState.update { it.copy(isSimulating = false) }
+        // isSimulating 由 routePlaybackEngine.state.collect 自然同步
     }
     fun setRouteLooping(loop: Boolean) = routePlaybackEngine?.setLooping(loop) ?: Unit
     fun setRouteSpeedMultiplier(multiplier: Float) = routePlaybackEngine?.setSpeedMultiplier(multiplier) ?: Unit
@@ -257,7 +257,8 @@ class LocationService : Service() {
 
     /** 初始化悬浮窗管理器（创建 + 绑定监听器 + init） */
     private fun initFloatingWindow() {
-        floatingWindowManager = FloatingWindowManager(this)
+        // ✅ 修复：传入 serviceScope，确保生命周期一致
+        floatingWindowManager = FloatingWindowManager(this, serviceScope)
         floatingWindowManager?.setListener(createFloatingWindowListener())
         try {
             if (Settings.canDrawOverlays(this)) {
@@ -311,7 +312,12 @@ class LocationService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         try {
             if (isRunning) stopSimulation()
-            if (isJoystickVisible) { floatingWindowManager?.hide(); isJoystickVisible = false }
+            // ✅ 修复：不仅隐藏，还要彻底销毁悬浮窗管理器，防止内存泄漏
+            if (isJoystickVisible || floatingWindowManager != null) {
+                floatingWindowManager?.destroy()
+                isJoystickVisible = false
+                floatingWindowManager = null
+            }
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         } catch (e: Exception) {
