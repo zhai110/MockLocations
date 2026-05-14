@@ -159,8 +159,30 @@ class LocationService : Service() {
     }
 
     fun stopRoute() {
-        routePlaybackEngine?.stop() ?: return
-        // isSimulating 由 routePlaybackEngine.state.collect 自然同步
+        // ✅ 修复：停止路线播放时，需要完全重置状态，以便后续可以重新启动单点定位
+        serviceScope.launch(Dispatchers.IO) {
+            positionLock.withLock {
+                if (!isRunning) return@withLock
+                
+                // 停止路线播放引擎
+                routePlaybackEngine?.stop()
+                
+                // 重置状态
+                isRunning = false
+                staticIsRunning = false
+                _simulationState.update { it.copy(isSimulating = false, isAutoMoving = false) }
+                
+                // 停止位置更新循环
+                moveJob?.cancel()
+                movementController.cancelAutoMove()
+                
+                // 隐藏所有悬浮窗
+                floatingWindowManager?.hide()
+                isJoystickVisible = false
+                
+                Timber.d("🛑 Route stopped, all states reset")
+            }
+        }
     }
     fun setRouteLooping(loop: Boolean) = routePlaybackEngine?.setLooping(loop) ?: Unit
     fun setRouteSpeedMultiplier(multiplier: Float) = routePlaybackEngine?.setSpeedMultiplier(multiplier) ?: Unit
@@ -410,13 +432,7 @@ class LocationService : Service() {
         serviceScope.launch(Dispatchers.IO) {
             positionLock.withLock {
                 if (isRunning) { 
-                    // 已经在运行中，只更新位置
                     updateTargetLocation(latitude, longitude)
-                    // ✅ 修复：确保 isSimulating = true，防止被 stopRoutePlayback() 重置后未恢复
-                    if (!_simulationState.value.isSimulating) {
-                        _simulationState.update { it.copy(isSimulating = true) }
-                        Timber.d("🔄 startSimulation: Already running, re-enabled isSimulating=true")
-                    }
                     return@withLock 
                 }
                 positionInjector.updatePosition(latitude, longitude)
@@ -427,7 +443,6 @@ class LocationService : Service() {
                 positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
                 if (moveJob?.isActive != true) initLocationUpdateLoop()
                 saveLastLocation()
-                Timber.d("🚀 startSimulation: First start, isRunning=true, isSimulating=true")
             }
         }
     }
