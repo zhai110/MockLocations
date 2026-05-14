@@ -182,7 +182,8 @@ class RoutePlaybackEngine(
         val pausedProgress = _state.value.progress
         playbackJob?.cancel()
         playbackJob = null
-        _state.update { it.copy(isPlaying = false) }
+        // ✅ 修复：同时清除 isStarting 状态，防止状态不一致
+        _state.update { it.copy(isPlaying = false, isStarting = false) }
         Timber.d("Route playback paused at index=$pausedIndex, progress=$pausedProgress")
     }
 

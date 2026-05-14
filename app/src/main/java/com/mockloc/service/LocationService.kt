@@ -102,6 +102,7 @@ class LocationService : Service() {
     private lateinit var locationManager: LocationManager
     @Volatile private var isRunning = false
     private val positionLock = Mutex()  // ✅ 修复：保护位置更新的互斥锁
+    @Volatile private var isCleaningUp = false  // ✅ 修复：防止 onTaskRemoved 重复调用
     private lateinit var positionInjector: PositionInjector
     private lateinit var movementController: MovementController
     private var locationUpdateInterval = DEFAULT_LOCATION_UPDATE_INTERVAL_MS
@@ -313,6 +314,13 @@ class LocationService : Service() {
 
     /** 用户从最近任务中滑动删除：停止模拟、关闭悬浮窗、停止服务 */
     override fun onTaskRemoved(rootIntent: Intent?) {
+        // ✅ 修复：防止重复调用导致的竞态条件
+        if (isCleaningUp) {
+            Timber.w("onTaskRemoved already in progress, skipping")
+            return
+        }
+        isCleaningUp = true
+        
         try {
             if (isRunning) stopSimulation()
             // ✅ 修复：不仅隐藏，还要彻底销毁悬浮窗管理器，防止内存泄漏
@@ -325,6 +333,8 @@ class LocationService : Service() {
             stopSelf()
         } catch (e: Exception) {
             Timber.e(e, "onTaskRemoved cleanup failed")
+        } finally {
+            isCleaningUp = false
         }
         super.onTaskRemoved(rootIntent)
     }
