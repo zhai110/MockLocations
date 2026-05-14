@@ -42,13 +42,13 @@ class DialogDelegate(
 
         MaterialAlertDialogBuilder(fragment.requireContext())
             .setView(dialogView)
-            .setPositiveButton("确定") { _, _ ->
+            .setPositiveButton(fragment.getString(R.string.dialog_coordinate_confirm)) { _, _ ->
                 try {
                     val lat = latEdit.text.toString().toDouble()
                     val lng = lngEdit.text.toString().toDouble()
 
                     if (lat < -90.0 || lat > 90.0 || lng < -180.0 || lng > 180.0) {
-                        UIFeedbackHelper.showToast(fragment.requireContext(), "坐标超出有效范围")
+                        UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_coordinate_out_of_range))
                         return@setPositiveButton
                     }
 
@@ -76,10 +76,10 @@ class DialogDelegate(
                     Timber.d("Input coords: $lat, $lng ($selectedCoordType) -> GCJ02: ${gcjLatLng.latitude}, ${gcjLatLng.longitude}")
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to parse coordinates")
-                    UIFeedbackHelper.showToast(fragment.requireContext(), "坐标格式错误")
+                    UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_coordinate_format_error))
                 }
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(fragment.getString(R.string.dialog_coordinate_cancel), null)
             .show()
     }
 }

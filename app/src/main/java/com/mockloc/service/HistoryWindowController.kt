@@ -256,7 +256,7 @@ class HistoryWindowController(
                 onHistorySelected(record)
                 
                 // 显示提示
-                UIFeedbackHelper.showToast(context, "位置已更新: ${record.name}")
+                UIFeedbackHelper.showToast(context, context.getString(R.string.toast_location_updated_with_name, record.name))
                 
                 // 切换回摇杆窗口
                 onSwitchToJoystick()

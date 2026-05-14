@@ -209,7 +209,7 @@ class SearchDelegate(
         // 重新添加监听器
         binding.searchEdit.addTextChangedListener(searchTextWatcher)
         
-        com.mockloc.util.UIFeedbackHelper.showToast(fragment.requireContext(), "已清除搜索")
+        com.mockloc.util.UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_search_cleared))
     }
     
     /**

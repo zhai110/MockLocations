@@ -200,7 +200,7 @@ class RouteEditDelegate(
         viewModel.removeRoutePointAt(selectedPointIndex)
         hideRoutePointEditButtons()
         
-        com.mockloc.util.UIFeedbackHelper.showToast(fragment.requireContext(), "已删除 $pointLabel")
+        com.mockloc.util.UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_route_point_deleted, pointLabel))
     }
     
     /**

@@ -62,7 +62,7 @@ class SimulationDelegate(
 
         binding.routePlayFabBtn.setOnClickListener {
             if (viewModel.routeState.value.routePoints.size < 2) {
-                UIFeedbackHelper.showToast(fragment.requireContext(), "至少需要2个路线点")
+                UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_need_at_least_2_points))
                 return@setOnClickListener
             }
             viewModel.toggleRoutePlayback()
@@ -77,7 +77,7 @@ class SimulationDelegate(
                 else -> 1f
             }
             viewModel.setRouteSpeedMultiplier(nextSpeed)
-            UIFeedbackHelper.showToast(fragment.requireContext(), "速度: ${nextSpeed}x")
+            UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_speed_changed, nextSpeed))
         }
 
         binding.routeStopFabBtn.setOnClickListener {
@@ -196,10 +196,10 @@ class SimulationDelegate(
             }
             fragment.requireContext().startService(intent)
             onUpdateMarker?.invoke(com.amap.api.maps.model.LatLng(latitude, longitude), true)
-            UIFeedbackHelper.showToast(fragment.requireContext(), "已传送到新位置")
+            UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_teleport_success))
         } catch (e: Exception) {
             Timber.e(e, "传送失败")
-            UIFeedbackHelper.showToast(fragment.requireContext(), "传送失败: ${e.message}")
+            UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_teleport_failed, e.message))
         }
     }
 
@@ -226,7 +226,7 @@ class SimulationDelegate(
             onUpdateMarker?.invoke(com.amap.api.maps.model.LatLng(latitude, longitude), true)
         } catch (e: Exception) {
             Timber.e(e, "更新位置失败")
-            UIFeedbackHelper.showToast(fragment.requireContext(), "更新位置失败: ${e.message}")
+            UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_update_location_failed, e.message))
         }
     }
 
@@ -317,7 +317,7 @@ class SimulationDelegate(
         val routeState = viewModel.routeState.value
         
         if (routeState.routePoints.size < 2) {
-            UIFeedbackHelper.showToast(fragment.requireContext(), "至少需要2个路线点")
+            UIFeedbackHelper.showToast(fragment.requireContext(), fragment.getString(R.string.toast_need_at_least_2_points))
             return
         }
         

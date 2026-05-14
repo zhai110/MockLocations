@@ -300,12 +300,12 @@ class SettingsActivity : AppCompatActivity() {
                             .show(supportFragmentManager, "update_dialog")
                     } else {
                         // 已是最新版本
-                        UIFeedbackHelper.showToast(this@SettingsActivity, "当前已是最新版本")
+                        UIFeedbackHelper.showToast(this@SettingsActivity, getString(R.string.toast_already_latest_version))
                     }
                 }
                 .onFailure { error ->
                     loadingDialog.dismiss()
-                    UIFeedbackHelper.showToast(this@SettingsActivity, "检查更新失败：${error.message}")
+                    UIFeedbackHelper.showToast(this@SettingsActivity, getString(R.string.toast_check_update_failed, error.message ?: ""))
                     Timber.e(error, "Update check failed")
                 }
         }

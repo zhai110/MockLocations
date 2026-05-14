@@ -684,7 +684,7 @@ class MapWindowController(
             
             val wgs = MapUtils.gcj02ToWgs84(marked.longitude, marked.latitude)
             onLocationSelected(wgs[1], wgs[0])
-            UIFeedbackHelper.showToast(context, "已传送到新位置")
+            UIFeedbackHelper.showToast(context, context.getString(R.string.toast_teleport_success))
             
             mapDelegate?.animateCamera(marked)
             
@@ -702,10 +702,10 @@ class MapWindowController(
                 btnGoPulseAnimator?.cancel()
                 isPositionConfirmed = false
                 btnGo?.setImageResource(R.drawable.ic_position)
-                UIFeedbackHelper.showToast(context, "已停止模拟")
+                UIFeedbackHelper.showToast(context, context.getString(R.string.toast_simulation_stopped))
             } else {
                 // 去激活 -> 无操作，提示用户先选择位置
-                UIFeedbackHelper.showToast(context, "请先在地图上选择一个位置")
+                UIFeedbackHelper.showToast(context, context.getString(R.string.toast_please_select_location_first))
             }
         }
     }

@@ -41,7 +41,36 @@
     <string name="toast_simulation_start_failed">启动模拟失败: %s</string>
     <string name="toast_simulation_stop_failed">停止模拟失败: %s</string>
     <string name="toast_please_select_location">请先选择位置</string>
+    <string name="toast_please_select_location_first">请先在地图上选择一个位置</string>
     <string name="toast_coordinates_copied">坐标已复制</string>
+    
+    <!-- 路线相关提示 -->
+    <string name="toast_need_at_least_2_points">至少需要2个路线点</string>
+    <string name="toast_speed_changed">速度: %.1fx</string>
+    <string name="toast_teleport_success">已传送到新位置</string>
+    <string name="toast_teleport_failed">传送失败: %s</string>
+    <string name="toast_update_location_failed">更新位置失败: %s</string>
+    <string name="toast_route_point_deleted">已删除 %s</string>
+    
+    <!-- 地图窗口提示 -->
+    <string name="toast_stopped_simulation">已停止模拟</string>
+    
+    <!-- 历史记录提示 -->
+    <string name="toast_location_updated">位置已更新</string>
+    <string name="toast_location_updated_with_name">位置已更新: %s</string>
+    
+    <!-- 搜索提示 -->
+    <string name="toast_search_cleared">已清除搜索</string>
+    
+    <!-- 坐标输入对话框 -->
+    <string name="dialog_coordinate_confirm">确定</string>
+    <string name="dialog_coordinate_cancel">取消</string>
+    <string name="toast_coordinate_out_of_range">坐标超出有效范围</string>
+    <string name="toast_coordinate_format_error">坐标格式错误</string>
+    
+    <!-- 设置页面提示 -->
+    <string name="toast_already_latest_version">当前已是最新版本</string>
+    <string name="toast_check_update_failed">检查更新失败：%s</string>
     
     <!-- 摇杆控制 -->
     <string name="move_control">移动控制</string>
