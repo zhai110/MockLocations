@@ -853,6 +853,18 @@ class FloatingWindowManager {
 
 ## 版本历史
 
+### v1.6.2 (2026-05-13)
+
+**Bug 修复**
+- 修复 RoutePlaybackEngine 状态竞争风险
+- 路线播放启动瞬间的状态不一致问题
+
+**技术改进**
+- RoutePlaybackState 新增 isStarting 过渡状态
+- play() 先设置 isStarting=true，第一次位置更新后才设置 isPlaying=true
+- LocationService 同步时忽略 isStarting，只关注 isPlaying
+- 消除竞争窗口，增强状态机健壮性
+
 ### v1.6.1 (2026-05-13)
 
 **Bug 修复**

@@ -487,6 +487,13 @@ override fun onConfigurationChanged(newConfig: Configuration) {
 
 ## 📝 版本历史
 
+### v1.6.2 (2026-05-13)
+🐛 **修复路线播放状态竞争风险**
+- 🐛 修复路线播放启动瞬间的状态不一致问题
+- 🔧 RoutePlaybackState 新增 isStarting 过渡状态
+- ⚡ 消除启动瞬间的竞争窗口，防止状态闪烁
+- 🛡️ 增强状态机的健壮性和可预测性
+
 ### v1.6.1 (2026-05-13)
 🐛 **修复更新提示问题 + 增强安全性**
 - 🐛 修复从旧版本升级后仍弹出更新提示的问题

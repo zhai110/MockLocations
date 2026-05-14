@@ -7,6 +7,28 @@
 
 ---
 
+## [v1.6.2] - 2026-05-13
+
+### Fixed - 修复
+- **RoutePlaybackEngine 状态竞争风险**：
+  - 修复路线播放启动瞬间的状态不一致问题
+  - play() 启动时立即设置 isPlaying=true，但协程尚未开始执行
+  - LocationService 的 collect 回调可能捕获到中间状态
+
+### Optimized - 优化
+- **RoutePlaybackState 状态机增强**：
+  - 新增 isStarting 过渡状态，防止竞争窗口
+  - play() 先设置 isStarting=true, isPlaying=false
+  - 第一次位置更新后才设置 isStarting=false, isPlaying=true
+  - LocationService 同步时只关注 isPlaying，忽略 isStarting
+
+### Technical Details - 技术细节
+- **关键修复**：RoutePlaybackEngine 状态竞争风险
+- **影响范围**：路线模拟功能
+- **用户体验**：消除启动瞬间的状态闪烁
+
+---
+
 ## [v1.6.1] - 2026-05-13
 
 ### Fixed - 修复
