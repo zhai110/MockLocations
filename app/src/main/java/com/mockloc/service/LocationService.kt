@@ -410,7 +410,13 @@ class LocationService : Service() {
         serviceScope.launch(Dispatchers.IO) {
             positionLock.withLock {
                 if (isRunning) { 
+                    // 已经在运行中，只更新位置
                     updateTargetLocation(latitude, longitude)
+                    // ✅ 修复：确保 isSimulating = true，防止被 stopRoutePlayback() 重置后未恢复
+                    if (!_simulationState.value.isSimulating) {
+                        _simulationState.update { it.copy(isSimulating = true) }
+                        Timber.d("🔄 startSimulation: Already running, re-enabled isSimulating=true")
+                    }
                     return@withLock 
                 }
                 positionInjector.updatePosition(latitude, longitude)
@@ -421,6 +427,7 @@ class LocationService : Service() {
                 positionInjector.setLocation(LocationManager.GPS_PROVIDER, Criteria.ACCURACY_FINE)
                 if (moveJob?.isActive != true) initLocationUpdateLoop()
                 saveLastLocation()
+                Timber.d("🚀 startSimulation: First start, isRunning=true, isSimulating=true")
             }
         }
     }
