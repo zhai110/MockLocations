@@ -27,7 +27,8 @@ data class RoutePlaybackState(
     val speedMultiplier: Float = 1f,
     val currentIndex: Int = 0,
     val totalPoints: Int = 0,
-    val progress: Float = 0f
+    val progress: Float = 0f,
+    val isStarting: Boolean = false  // ✅ 新增：启动过渡状态，防止竞争
 )
 
 class RoutePlaybackEngine(
@@ -122,8 +123,11 @@ class RoutePlaybackEngine(
 
         val resumeIndex = _state.value.currentIndex
         val resumeProgress = _state.value.progress
-        _state.update { it.copy(isPlaying = true) }
-        Timber.d("🎬 RoutePlaybackEngine.play() started: resumeIndex=$resumeIndex, resumeProgress=$resumeProgress, totalPoints=${points.size}")
+        
+        // ✅ 修复：先设置 isStarting=true，防止状态竞争
+        _state.update { it.copy(isPlaying = false, isStarting = true) }
+        Timber.d("🎬 RoutePlaybackEngine.play() starting: resumeIndex=$resumeIndex, resumeProgress=$resumeProgress, totalPoints=${points.size}")
+        
         playbackJob = scope.launch(Dispatchers.Default) {
             try {
                 var isFirstLoop = true
@@ -142,6 +146,13 @@ class RoutePlaybackEngine(
                         val segmentSteps = calculateSteps(from, to, currentSpeed)
                         for (step in 0..segmentSteps) {
                             if (!isActive) break
+                            
+                            // ✅ 修复：第一次位置更新后，清除 isStarting 状态，设置 isPlaying=true
+                            if (_state.value.isStarting) {
+                                _state.update { it.copy(isStarting = false, isPlaying = true) }
+                                Timber.d("🎬 Route playback officially started (isStarting=false, isPlaying=true)")
+                            }
+                            
                             val fraction = if (segmentSteps == 0) 1f else step.toFloat() / segmentSteps
                             val interpolated = interpolate(from, to, fraction)
                             val bearing = calculateBearing(from, to)
@@ -160,10 +171,10 @@ class RoutePlaybackEngine(
             } catch (e: CancellationException) {
                 Timber.d("Route playback cancelled")
             } finally {
-                _state.update { it.copy(isPlaying = false) }
+                _state.update { it.copy(isPlaying = false, isStarting = false) }
             }
         }
-        Timber.d("Route playback started")
+        Timber.d("Route playback job launched")
     }
 
     fun pause() {

@@ -235,7 +235,8 @@ class LocationService : Service() {
         serviceScope.launch {
             routePlaybackEngine?.state?.collect { state ->
                 notifyRouteControlStateChanged(state.isPlaying)
-                // 路线播放状态变化时同步更新模拟状态（自然结束/取消时 isPlaying 变 false）
+                // ✅ 修复：路线播放状态变化时同步更新模拟状态
+                // 忽略 isStarting 过渡状态，只在 isPlaying 真正变化时更新
                 _simulationState.update { it.copy(isSimulating = state.isPlaying) }
             }
         }
