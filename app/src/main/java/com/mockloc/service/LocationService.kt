@@ -203,7 +203,7 @@ class LocationService : Service() {
         if (!Settings.canDrawOverlays(this)) return
         val isRoutePlaying = routePlaybackEngine?.state?.value?.isPlaying == true
         if (!isRoutePlaying && !isJoystickVisible) {
-            floatingWindowManager?.show()
+            floatingWindowManager?.showJoystick()
             isJoystickVisible = true
         }
     }
@@ -608,7 +608,7 @@ class LocationService : Service() {
     inner class NoteActionReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                NOTE_ACTION_SHOW -> { floatingWindowManager?.show(); isJoystickVisible = true }
+                NOTE_ACTION_SHOW -> { floatingWindowManager?.showJoystick(); isJoystickVisible = true }
                 NOTE_ACTION_HIDE -> { floatingWindowManager?.hide(); isJoystickVisible = false }
             }
         }

@@ -279,6 +279,16 @@ class FloatingWindowManager(
     // ==================== 显示/隐藏 ====================
 
     /**
+     * ✅ 显示摇杆悬浮窗（确保窗口类型正确，用于单点定位模式）
+     * 修复：从路线模式切回单点模式后，currentWindowType 可能仍是 ROUTE_CONTROL，
+     * 直接调用 show() 会显示错误的窗口。此方法先重置类型再显示。
+     */
+    fun showJoystick() {
+        currentWindowType = WINDOW_TYPE_JOYSTICK
+        show()
+    }
+
+    /**
      * 显示当前窗口
      */
     fun show() {
@@ -475,12 +485,15 @@ class FloatingWindowManager(
         mapController?.rootView?.let { removeViewSafeImmediate(it) }
         historyController?.rootView?.let { removeViewSafeImmediate(it) }
         routeControlController?.rootView?.let { removeViewSafeImmediate(it) }  // ✅ 隐藏路线控制窗口
-        
+
         // 重置显示标志
         isJoystickViewShown = false
         isMapViewShown = false
         isHistoryViewShown = false
         isRouteControlViewShown = false  // ✅ 重置路线控制显示状态
+
+        // ✅ 修复：重置窗口类型为摇杆，防止切回单点模式后 show() 仍显示路线控制窗
+        currentWindowType = WINDOW_TYPE_JOYSTICK
     }
     
     /**
@@ -541,7 +554,7 @@ class FloatingWindowManager(
         if (!isRouteControlViewShown) {
             return
         }
-        
+
         val view = routeControlController?.rootView
         if (view != null && view.parent != null) {
             // ✅ 淡出动画后移除视图
@@ -554,9 +567,11 @@ class FloatingWindowManager(
                 }
             }
         }
-        
+
         isRouteControlViewShown = false
-        Timber.d("Route control window hidden")
+        // ✅ 修复：隐藏路线控制窗后重置窗口类型为摇杆，防止下次 show() 仍显示路线控制窗
+        currentWindowType = WINDOW_TYPE_JOYSTICK
+        Timber.d("Route control window hidden, currentWindowType reset to JOYSTICK")
     }
 
     /**
