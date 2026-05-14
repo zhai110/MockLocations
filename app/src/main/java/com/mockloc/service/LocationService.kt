@@ -239,9 +239,27 @@ class LocationService : Service() {
         serviceScope.launch {
             routePlaybackEngine?.state?.collect { state ->
                 notifyRouteControlStateChanged(state.isPlaying)
-                // ✅ 修复：路线播放状态变化时同步更新模拟状态
-                // 忽略 isStarting 过渡状态，只在 isPlaying 真正变化时更新
-                _simulationState.update { it.copy(isSimulating = state.isPlaying) }
+                // ✅ 修复：路线播放状态变化时，智能同步到 isSimulating
+                // 
+                // 逻辑说明：
+                // 1. 路线开始播放 → isSimulating = true（覆盖任何之前的状态）
+                // 2. 路线停止/暂停 → 只有在 isRunning=false 时才设置 isSimulating=false
+                //    （如果 isRunning=true，说明有单点定位在运行，不要覆盖）
+                if (state.isPlaying) {
+                    // 路线正在播放 → 强制设置为模拟中
+                    _simulationState.update { it.copy(isSimulating = true) }
+                    Timber.d("🎬 Route playing → isSimulating=true")
+                } else {
+                    // 路线未播放（停止/暂停/启动中）
+                    if (!isRunning) {
+                        // 没有单点定位在运行 → 可以安全设置为 false
+                        _simulationState.update { it.copy(isSimulating = false) }
+                        Timber.d("🎬 Route stopped & not running → isSimulating=false")
+                    } else {
+                        // 有单点定位在运行 → 保持 isSimulating=true，不要覆盖
+                        Timber.d("🎬 Route stopped but running → keep isSimulating=true (single-point mode)")
+                    }
+                }
             }
         }
     }
