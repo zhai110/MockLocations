@@ -18,6 +18,7 @@
 ### Optimized - 优化
 - **统一协程生命周期管理**：
   - FloatingWindowManager 使用 serviceScope，不再创建独立 scope
+  - MapWindowController 和 HistoryWindowController 也使用 serviceScope
   - 确保所有协程与 Service 生命周期一致
   - Service 停止时自动取消所有协程，防止泄漏
 - **onTaskRemoved 清理完善**：
@@ -26,8 +27,8 @@
   - 添加 routeControlController 的完整清理逻辑
 
 ### Technical Details - 技术细节
-- **关键修复**：FloatingWindowManager 内存泄漏
-- **影响范围**：悬浮窗系统、定位客户端
+- **关键修复**：FloatingWindowManager 及所有 Controller 的内存泄漏
+- **影响范围**：悬浮窗系统、定位客户端、所有窗口控制器
 - **用户体验**：防止后台资源泄漏，提升系统稳定性
 
 ---
