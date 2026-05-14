@@ -38,6 +38,8 @@
     <!-- 安装未知来源应用权限 -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- ⚠️ 允许 HTTP 明文流量，高德地图 SDK 部分接口使用 HTTP -->
+    <!-- TODO: 未来高德 SDK 升级后，尝试禁用此选项以提升安全性 -->
     <application
         android:name=".VirtualLocationApp"
         android:allowBackup="true"

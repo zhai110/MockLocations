@@ -67,13 +67,19 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false  // 暂时禁用混淆，避免高德地图死锁
+            // ⚠️ 暂时禁用代码混淆，高德地图 SDK 在混淆后可能出现兼容性问题
+            // TODO: 待高德地图 SDK 升级或找到更完善的 ProGuard 规则后启用
+            isMinifyEnabled = false
+            
+            // ⚠️ 资源压缩需要代码混淆同时启用，因此暂时禁用
+            // 参考：https://developer.android.com/studio/build/shrink-code#shrink-resources
             isShrinkResources = false
             
-            // proguardFiles(
-            //     getDefaultProguardFile("proguard-android-optimize.txt"),
-            //     "proguard-rules.pro"
-            // )
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            
             // ✅ 使用 Release 签名配置
             signingConfig = signingConfigs.getByName("release")
             
@@ -82,6 +88,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            isShrinkResources = false
             // Debug 版本始终使用 debug 签名
         }
     }
