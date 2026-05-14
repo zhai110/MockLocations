@@ -404,22 +404,6 @@ class LocationService : Service() {
                 if (moveJob?.isActive != true) initLocationUpdateLoop()
                 saveLastLocation()
             }
-            
-            // ✅ 修复：启动模拟后，如果不是路线播放模式，自动显示悬浮窗
-            // 注意：必须在 Mutex 锁外、主线程中调用，避免死锁和 UI 线程问题
-            val isRoutePlaying = routePlaybackEngine?.state?.value?.isPlaying == true
-            if (!isRoutePlaying && Settings.canDrawOverlays(this@LocationService)) {
-                try {
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        floatingWindowManager?.show()
-                        isJoystickVisible = true
-                        Timber.d("🪟 Auto-showing floating window after startSimulation")
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to show floating window")
-                    // 不中断模拟流程，只是悬浮窗显示失败
-                }
-            }
         }
     }
 

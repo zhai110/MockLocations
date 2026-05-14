@@ -778,7 +778,9 @@ class MainViewModel(
     fun stopRoutePlayback() {
         serviceConnector.execute { stopRoutePlayback() }
         _simulationState.update { it.copy(isSimulating = false) }
-        Timber.d("Route playback stopped and simulation state reset")
+        // ✅ 修复：停止路线播放后，重置路线模式，允许后续单点定位正常显示悬浮窗
+        _routeState.update { it.copy(isRouteMode = false) }
+        Timber.d("Route playback stopped, simulation state and route mode reset")
     }
     
     /**
