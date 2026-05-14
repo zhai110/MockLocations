@@ -41,7 +41,8 @@ class HistoryWindowController(
     private val onSwitchToJoystick: () -> Unit,
     private val onSwitchToMap: () -> Unit,
     private val onHistorySelected: (location: HistoryLocation) -> Unit,
-    private val locationRepository: LocationRepository  // ✅ Phase 1: Repository 替代直接 DAO 访问
+    private val locationRepository: LocationRepository,  // ✅ Phase 1: Repository 替代直接 DAO 访问
+    private val serviceScope: kotlinx.coroutines.CoroutineScope  // ✅ 修复：传入 serviceScope
 ) : WindowController {
 
     override var rootView: View? = null
@@ -62,8 +63,8 @@ class HistoryWindowController(
     // 数据
     private var allRecords: List<HistoryLocation> = emptyList()
     
-    // 协程作用域
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    /** ✅ 修复：不再创建独立 scope，使用传入的 serviceScope */
+    // private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())  // ❌ 已移除
     
     // ✅ 缓存 themedContext，避免重复创建
     private lateinit var themedContext: Context
@@ -111,8 +112,8 @@ class HistoryWindowController(
     }
 
     override fun destroy() {
-        // 1. 取消协程
-        scope.cancel()
+        // ✅ 修复：不再取消独立 scope，由 serviceScope 统一管理
+        // scope.cancel()  // ❌ 已移除
         
         // 2. 清理适配器
         adapter = null
@@ -360,7 +361,7 @@ class HistoryWindowController(
      * 刷新历史记录 — ✅ Phase 1: 通过 LocationRepository
      */
     fun refreshHistory() {
-        scope.launch {
+        serviceScope.launch {  // ✅ 修复：使用 serviceScope
             try {
                 allRecords = locationRepository.getAllHistory()
                 withContext(Dispatchers.Main) {

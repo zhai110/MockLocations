@@ -175,7 +175,8 @@ class FloatingWindowManager(
                     service.startService(intent)
                 },
                 serviceContext = service,
-                getSharedMapState = { service.sharedMapState.value }
+                getSharedMapState = { service.sharedMapState.value },
+                serviceScope = serviceScope  // ✅ 修复：传入 serviceScope
             )
             mapController?.initialize()
             
@@ -206,7 +207,8 @@ class FloatingWindowManager(
                     val wgs = com.mockloc.util.MapUtils.gcj02ToWgs84(location.longitude, location.latitude)
                     listener?.onPositionSelected(wgs[0], wgs[1], 0.0)
                 },
-                locationRepository = locationRepository  // ✅ Phase 1: 注入 Repository
+                locationRepository = locationRepository,  // ✅ Phase 1: 注入 Repository
+                serviceScope = serviceScope  // ✅ 修复：传入 serviceScope
             )
             historyController?.initialize()
             

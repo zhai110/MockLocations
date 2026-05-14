@@ -42,7 +42,7 @@ import timber.log.Timber
  * 包括：搜索框、地图视图、POI搜索结果、定位按钮
  *
  * 设计：不持有 LocationService 引用，通过回调与外部交互
- * - getCurrentLocationGcj02: 获取当前位置（GCJ-02），用于"回到当前位置"
+ * - getCurrentLocationGcj02: 获取当前位置（GCJ-02），用于“回到当前位置”
  * - onStopSimulation: 停止模拟定位
  * - searchRepository: POI 搜索，替代直接创建 PoiSearchHelper
  */
@@ -58,7 +58,8 @@ class MapWindowController(
     private val isSimulating: () -> Boolean,
     private val onStopSimulation: () -> Unit,
     private val serviceContext: Context,
-    private val getSharedMapState: () -> com.mockloc.service.LocationService.SharedMapState
+    private val getSharedMapState: () -> com.mockloc.service.LocationService.SharedMapState,
+    private val serviceScope: kotlinx.coroutines.CoroutineScope  // ✅ 修复：传入 serviceScope
 ) : WindowController {
 
     override var rootView: View? = null
@@ -86,8 +87,8 @@ class MapWindowController(
     private var isPositionConfirmed = false
     private var btnGoPulseAnimator: android.animation.ValueAnimator? = null
     
-    // 协程作用域
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    /** ✅ 修复：不再创建独立 scope，使用传入的 serviceScope */
+    // private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())  // ❌ 已移除
     
     // ✅ 缓存 themedContext，避免重复创建
     private lateinit var themedContext: Context
@@ -170,7 +171,8 @@ class MapWindowController(
     }
 
     override fun destroy() {
-        scope.cancel()
+        // ✅ 修复：不再取消独立 scope，由 serviceScope 统一管理
+        // scope.cancel()  // ❌ 已移除
         btnGoPulseAnimator?.cancel()
         
         locationClient?.stopLocation()
